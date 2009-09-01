@@ -97,6 +97,7 @@ jbplot_init (jbplot *plot)
 */
 }
 
+/*
 static void draw_cairo (GtkWidget *plot, void *gc) {
 	jbplotPrivate *priv;
 	double width, height;
@@ -117,6 +118,7 @@ static void draw_cairo (GtkWidget *plot, void *gc) {
 	cairo_stroke (cr);
 
 }
+*/
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double width, height;
