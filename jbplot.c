@@ -14,6 +14,9 @@
 #include "jbplot.h"
 #include "jbplot-marshallers.h"
 
+
+#define USE_CAIRO 1
+
 #define JBPLOT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), JBPLOT_TYPE, jbplotPrivate))
 
 G_DEFINE_TYPE (jbplot, jbplot, GTK_TYPE_DRAWING_AREA);
@@ -120,36 +123,159 @@ static void draw_cairo (GtkWidget *plot, void *gc) {
 }
 */
 
+typedef enum {
+	ANCHOR_TOP_LEFT,
+	ANCHOR_TOP_MIDDLE,
+	ANCHOR_TOP_RIGHT,
+	ANCHOR_MIDDLE_LEFT,
+	ANCHOR_MIDDLE_MIDDLE,
+	ANCHOR_MIDDLE_RIGHT,
+	ANCHOR_BOTTOM_LEFT,
+	ANCHOR_BOTTOM_MIDDLE,
+	ANCHOR_BOTTOM_RIGHT
+} anchor_t;
+
+
+
+static int draw_vert_text_at_point(GtkWidget *plot, void *gc, char *text, float x, float y, anchor_t anchor) {
+	static int first_time = 1;
+  static PangoLayout *pl;
+	int w, h;
+	float x_left, y_top;
+	if(first_time) {
+		first_time = 0;
+		pl = gtk_widget_create_pango_layout(plot, "");
+	}
+	pango_layout_set_text(pl, text, -1);
+	pango_layout_get_size(pl, &w, &h);
+	printf("w=%d, h=%d\n", w, h);
+	switch(anchor) {
+		case ANCHOR_TOP_LEFT:
+			x_left = x;
+			y_top = y;
+			break;
+		case ANCHOR_TOP_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y;
+			break;
+		case ANCHOR_TOP_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y;
+			break;
+		case ANCHOR_MIDDLE_LEFT:
+			x_left = x;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_MIDDLE_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_MIDDLE_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_LEFT:
+			x_left = x;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		default:
+			x_left = x;
+			y_top = y;
+	}
+	gdk_draw_layout(plot->window, gc, x_left, y_top, pl);
+	return 0;
+}
+
+
+static int draw_horiz_text_at_point(GtkWidget *plot, void *gc, char *text, float x, float y, anchor_t anchor) {
+	static int first_time = 1;
+  static PangoLayout *pl;
+	int w, h;
+	float x_left, y_top;
+	if(first_time) {
+		first_time = 0;
+		pl = gtk_widget_create_pango_layout(plot, "");
+	}
+	pango_layout_set_text(pl, text, -1);
+	pango_layout_get_size(pl, &w, &h);
+	printf("w=%d, h=%d\n", w, h);
+	switch(anchor) {
+		case ANCHOR_TOP_LEFT:
+			x_left = x;
+			y_top = y;
+			break;
+		case ANCHOR_TOP_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y;
+			break;
+		case ANCHOR_TOP_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y;
+			break;
+		case ANCHOR_MIDDLE_LEFT:
+			x_left = x;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_MIDDLE_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_MIDDLE_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y - (float)h/2/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_LEFT:
+			x_left = x;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_MIDDLE:
+			x_left = x - (float)w/2/PANGO_SCALE;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		case ANCHOR_BOTTOM_RIGHT:
+			x_left = x - (float)w/PANGO_SCALE;
+			y_top = y - (float)h/PANGO_SCALE;
+			break;
+		default:
+			x_left = x;
+			y_top = y;
+	}
+	gdk_draw_layout(plot->window, gc, x_left, y_top, pl);
+	return 0;
+}
+
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double width, height;
 
 	width = plot->allocation.width;
 	height = plot->allocation.height;
-/*
-	cairo_t *cr;
-	cr = gdk_cairo_create (plot->window);
-	cairo_rectangle (cr,
-			event->area.x, event->area.y,
-			event->area.width, event->area.height);
-	cairo_clip (cr);
-
-	draw_cairo (plot, cr);
-	cairo_destroy (cr);
-*/
 
 	GdkGC *gc;
+	GdkColor fg;
 	gc = plot->style->fg_gc[GTK_WIDGET_STATE (plot)];
+	if(!gdk_color_parse("blue", &fg)) {
+		printf("Failed parsing color by name...\n");
+		fg.red   = 65535;
+		fg.green = 0;
+		fg.blue  = 0;
+	}
+	gdk_gc_set_rgb_fg_color(gc, &fg);
+		
 	gdk_draw_arc (plot->window, gc,
-                FALSE,
+							  FALSE,
                 0, 0, plot->allocation.width, plot->allocation.height,
                 0, 64 * 360);
 
-	PangoLayout *pl = gtk_widget_create_pango_layout(plot, "hello world!");
-	int w, h;
-	pango_layout_get_size(pl, &w, &h);
-	printf("width=%g, height=%g\n", width, height);
-	printf("w=%d, h=%d\n", w, h);
-	gdk_draw_layout(plot->window, gc, (width - (double)w / PANGO_SCALE)/2, (height - (double)h / PANGO_SCALE)/2, pl);
+	draw_horiz_text_at_point(plot, gc, "hello there!", width/2, height/2, ANCHOR_TOP_LEFT);
+	draw_vert_text_at_point(plot, gc, "hi there!", width/2, height/2, ANCHOR_TOP_LEFT);
 
 	return FALSE;
 }
