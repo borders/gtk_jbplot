@@ -13,6 +13,10 @@
 
 #include "jbplot.h"
 
+float x[] = {0,1,2,3,4,5,6,7,8,9};
+float y[] = {1,0,3,3,7,5,3,9,8,7};
+
+
 
 int
 main (int argc, char **argv)
@@ -31,6 +35,9 @@ main (int argc, char **argv)
 			G_CALLBACK (gtk_main_quit), NULL);
 
 	gtk_widget_show_all (window);
+
+	jbplot_set_plot_title((jbplot *)plot, "Hello World", 1);
+	jbplot_add_trace((jbplot *)plot, x, y, 10, 10);
 
 	gtk_main ();
 }

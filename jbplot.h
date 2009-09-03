@@ -43,6 +43,10 @@ struct _jbplotClass
 };
 
 GtkWidget *jbplot_new (void);
+int jbplot_set_plot_title(jbplot *plot, char *title, int copy);
+int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
+int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
+int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity);
 
 G_END_DECLS
 
