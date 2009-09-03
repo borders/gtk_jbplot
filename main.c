@@ -22,14 +22,23 @@ int
 main (int argc, char **argv)
 {
 	GtkWidget *window;
+	GtkWidget *v_box;
 	GtkWidget *plot;
+	GtkWidget *button;
 
 	gtk_init (&argc, &argv);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+
+	v_box = gtk_vbox_new(FALSE, 10);
+	gtk_container_add (GTK_CONTAINER (window), v_box);
 	
 	plot = jbplot_new ();
-	gtk_container_add (GTK_CONTAINER (window), plot);
+	gtk_widget_set_size_request(plot, 300, 300);
+	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
+
+	button = gtk_button_new_with_label("Press Me!");
+	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 
 	g_signal_connect (window, "destroy",
 			G_CALLBACK (gtk_main_quit), NULL);
