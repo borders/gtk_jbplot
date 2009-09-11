@@ -178,7 +178,7 @@ static int init_axis(axis_t *axis) {
 	axis->is_axis_label_owner = 0;
   axis->do_show_tic_labels = 1;
   axis->do_autoscale = 0;
-  axis->do_loose_fit = 1;
+  axis->do_loose_fit = 0;
   axis->do_show_major_gridlines = 1;
   axis->major_gridline_width = 1.0;
   axis->do_show_minor_gridlines = 0;
@@ -812,6 +812,81 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+
+void jbplot_refresh(jbplot *plot) {
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return;
+}
+
+int jbplot_trace_add_point(trace_t *t, float x, float y) {
+	t->length++;
+	t->end_index++;
+	if(t->end_index >= t->capacity) {
+		t->end_index = 0;
+	}
+	if(t->end_index == t->start_index) {
+		t->start_index++;
+		t->length = t->capacity;
+	}
+	if(t->start_index >= t->capacity) {
+		t->start_index = 0;
+	}
+	*(t->x_data + t->end_index) = x;
+	*(t->y_data + t->end_index) = y;
+	return 0;
+}
+
+trace_t *jbplot_create_trace(int capacity) {
+	trace_t *t;
+	t = malloc(sizeof(trace_t));
+	if(t==NULL) {
+		return NULL;
+	}	
+	t->x_data = malloc(sizeof(float)*capacity);
+	if(t->x_data==NULL) {
+		free(t);
+		return NULL;
+	}
+	t->y_data = malloc(sizeof(float)*capacity);
+	if(t->y_data==NULL) {
+		free(t);
+		free(t->x_data);
+		return NULL;
+	}
+	t->is_data_owner = 1;
+	t->start_index = 0;
+	t->end_index = 0;
+	t->length = 0;
+	t->capacity = capacity;
+
+	//printf("capacity = %d\n", capacity);
+
+	return t;
+}
+
+void jbplot_destroy_trace(trace_t *trace) {
+	if(trace->is_data_owner) {
+		free(trace->x_data);
+		free(trace->y_data);
+	}
+	free(trace);
+	return;
+}
+
+
+int jbplot_add_trace(jbplot *plot, trace_t *t) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	plot_t *p = &(priv->plot);
+
+	if(p->num_traces + 1 >= MAX_NUM_TRACES) {
+		return -1;
+	}
+	p->traces[p->num_traces] = t;
+	(p->num_traces)++;
+	return (p->num_traces)-1;
+}
+
+/*
 int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	plot_t *p = &(priv->plot);
@@ -828,7 +903,7 @@ int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity)
 	(p->num_traces)++;
 	return (p->num_traces)-1;
 }
-
+*/
 
 GtkWidget *jbplot_new (void) {
 	return g_object_new (JBPLOT_TYPE, NULL);

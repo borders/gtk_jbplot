@@ -25,6 +25,8 @@ G_BEGIN_DECLS
 typedef struct _jbplot		jbplot;
 typedef struct _jbplotClass	jbplotClass;
 
+typedef struct trace_t *trace_handle;
+
 struct _jbplot
 {
 	GtkDrawingArea parent;
@@ -46,7 +48,12 @@ GtkWidget *jbplot_new (void);
 int jbplot_set_plot_title(jbplot *plot, char *title, int copy);
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
-int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity);
+//int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity);
+int jbplot_add_trace(jbplot *plot, trace_handle th);
+trace_handle jbplot_create_trace(int capacity);
+void jbplot_destroy_trace(trace_handle th);
+int jbplot_trace_add_point(trace_handle th, float x, float y);
+void jbplot_refresh(jbplot *plot);
 
 G_END_DECLS
 
