@@ -177,7 +177,7 @@ static int init_axis(axis_t *axis) {
   axis->axis_label = "axis_label";
 	axis->is_axis_label_owner = 0;
   axis->do_show_tic_labels = 1;
-  axis->do_autoscale = 0;
+  axis->do_autoscale = 1;
   axis->do_loose_fit = 0;
   axis->do_show_major_gridlines = 1;
   axis->major_gridline_width = 1.0;
@@ -225,20 +225,167 @@ static int init_plot(plot_t *plot) {
 	return 0;
 }
 
+static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
+	printf("Action not implemented (%s)\n", (char *)data);
+	return FALSE;
+}
 
+static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Clearing plot (FIXME!!!!)\n");
+	if(priv->plot.num_traces > 0) {
+		trace_t *t = priv->plot.traces[0];
+		t->length = 0;
+		t->start_index = 0;
+		t->end_index = 0;
+	}
+	return FALSE;
+}
+
+static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Toggling x-axis autoscale state\n");
+	priv->plot.x_axis.do_autoscale = !(priv->plot.x_axis.do_autoscale);
+	return FALSE;
+}
+
+static gboolean popup_callback_x_loose_fit(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Toggling x-axis loose fit state\n");
+	priv->plot.x_axis.do_loose_fit = !(priv->plot.x_axis.do_loose_fit);
+	return FALSE;
+}
+
+static gboolean popup_callback_y_autoscale(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Toggling y-axis autoscale state\n");
+	priv->plot.y_axis.do_autoscale = !(priv->plot.y_axis.do_autoscale);
+	return FALSE;
+}
+
+static gboolean popup_callback_y_loose_fit(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Toggling y-axis loose fit state\n");
+	priv->plot.y_axis.do_loose_fit = !(priv->plot.y_axis.do_loose_fit);
+	return FALSE;
+}
+static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
+  GtkWidget *menu;
+  GtkWidget *x_axis_submenu;
+  GtkWidget *y_axis_submenu;
+  int button, event_time;
+
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(my_widget);
+
+  menu = gtk_menu_new ();
+  g_signal_connect (menu, "deactivate", 
+                    G_CALLBACK (gtk_widget_destroy), NULL);
+
+
+	GtkWidget *clear_plot = gtk_menu_item_new_with_label("Clear Plot");
+	GtkWidget *x = gtk_menu_item_new_with_label("x-axis");
+	GtkWidget *y = gtk_menu_item_new_with_label("y-axis");
+
+	g_signal_connect(G_OBJECT(clear_plot), "button-press-event", G_CALLBACK(popup_callback_clear), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(x), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "x-axis");
+	g_signal_connect(G_OBJECT(y), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y-axis");
+
+	gtk_menu_shell_append((GtkMenuShell *)menu, clear_plot);
+	gtk_menu_shell_append((GtkMenuShell *)menu, x);
+	gtk_menu_shell_append((GtkMenuShell *)menu, y);
+
+	/* x-axis submenu */
+  x_axis_submenu = gtk_menu_new();
+	GtkWidget *x_format = gtk_menu_item_new_with_label("Format");
+	GtkWidget *x_autoscale = gtk_check_menu_item_new_with_label("Autoscale");
+	GtkWidget *x_loose_fit = gtk_check_menu_item_new_with_label("Loose Fit");
+
+	g_signal_connect(G_OBJECT(x_format), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "x:format");
+	g_signal_connect(G_OBJECT(x_autoscale), "button-press-event", G_CALLBACK(popup_callback_x_autoscale), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(x_loose_fit), "button-press-event", G_CALLBACK(popup_callback_x_loose_fit), (gpointer) my_widget);
+
+	if(priv->plot.x_axis.do_autoscale) {
+		gtk_check_menu_item_set_active((GtkCheckMenuItem *)x_autoscale, TRUE);
+		if(priv->plot.x_axis.do_loose_fit) {
+			gtk_check_menu_item_set_active((GtkCheckMenuItem *)x_loose_fit, TRUE);
+		}
+	}
+	else {
+		gtk_widget_set_sensitive(x_loose_fit, FALSE);
+	}
+
+	gtk_menu_shell_append((GtkMenuShell *)x_axis_submenu, x_format);
+	gtk_menu_shell_append((GtkMenuShell *)x_axis_submenu, x_autoscale);
+	gtk_menu_shell_append((GtkMenuShell *)x_axis_submenu, x_loose_fit);
+	gtk_widget_show(x_format);
+	gtk_widget_show(x_autoscale);
+	gtk_widget_show(x_loose_fit);
+
+	/* y-axis submenu */
+  y_axis_submenu = gtk_menu_new();
+	GtkWidget *y_format = gtk_menu_item_new_with_label("Format");
+	GtkWidget *y_autoscale = gtk_check_menu_item_new_with_label("Autoscale");
+	GtkWidget *y_loose_fit = gtk_check_menu_item_new_with_label("Loose Fit");
+
+	g_signal_connect(G_OBJECT(y_format), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y:format");
+	g_signal_connect(G_OBJECT(y_autoscale), "button-press-event", G_CALLBACK(popup_callback_y_autoscale), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(y_loose_fit), "button-press-event", G_CALLBACK(popup_callback_y_loose_fit), (gpointer) my_widget);
+
+	if(priv->plot.y_axis.do_autoscale) {
+		gtk_check_menu_item_set_active((GtkCheckMenuItem *)y_autoscale, TRUE);
+		if(priv->plot.y_axis.do_loose_fit) {
+			gtk_check_menu_item_set_active((GtkCheckMenuItem *)y_loose_fit, TRUE);
+		}
+	}
+	else {
+		gtk_widget_set_sensitive(y_loose_fit, FALSE);
+	}
+
+	gtk_menu_shell_append((GtkMenuShell *)y_axis_submenu, y_format);
+	gtk_menu_shell_append((GtkMenuShell *)y_axis_submenu, y_autoscale);
+	gtk_menu_shell_append((GtkMenuShell *)y_axis_submenu, y_loose_fit);
+	gtk_widget_show(y_format);
+	gtk_widget_show(y_autoscale);
+	gtk_widget_show(y_loose_fit);
+
+	gtk_menu_item_set_submenu((GtkMenuItem *)x, x_axis_submenu);
+	gtk_menu_item_set_submenu((GtkMenuItem *)y, y_axis_submenu);
+
+	gtk_widget_show(clear_plot);
+	gtk_widget_show(x);
+	gtk_widget_show(y);
+
+  if (event)
+    {
+      button = event->button;
+      event_time = event->time;
+    }
+  else
+    {
+      button = 0;
+      event_time = gtk_get_current_event_time ();
+    }
+
+  gtk_menu_attach_to_widget (GTK_MENU (menu), my_widget, NULL);
+  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, button, event_time);
+}
+
+
+
+static gboolean button_press_handler(GtkWidget *w, GdkEventButton *event, gpointer data) {
+
+	if(event->button == 3) {
+		do_popup_menu(w, event);
+	}
+
+	return FALSE;
+}
 
 
 static void jbplot_init (jbplot *plot) {
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK);
-
-/*
-	egg_clock_face_update (clock);
-
-	// update the clock once a second 
-	g_timeout_add (1000, egg_clock_face_update, clock);
-*/
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
@@ -248,6 +395,8 @@ static void jbplot_init (jbplot *plot) {
 	//jbplot_set_plot_title((GtkWidget *)plot, "Test Title", 1);
 	jbplot_set_x_axis_label(plot, "new x-axis label", 1);
 	jbplot_set_y_axis_label(plot, "new y-axis label", 1);
+
+	g_signal_connect((GtkWidget *)plot, "button-press-event", G_CALLBACK(button_press_handler), NULL);
 	
 }
 
