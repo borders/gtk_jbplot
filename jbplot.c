@@ -139,91 +139,8 @@ enum
 
 static guint jbplot_signals[LAST_SIGNAL] = { 0 };
 
-static void jbplot_class_init (jbplotClass *class) {
-	GObjectClass *obj_class;
-	GtkWidgetClass *widget_class;
-
-	obj_class = G_OBJECT_CLASS (class);
-	widget_class = GTK_WIDGET_CLASS (class);
-
-	/* GtkWidget signals */
-	widget_class->expose_event = jbplot_expose;
-/*
-	widget_class->button_press_event = egg_clock_face_button_press;
-	widget_class->button_release_event = egg_clock_face_button_release;
-	widget_class->motion_notify_event = egg_clock_face_motion_notify;
-*/
-
-	/* jbplot signals */
-/*
-	egg_clock_face_signals[TIME_CHANGED] = g_signal_new (
-			"time-changed",
-			G_OBJECT_CLASS_TYPE (obj_class),
-			G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET (EggClockFaceClass, time_changed),
-			NULL, NULL,
-			_clock_marshal_VOID__INT_INT,
-			G_TYPE_NONE, 2,
-			G_TYPE_INT,
-			G_TYPE_INT);
-*/
-
-	g_type_class_add_private (obj_class, sizeof (jbplotPrivate));
-}
-
-static int init_axis(axis_t *axis) {
-	int i;
-  axis->do_show_axis_label = 1;
-  axis->axis_label = "axis_label";
-	axis->is_axis_label_owner = 0;
-  axis->do_show_tic_labels = 1;
-  axis->do_autoscale = 1;
-  axis->do_loose_fit = 0;
-  axis->do_show_major_gridlines = 1;
-  axis->major_gridline_width = 1.0;
-  axis->do_show_minor_gridlines = 0;
-	for(i=0; i<MAX_NUM_MAJOR_TICS; i++) {
-		axis->major_tic_labels[i] = malloc(MAJOR_TIC_LABEL_SIZE);
-		if(axis->major_tic_labels[i] == NULL) {
-			return -1;
-		}
-	}
-  axis->is_tic_label_owner = 1;
-  axis->min_val = 0.0;
-  axis->max_val = 10.0;
-  strcpy(axis->tic_label_format_string, "%g");
-  axis->num_request_major_tics = 10;
-  axis->num_minor_tics_per_major = 5;
-  axis->tic_label_font_size = 10.;
-  axis->axis_label_font_size = 10.;
-	return 0;
-}
-
-static int init_plot_area(plot_area_t *area) {
-  area->do_show_bounding_box = 1;
-  area->bounding_box_width = 1.0;
-	return 0;
-}
 
 
-static int init_plot(plot_t *plot) {
-
-	if(	init_axis(&(plot->x_axis)) 
-							||
-			init_axis(&(plot->y_axis)) 
-							||
-			init_plot_area(&(plot->plot_area))
-		) {
-		return -1;
-	}
-  plot->do_show_plot_title = 0;
-  plot->plot_title = "";
-	plot->is_plot_title_owner = 0;
-	plot->plot_title_font_size = 12.;
-  
-  plot->num_traces = 0;
-	return 0;
-}
 
 static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
 	printf("Action not implemented (%s)\n", (char *)data);
@@ -372,13 +289,127 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 
 
 
-static gboolean button_press_handler(GtkWidget *w, GdkEventButton *event, gpointer data) {
+static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 
 	if(event->button == 3) {
 		do_popup_menu(w, event);
 	}
+	else if(event->button == 1) {
+		printf("Got button 1 press\n");
+		priv->dragging = TRUE;
+	}
 
 	return FALSE;
+}
+
+static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
+
+	if(event->button == 1) {
+		printf("Got button 1 release\n");
+		priv->dragging = FALSE;
+	}
+
+	return FALSE;
+}
+
+
+static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
+
+	if(priv->dragging) {
+		//printf("dragging...\n");
+	}
+
+	return FALSE;
+}
+
+
+
+
+static void jbplot_class_init (jbplotClass *class) {
+	GObjectClass *obj_class;
+	GtkWidgetClass *widget_class;
+
+	obj_class = G_OBJECT_CLASS (class);
+	widget_class = GTK_WIDGET_CLASS (class);
+
+	/* GtkWidget signals */
+	widget_class->expose_event = jbplot_expose;
+	widget_class->button_press_event = jbplot_button_press;
+	widget_class->button_release_event = jbplot_button_release;
+	widget_class->motion_notify_event = jbplot_motion_notify;
+
+	/* jbplot signals */
+/*
+	egg_clock_face_signals[TIME_CHANGED] = g_signal_new (
+			"time-changed",
+			G_OBJECT_CLASS_TYPE (obj_class),
+			G_SIGNAL_RUN_FIRST,
+			G_STRUCT_OFFSET (EggClockFaceClass, time_changed),
+			NULL, NULL,
+			_clock_marshal_VOID__INT_INT,
+			G_TYPE_NONE, 2,
+			G_TYPE_INT,
+			G_TYPE_INT);
+*/
+
+	g_type_class_add_private (obj_class, sizeof (jbplotPrivate));
+}
+
+static int init_axis(axis_t *axis) {
+	int i;
+  axis->do_show_axis_label = 1;
+  axis->axis_label = "axis_label";
+	axis->is_axis_label_owner = 0;
+  axis->do_show_tic_labels = 1;
+  axis->do_autoscale = 1;
+  axis->do_loose_fit = 0;
+  axis->do_show_major_gridlines = 1;
+  axis->major_gridline_width = 1.0;
+  axis->do_show_minor_gridlines = 0;
+	for(i=0; i<MAX_NUM_MAJOR_TICS; i++) {
+		axis->major_tic_labels[i] = malloc(MAJOR_TIC_LABEL_SIZE);
+		if(axis->major_tic_labels[i] == NULL) {
+			return -1;
+		}
+	}
+  axis->is_tic_label_owner = 1;
+  axis->min_val = 0.0;
+  axis->max_val = 10.0;
+  strcpy(axis->tic_label_format_string, "%g");
+  axis->num_request_major_tics = 10;
+  axis->num_minor_tics_per_major = 5;
+  axis->tic_label_font_size = 10.;
+  axis->axis_label_font_size = 10.;
+	return 0;
+}
+
+static int init_plot_area(plot_area_t *area) {
+  area->do_show_bounding_box = 1;
+  area->bounding_box_width = 1.0;
+	return 0;
+}
+
+
+static int init_plot(plot_t *plot) {
+
+	if(	init_axis(&(plot->x_axis)) 
+							||
+			init_axis(&(plot->y_axis)) 
+							||
+			init_plot_area(&(plot->plot_area))
+		) {
+		return -1;
+	}
+  plot->do_show_plot_title = 0;
+  plot->plot_title = "";
+	plot->is_plot_title_owner = 0;
+	plot->plot_title_font_size = 12.;
+  
+  plot->num_traces = 0;
+	return 0;
 }
 
 
@@ -395,8 +426,6 @@ static void jbplot_init (jbplot *plot) {
 	//jbplot_set_plot_title((GtkWidget *)plot, "Test Title", 1);
 	jbplot_set_x_axis_label(plot, "new x-axis label", 1);
 	jbplot_set_y_axis_label(plot, "new y-axis label", 1);
-
-	g_signal_connect((GtkWidget *)plot, "button-press-event", G_CALLBACK(button_press_handler), NULL);
 	
 }
 
@@ -1007,8 +1036,6 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->end_index = 0;
 	t->length = 0;
 	t->capacity = capacity;
-
-	//printf("capacity = %d\n", capacity);
 
 	return t;
 }
