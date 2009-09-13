@@ -424,6 +424,9 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	if(priv->do_show_coords) {
 		gtk_widget_queue_draw(w);
 	}
+	if(priv->do_show_cross_hair) {
+		gtk_widget_queue_draw(w);
+	}
 	return FALSE;
 }
 
@@ -990,7 +993,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			y = priv->plot.plot_area.bottom_edge;
 		}
 		cairo_save(cr);
-		cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+		cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
 		cairo_set_line_width (cr, 1.0);
 
 		cairo_move_to(cr, priv->plot.plot_area.left_edge, y);
