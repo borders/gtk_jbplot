@@ -42,7 +42,7 @@ void button_activate(GtkButton *b, gpointer data) {
 	else {
 		gtk_button_set_label(b, "Resume");
 	}
-	printf("button activated!\n");
+	//printf("button activated!\n");
 	return;
 }
 
