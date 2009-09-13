@@ -11,6 +11,7 @@
 static int t = 0;
 static trace_handle th;
 GtkWidget *plot;
+static int run = 1;
 
 void init_trace_with_data(trace_handle th) {
 	for(t=0; t < 10; t++) {
@@ -22,6 +23,9 @@ void init_trace_with_data(trace_handle th) {
 gboolean update_data(gpointer data) {
 	int i;
 	//printf("hello!\n");
+	if(!run) {
+		return TRUE;
+	}
 	for(i=1; i <= 5; i++) {
 		jbplot_trace_add_point(th, t+i, 2*sin(0.1*(t+i))+4*sin(0.11*(t+i))); 
 	}
@@ -30,6 +34,11 @@ gboolean update_data(gpointer data) {
 	return TRUE;
 }
 
+void button_activate(GtkButton *b, gpointer data) {
+	run = !run;
+	printf("button activated!\n");
+	return;
+}
 
 int main (int argc, char **argv) {
 	GtkWidget *window;
@@ -50,6 +59,7 @@ int main (int argc, char **argv) {
 
 	button = gtk_button_new_with_label("Press Me!");
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
+	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 

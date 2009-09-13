@@ -122,13 +122,18 @@ typedef struct _jbplotPrivate jbplotPrivate;
 struct _jbplotPrivate
 {
 	plot_t plot;
-	gboolean dragging; /* true if the interface is being dragged */
+	gboolean zooming; 
+	gboolean panning; 
 	gboolean do_show_coords;
 	gboolean do_show_cross_hair;
 	gdouble drag_start_x;
 	gdouble drag_start_y;
 	gdouble drag_end_x;
 	gdouble drag_end_y;
+	gdouble pan_start_x;
+	gdouble pan_start_y;
+	data_range pan_start_x_range;
+	data_range pan_start_y_range;
 
 	/* these are used to convert from device coords (pixels) to data coords */
 	double x_m;
@@ -178,7 +183,7 @@ static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
 		t->length = 0;
 		t->start_index = 0;
 		t->end_index = 0;
-		gtk_widget_queue_draw(w);
+		gtk_widget_queue_draw((GtkWidget *)data);
 	}
 	return FALSE;
 }
@@ -187,7 +192,7 @@ static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis autoscale state\n");
 	priv->plot.x_axis.do_autoscale = !(priv->plot.x_axis.do_autoscale);
-	gtk_widget_queue_draw(w);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 
@@ -195,7 +200,7 @@ static gboolean popup_callback_x_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis loose fit state\n");
 	priv->plot.x_axis.do_loose_fit = !(priv->plot.x_axis.do_loose_fit);
-	gtk_widget_queue_draw(w);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 
@@ -203,7 +208,7 @@ static gboolean popup_callback_y_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis autoscale state\n");
 	priv->plot.y_axis.do_autoscale = !(priv->plot.y_axis.do_autoscale);
-	gtk_widget_queue_draw(w);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 
@@ -211,7 +216,7 @@ static gboolean popup_callback_y_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis loose fit state\n");
 	priv->plot.y_axis.do_loose_fit = !(priv->plot.y_axis.do_loose_fit);
-	gtk_widget_queue_draw(w);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
@@ -344,11 +349,28 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 		   event->y >= priv->plot.plot_area.top_edge &&
 		   event->y <= priv->plot.plot_area.bottom_edge
 		) {
-			priv->dragging = TRUE;
+			priv->zooming = TRUE;
 			priv->drag_start_x = event->x;
 			priv->drag_start_y = event->y;
 			priv->drag_end_x = event->x;
 			priv->drag_end_y = event->y;
+		}
+	}
+	else if(event->button == 2) {
+		if(event->x >= priv->plot.plot_area.left_edge &&
+		   event->x <= priv->plot.plot_area.right_edge &&
+		   event->y >= priv->plot.plot_area.top_edge &&
+		   event->y <= priv->plot.plot_area.bottom_edge
+		) {
+			priv->panning = TRUE;
+			priv->pan_start_x = event->x;
+			priv->pan_start_y = event->y;
+			priv->pan_start_x_range.min = priv->plot.x_axis.min_val;
+			priv->pan_start_x_range.max = priv->plot.x_axis.max_val;
+			priv->pan_start_y_range.min = priv->plot.y_axis.min_val;
+			priv->pan_start_y_range.max = priv->plot.y_axis.max_val;
+			jbplot_set_x_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
+			jbplot_set_y_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
 		}
 	}
 	return FALSE;
@@ -357,17 +379,25 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 	if(event->button == 1) {
-		if(priv->dragging) {
+		if(priv->zooming) {
 			double x_now, y_now, x_min, x_max, y_min, y_max;
+			priv->zooming = FALSE;
 			x_now = event->x;
 			y_now = event->y;
-			x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
-			x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
-			y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
-			y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
-			priv->dragging = FALSE;
-			jbplot_set_x_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
-			jbplot_set_y_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
+			if(x_now != priv->drag_start_x && y_now != priv->drag_start_y) {
+				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
+				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
+				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
+				y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
+				jbplot_set_x_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
+				jbplot_set_y_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
+			}
+			gtk_widget_queue_draw(w);
+		}
+	}
+	else if(event->button == 2) {
+		if(priv->panning) {
+			priv->panning = FALSE;
 			gtk_widget_queue_draw(w);
 		}
 	}
@@ -377,9 +407,14 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-	if(priv->dragging) {
+	if(priv->zooming) {
 		priv->drag_end_x = event->x;
 		priv->drag_end_y = event->y;
+		gtk_widget_queue_draw(w);
+	}
+	if(priv->panning) {
+		jbplot_set_x_range((jbplot *)w, priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m , priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m);
+		jbplot_set_y_range((jbplot *)w, priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m, priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m);
 		gtk_widget_queue_draw(w);
 	}
 	if(priv->do_show_coords) {
@@ -481,7 +516,8 @@ static void jbplot_init (jbplot *plot) {
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
-	priv->dragging = FALSE;
+	priv->zooming = FALSE;
+	priv->panning = FALSE;
 	priv->do_show_coords = FALSE;
 	priv->do_show_cross_hair = FALSE;
 
@@ -635,7 +671,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	width = plot->allocation.width;
 	height = plot->allocation.height;
-
+	
 	cairo_t *cr;
 	cr = gdk_cairo_create(plot->window);
 
@@ -860,8 +896,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	);
 	cairo_stroke(cr);	
 
-	// draw the zoom box if dragging is active
-	if(priv->dragging) {
+	// draw the zoom box if zooming is active
+	if(priv->zooming) {
 		double dashes[] = {4.0,4.0};
 		cairo_save(cr);
 		cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
@@ -914,7 +950,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_restore(cr);
 	}
 
-	// draw coordinates if active (whether dragging or not)
+	// draw coordinates if active (whether zooming or not)
 	if(priv->do_show_coords) {
 		gint x,y;
 		gtk_widget_get_pointer(plot, &x, &y);
