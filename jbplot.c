@@ -160,17 +160,17 @@ static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
 
 static gboolean popup_callback_show_cross_hair(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
-
 	printf("Toggling show_cross_hair state\n");
 	priv->do_show_cross_hair = !(priv->do_show_cross_hair);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 
 static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
-
 	printf("Toggling show_coords state\n");
 	priv->do_show_coords = !(priv->do_show_coords);
+	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
 
@@ -1233,7 +1233,7 @@ int jbplot_set_x_range(jbplot *plot, float min, float max) {
 	priv->plot.x_axis.do_autoscale = 0;
 	priv->plot.x_axis.min_val = min;
 	priv->plot.x_axis.max_val = max;
-	printf("Setting x-axis range to (%g , %g)\n", min, max);
+	//printf("Setting x-axis range to (%g , %g)\n", min, max);
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1243,7 +1243,7 @@ int jbplot_set_y_range(jbplot *plot, float min, float max) {
 	priv->plot.y_axis.do_autoscale = 0;
 	priv->plot.y_axis.min_val = min;
 	priv->plot.y_axis.max_val = max;
-	printf("Setting y-axis range to (%g , %g)\n", min, max);
+	//printf("Setting y-axis range to (%g , %g)\n", min, max);
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
