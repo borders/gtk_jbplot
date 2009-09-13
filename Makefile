@@ -1,6 +1,6 @@
-all: test1
+all: test/test1
 
-test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
+test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/test1 jbplot.c test/test1.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
 
