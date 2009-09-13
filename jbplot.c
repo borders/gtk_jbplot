@@ -83,6 +83,12 @@ typedef struct trace_t {
   int start_index;
   int end_index;
   int is_data_owner;
+	float line_width;
+	int line_type;
+	rgb_color_t line_color;
+	rgb_color_t marker_color;
+	int marker_type;
+	float marker_size;
 } trace_t;
 
 
@@ -149,8 +155,6 @@ enum
 };
 
 static guint jbplot_signals[LAST_SIGNAL] = { 0 };
-
-
 
 
 static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
@@ -437,20 +441,6 @@ static void jbplot_class_init (jbplotClass *class) {
 	widget_class->button_release_event = jbplot_button_release;
 	widget_class->motion_notify_event = jbplot_motion_notify;
 
-	/* jbplot signals */
-/*
-	egg_clock_face_signals[TIME_CHANGED] = g_signal_new (
-			"time-changed",
-			G_OBJECT_CLASS_TYPE (obj_class),
-			G_SIGNAL_RUN_FIRST,
-			G_STRUCT_OFFSET (EggClockFaceClass, time_changed),
-			NULL, NULL,
-			_clock_marshal_VOID__INT_INT,
-			G_TYPE_NONE, 2,
-			G_TYPE_INT,
-			G_TYPE_INT);
-*/
-
 	g_type_class_add_private (obj_class, sizeof (jbplotPrivate));
 }
 
@@ -524,9 +514,9 @@ static void jbplot_init (jbplot *plot) {
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
 
-	//jbplot_set_plot_title((GtkWidget *)plot, "Test Title", 1);
-	jbplot_set_x_axis_label(plot, "new x-axis label", 1);
-	jbplot_set_y_axis_label(plot, "new y-axis label", 1);
+	jbplot_set_plot_title(plot, " ", 1);
+	jbplot_set_x_axis_label(plot, " ", 1);
+	jbplot_set_y_axis_label(plot, " ", 1);
 	
 }
 
@@ -661,6 +651,22 @@ static int draw_horiz_text_at_point(GtkWidget *plot, void *cr, char *text, doubl
 	return 0;
 }
 
+
+void draw_marker(cairo_t *cr, int type, float size) {
+	double x, y;
+	cairo_get_current_point(cr, &x, &y);
+	if(type == MARKER_CIRCLE) {
+		cairo_arc(cr, x, y, size/2.0, 0, 2*M_PI);
+		cairo_fill(cr);
+	}
+	else if(type == MARKER_SQUARE) {
+		cairo_rectangle(cr, x-size/2.0, y-size/2.0, size, size);
+		cairo_fill(cr);
+	}
+	return;
+}
+
+
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double width, height;
 	int i, j;
@@ -723,15 +729,35 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
   set_major_tic_labels(x_axis);
   set_major_tic_labels(y_axis);
   double max_y_label_width = get_widest_label_width(y_axis, cr);
-  double y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
+  double y_tic_labels_left_edge;
+	if(y_axis->do_show_axis_label) {
+  	y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
+	}
+	else {
+  	y_tic_labels_left_edge = 0.01 * width;
+	}
+
   double y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
   double plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
 	priv->plot.plot_area.left_edge = plot_area_left_edge;
   double plot_area_right_edge = width - 0.06 * width;
 	priv->plot.plot_area.right_edge = plot_area_right_edge;
-  double plot_area_top_edge = title_bottom_edge + 0.02 * height;
+	double plot_area_top_edge;
+	if(p->do_show_plot_title) {
+	  plot_area_top_edge = title_bottom_edge + 0.02 * height;
+	}
+	else {
+	  plot_area_top_edge = 0.02 * height;
+	}
 	priv->plot.plot_area.top_edge = plot_area_top_edge;
-  double x_tic_labels_bottom_edge = x_label_top_edge - 0.01 * height;
+  double x_tic_labels_bottom_edge;
+	if(x_axis->do_show_axis_label) {
+		x_tic_labels_bottom_edge = x_label_top_edge - 0.01 * height;
+	}
+	else {
+		x_tic_labels_bottom_edge = height - 0.01 * height;
+	}
+
   double x_tic_labels_height = get_text_height(cr, x_axis->major_tic_labels[0], x_axis->tic_label_font_size);
   double x_tic_labels_top_edge = x_tic_labels_bottom_edge - x_tic_labels_height;
   double plot_area_bottom_edge = x_tic_labels_top_edge - 0.01 * height;
@@ -836,7 +862,9 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 														);
 	}
 	
-	// draw the data!!!
+	/*************** Draw the data ******************/
+
+	// first set the clipping region
 	cairo_save(cr);
 	cairo_rectangle(	cr, 
 										plot_area_left_edge,
@@ -845,10 +873,15 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 										(plot_area_bottom_edge-plot_area_top_edge)
 									);
 	cairo_clip(cr);
-	cairo_set_source_rgb (cr, 1.0, 0, 0);
+
+	// now draw the trace lines (if requested)
 	for(i = 0; i < p->num_traces; i++) {
 		char first_pt = 1;
 		trace_t *t = p->traces[i];
+		if(t->line_type == LINETYPE_NONE) {
+			continue;
+		}
+		cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
 		if(t->length <= 0) continue;
 		for(j = 0; j < t->length; j++) {
 			int n;
@@ -880,6 +913,33 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 					y_m * t->y_data[n] + y_b
 				);
 			}
+		}
+		cairo_stroke(cr);
+	}
+
+	// now draw the trace markers (if requested)
+	for(i = 0; i < p->num_traces; i++) {
+		trace_t *t = p->traces[i];
+		if(t->marker_type == MARKER_NONE) {
+			continue;
+		}
+		cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
+		if(t->length <= 0) continue;
+		for(j = 0; j < t->length; j++) {
+			int n;
+			n = t->start_index + j;
+			if(n >= t->capacity) {
+				n -= t->capacity;
+			}
+			if(t->x_data[n] < x_axis->min_val ||
+			   t->x_data[n] > x_axis->max_val ||
+			   t->y_data[n] < y_axis->min_val || 
+			   t->y_data[n] > y_axis->max_val
+			) {
+				continue;
+			}
+			cairo_move_to(cr, x_m * t->x_data[n] + x_b,	y_m * t->y_data[n] + y_b);
+			draw_marker(cr, t->marker_type, t->marker_size);
 		}
 		cairo_stroke(cr);
 	}
@@ -1253,6 +1313,21 @@ void jbplot_refresh(jbplot *plot) {
 	return;
 }
 
+int jbplot_trace_set_line_props(trace_t *t, line_type_t type, float width, rgb_color_t color) {
+	t->line_type = type;
+	t->line_width = width;
+	t->line_color = color;
+	return 0;
+}
+
+int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rgb_color_t color) {
+	t->marker_type = type;
+	t->marker_size = size;
+	t->marker_color = color;
+	return 0;
+}
+
+
 int jbplot_trace_add_point(trace_t *t, float x, float y) {
 	t->length++;
 	t->end_index++;
@@ -1293,6 +1368,15 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->end_index = 0;
 	t->length = 0;
 	t->capacity = capacity;
+	t->line_width = 1.0;
+	t->line_type = LINETYPE_SOLID;
+	t->marker_type = MARKER_NONE;
+	t->line_color.red = 0.0;
+	t->line_color.green = 0.0;
+	t->line_color.blue = 0.0;
+	t->marker_color.red = 0.0;
+	t->marker_color.green = 0.0;
+	t->marker_color.blue = 0.0;
 
 	return t;
 }
@@ -1319,24 +1403,6 @@ int jbplot_add_trace(jbplot *plot, trace_t *t) {
 	return (p->num_traces)-1;
 }
 
-/*
-int jbplot_add_trace(jbplot *plot, float *x, float *y, int length, int capacity) {
-	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	plot_t *p = &(priv->plot);
-
-	if(p->num_traces + 1 >= MAX_NUM_TRACES) {
-		return -1;
-	}
-	trace_t *t = trace_create_with_external_data(x, y, length, capacity);
-	if(t == NULL) {
-		printf("Error creating trace...\n");
-		return -1;
-	}
-	p->traces[p->num_traces] = t;
-	(p->num_traces)++;
-	return (p->num_traces)-1;
-}
-*/
 
 GtkWidget *jbplot_new (void) {
 	return g_object_new (JBPLOT_TYPE, NULL);
@@ -1366,6 +1432,19 @@ int jbplot_set_plot_title(jbplot *plot, char *title, int copy) {
 	return 0;
 }
 
+int jbplot_set_plot_title_visible(jbplot *plot, gboolean visible) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(visible) {
+		priv->plot.do_show_plot_title = 1;
+	}
+	else {
+		priv->plot.do_show_plot_title = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+	
+
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
@@ -1384,6 +1463,18 @@ int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy) {
 		priv->plot.x_axis.axis_label = title;
 		priv->plot.x_axis.is_axis_label_owner = 0;
 	}
+	return 0;
+}
+
+int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(visible) {
+		priv->plot.x_axis.do_show_axis_label = 1;
+	}
+	else {
+		priv->plot.x_axis.do_show_axis_label = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 	
@@ -1405,6 +1496,18 @@ int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy) {
 		priv->plot.y_axis.axis_label = title;
 		priv->plot.y_axis.is_axis_label_owner = 0;
 	}
+	return 0;
+}
+
+int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(visible) {
+		priv->plot.y_axis.do_show_axis_label = 1;
+	}
+	else {
+		priv->plot.y_axis.do_show_axis_label = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 	
