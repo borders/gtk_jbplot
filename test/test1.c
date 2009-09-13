@@ -6,7 +6,7 @@
 #include <math.h>
 #include <stdio.h>
 
-#include "jbplot.h"
+#include "../jbplot.h"
 
 static int t = 0;
 static trace_handle th;
@@ -36,6 +36,12 @@ gboolean update_data(gpointer data) {
 
 void button_activate(GtkButton *b, gpointer data) {
 	run = !run;
+	if(run) {
+		gtk_button_set_label(b, "Pause");
+	}
+	else {
+		gtk_button_set_label(b, "Resume");
+	}
 	printf("button activated!\n");
 	return;
 }
@@ -57,7 +63,7 @@ int main (int argc, char **argv) {
 	gtk_widget_set_size_request(plot, 700, 700);
 	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
 
-	button = gtk_button_new_with_label("Press Me!");
+	button = gtk_button_new_with_label("Pause");
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
