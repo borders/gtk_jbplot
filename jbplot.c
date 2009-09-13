@@ -79,6 +79,10 @@ typedef struct data_range {
 typedef struct plot_area_t {
   char do_show_bounding_box;
   float bounding_box_width;
+	float left_edge;
+	float right_edge;
+	float top_edge;
+	float bottom_edge;
 } plot_area_t;
 
 typedef struct trace_t {
@@ -129,6 +133,12 @@ struct _jbplotPrivate
 {
 	plot_t plot;
 	gboolean dragging; /* true if the interface is being dragged */
+	gboolean do_show_coords;
+	gboolean do_show_cross_hair;
+	gdouble drag_start_x;
+	gdouble drag_start_y;
+	gdouble drag_end_x;
+	gdouble drag_end_y;
 };
 
 enum
@@ -146,6 +156,23 @@ static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
 	printf("Action not implemented (%s)\n", (char *)data);
 	return FALSE;
 }
+
+static gboolean popup_callback_show_cross_hair(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+
+	printf("Toggling show_cross_hair state\n");
+	priv->do_show_cross_hair = !(priv->do_show_cross_hair);
+	return FALSE;
+}
+
+static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+
+	printf("Toggling show_coords state\n");
+	priv->do_show_coords = !(priv->do_show_coords);
+	return FALSE;
+}
+
 
 static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
@@ -202,14 +229,28 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	GtkWidget *clear_plot = gtk_menu_item_new_with_label("Clear Plot");
 	GtkWidget *x = gtk_menu_item_new_with_label("x-axis");
 	GtkWidget *y = gtk_menu_item_new_with_label("y-axis");
+	GtkWidget *show_coords = gtk_check_menu_item_new_with_label("Show Coords");
+	GtkWidget *show_cross_hair = gtk_check_menu_item_new_with_label("Show Crosshair");
+
+	if(priv->do_show_coords) {
+		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_coords, TRUE);
+	}
+
+	if(priv->do_show_cross_hair) {
+		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_cross_hair, TRUE);
+	}
 
 	g_signal_connect(G_OBJECT(clear_plot), "button-press-event", G_CALLBACK(popup_callback_clear), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(x), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "x-axis");
 	g_signal_connect(G_OBJECT(y), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y-axis");
+	g_signal_connect(G_OBJECT(show_coords), "button-press-event", G_CALLBACK(popup_callback_show_coords), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(show_cross_hair), "button-press-event", G_CALLBACK(popup_callback_show_cross_hair), (gpointer) my_widget);
 
 	gtk_menu_shell_append((GtkMenuShell *)menu, clear_plot);
 	gtk_menu_shell_append((GtkMenuShell *)menu, x);
 	gtk_menu_shell_append((GtkMenuShell *)menu, y);
+	gtk_menu_shell_append((GtkMenuShell *)menu, show_coords);
+	gtk_menu_shell_append((GtkMenuShell *)menu, show_cross_hair);
 
 	/* x-axis submenu */
   x_axis_submenu = gtk_menu_new();
@@ -271,6 +312,8 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_widget_show(clear_plot);
 	gtk_widget_show(x);
 	gtk_widget_show(y);
+	gtk_widget_show(show_coords);
+	gtk_widget_show(show_cross_hair);
 
   if (event)
     {
@@ -296,8 +339,10 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 		do_popup_menu(w, event);
 	}
 	else if(event->button == 1) {
-		printf("Got button 1 press\n");
+		//printf("Got button 1 press\n");
 		priv->dragging = TRUE;
+		priv->drag_start_x = event->x;
+		priv->drag_start_y = event->y;
 	}
 
 	return FALSE;
@@ -307,8 +352,9 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 
 	if(event->button == 1) {
-		printf("Got button 1 release\n");
+		//printf("Got button 1 release\n");
 		priv->dragging = FALSE;
+		gtk_widget_queue_draw(w);
 	}
 
 	return FALSE;
@@ -320,6 +366,14 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 
 	if(priv->dragging) {
 		//printf("dragging...\n");
+		priv->drag_end_x = event->x;
+		priv->drag_end_y = event->y;
+		gtk_widget_queue_draw(w);
+	}
+
+	if(priv->do_show_coords) {
+		//printf("%g, %g\n", event->x, event->y);
+		gtk_widget_queue_draw(w);
 	}
 
 	return FALSE;
@@ -419,6 +473,10 @@ static void jbplot_init (jbplot *plot) {
 			GDK_POINTER_MOTION_MASK);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+
+	priv->dragging = FALSE;
+	priv->do_show_coords = FALSE;
+	priv->do_show_cross_hair = FALSE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -613,12 +671,16 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
   double y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
   double y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
   double plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
+	priv->plot.plot_area.left_edge = plot_area_left_edge;
   double plot_area_right_edge = width - 0.06 * width;
+	priv->plot.plot_area.right_edge = plot_area_right_edge;
   double plot_area_top_edge = title_bottom_edge + 0.02 * height;
+	priv->plot.plot_area.top_edge = plot_area_top_edge;
   double x_tic_labels_bottom_edge = x_label_top_edge - 0.01 * height;
   double x_tic_labels_height = get_text_height(cr, x_axis->major_tic_labels[0], x_axis->tic_label_font_size);
   double x_tic_labels_top_edge = x_tic_labels_bottom_edge - x_tic_labels_height;
   double plot_area_bottom_edge = x_tic_labels_top_edge - 0.01 * height;
+	priv->plot.plot_area.bottom_edge = plot_area_bottom_edge;
   double plot_area_height = plot_area_bottom_edge - plot_area_top_edge;
   double plot_area_width = plot_area_right_edge - plot_area_left_edge;
   double y_label_middle_y = plot_area_top_edge + plot_area_height/2;
@@ -751,7 +813,99 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	);
 	cairo_stroke(cr);	
 
+	// draw the zoom box if dragging is active
+	if(priv->dragging) {
+		double dashes[] = {4.0,4.0};
+		cairo_save(cr);
+		cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+		cairo_set_line_width (cr, 1.0);
+		cairo_set_dash(cr, dashes, 2, 0);
+		cairo_rectangle(
+			cr, 
+			priv->drag_start_x, 
+			priv->drag_start_y,
+			priv->drag_end_x - priv->drag_start_x,
+			priv->drag_end_y - priv->drag_start_y
+		);
+		cairo_stroke(cr);	
+		cairo_restore(cr);
+	}
+	// draw crosshair if active
+	if(priv->do_show_cross_hair) {
+		gint x,y;
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(x < priv->plot.plot_area.left_edge) {
+			x = priv->plot.plot_area.left_edge;
+		}
+		if(x > priv->plot.plot_area.right_edge) {
+			x = priv->plot.plot_area.right_edge;
+		}
+		if(y < priv->plot.plot_area.top_edge) {
+			y = priv->plot.plot_area.top_edge;
+		}
+		if(y > priv->plot.plot_area.bottom_edge) {
+			y = priv->plot.plot_area.bottom_edge;
+		}
+		cairo_save(cr);
+		cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+		cairo_set_line_width (cr, 1.0);
 
+		cairo_move_to(cr, priv->plot.plot_area.left_edge, y);
+		cairo_line_to(cr, x-10, y);
+		cairo_move_to(cr, x-5, y);
+		cairo_line_to(cr, x+5, y);
+		cairo_move_to(cr, x+10, y);
+		cairo_line_to(cr, priv->plot.plot_area.right_edge, y);
+
+		cairo_move_to(cr, x, priv->plot.plot_area.top_edge);
+		cairo_line_to(cr, x, y-10);
+		cairo_move_to(cr, x, y-5);
+		cairo_line_to(cr, x, y+5);
+		cairo_move_to(cr, x, y+10);
+		cairo_line_to(cr, x, priv->plot.plot_area.bottom_edge);
+		cairo_stroke(cr);	
+		cairo_restore(cr);
+	}
+
+	// draw coordinates if active (whether dragging or not)
+	if(priv->do_show_coords) {
+		gint x,y;
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(x >= priv->plot.plot_area.left_edge &&
+		   x <= priv->plot.plot_area.right_edge &&
+		   y >= priv->plot.plot_area.top_edge &&
+		   y <= priv->plot.plot_area.bottom_edge
+		  ) {
+			char x_str[100], y_str[100];
+			double x_w, x_h, y_w, y_h;
+			double box_w, box_h;
+			sprintf(x_str, "%g", ((float)x-x_b)/x_m);
+			sprintf(y_str, "%g", ((float)y-y_b)/y_m);
+			x_w = get_text_width(cr, x_str, 10);
+			y_w = get_text_width(cr, y_str, 10);
+			x_h = get_text_height(cr, x_str, 10);
+			y_h = get_text_height(cr, y_str, 10);
+			box_w = 10 + ((x_w > y_w) ? x_w : y_w);
+			box_h = 10 + (x_h + y_h);
+
+			cairo_save(cr);
+			// draw white rectangle
+			cairo_set_source_rgb (cr, 1, 1, 1);
+			cairo_rectangle(cr, x-box_w-3, y-box_h-3, box_w, box_h);
+			cairo_fill_preserve(cr);
+			cairo_set_source_rgb (cr, 0, 0, 0);
+			cairo_set_line_width (cr, 1.0);
+			cairo_stroke(cr);
+
+			// draw coordinates...
+			cairo_set_source_rgb (cr, 0, 0, 0);
+			draw_horiz_text_at_point(plot, cr, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+			draw_horiz_text_at_point(plot, cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+			cairo_restore(cr);
+		}
+			
+	}
+		
 	cairo_destroy(cr);
 
 	return FALSE;
