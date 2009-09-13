@@ -54,6 +54,8 @@ trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
 int jbplot_trace_add_point(trace_handle th, float x, float y);
 void jbplot_refresh(jbplot *plot);
+int jbplot_set_x_range(jbplot *plot, float min, float max);
+int jbplot_set_y_range(jbplot *plot, float min, float max);
 
 G_END_DECLS
 

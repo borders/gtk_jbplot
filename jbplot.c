@@ -22,16 +22,6 @@
 G_DEFINE_TYPE (jbplot, jbplot, GTK_TYPE_DRAWING_AREA);
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
-
-/*
-static gboolean egg_clock_face_button_press (GtkWidget *clock,
-					     GdkEventButton *event);
-static gboolean egg_clock_face_button_release (GtkWidget *clock,
-					       GdkEventButton *event);
-static gboolean egg_clock_face_motion_notify (GtkWidget *clock,
-					      GdkEventMotion *event);
-*/
-
 static gboolean jbplot_update (gpointer data);
 
 
@@ -139,6 +129,12 @@ struct _jbplotPrivate
 	gdouble drag_start_y;
 	gdouble drag_end_x;
 	gdouble drag_end_y;
+
+	/* these are used to convert from device coords (pixels) to data coords */
+	double x_m;
+	double x_b;
+	double y_m;
+	double y_b;
 };
 
 enum
@@ -182,6 +178,7 @@ static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
 		t->length = 0;
 		t->start_index = 0;
 		t->end_index = 0;
+		gtk_widget_queue_draw(w);
 	}
 	return FALSE;
 }
@@ -190,6 +187,7 @@ static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis autoscale state\n");
 	priv->plot.x_axis.do_autoscale = !(priv->plot.x_axis.do_autoscale);
+	gtk_widget_queue_draw(w);
 	return FALSE;
 }
 
@@ -197,6 +195,7 @@ static gboolean popup_callback_x_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis loose fit state\n");
 	priv->plot.x_axis.do_loose_fit = !(priv->plot.x_axis.do_loose_fit);
+	gtk_widget_queue_draw(w);
 	return FALSE;
 }
 
@@ -204,6 +203,7 @@ static gboolean popup_callback_y_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis autoscale state\n");
 	priv->plot.y_axis.do_autoscale = !(priv->plot.y_axis.do_autoscale);
+	gtk_widget_queue_draw(w);
 	return FALSE;
 }
 
@@ -211,6 +211,7 @@ static gboolean popup_callback_y_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis loose fit state\n");
 	priv->plot.y_axis.do_loose_fit = !(priv->plot.y_axis.do_loose_fit);
+	gtk_widget_queue_draw(w);
 	return FALSE;
 }
 static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
@@ -334,52 +335,58 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-
 	if(event->button == 3) {
 		do_popup_menu(w, event);
 	}
 	else if(event->button == 1) {
-		//printf("Got button 1 press\n");
-		priv->dragging = TRUE;
-		priv->drag_start_x = event->x;
-		priv->drag_start_y = event->y;
+		if(event->x >= priv->plot.plot_area.left_edge &&
+		   event->x <= priv->plot.plot_area.right_edge &&
+		   event->y >= priv->plot.plot_area.top_edge &&
+		   event->y <= priv->plot.plot_area.bottom_edge
+		) {
+			priv->dragging = TRUE;
+			priv->drag_start_x = event->x;
+			priv->drag_start_y = event->y;
+			priv->drag_end_x = event->x;
+			priv->drag_end_y = event->y;
+		}
 	}
-
 	return FALSE;
 }
 
 static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-
 	if(event->button == 1) {
-		//printf("Got button 1 release\n");
-		priv->dragging = FALSE;
-		gtk_widget_queue_draw(w);
+		if(priv->dragging) {
+			double x_now, y_now, x_min, x_max, y_min, y_max;
+			x_now = event->x;
+			y_now = event->y;
+			x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
+			x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
+			y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
+			y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
+			priv->dragging = FALSE;
+			jbplot_set_x_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
+			jbplot_set_y_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
+			gtk_widget_queue_draw(w);
+		}
 	}
-
 	return FALSE;
 }
 
 
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-
 	if(priv->dragging) {
-		//printf("dragging...\n");
 		priv->drag_end_x = event->x;
 		priv->drag_end_y = event->y;
 		gtk_widget_queue_draw(w);
 	}
-
 	if(priv->do_show_coords) {
-		//printf("%g, %g\n", event->x, event->y);
 		gtk_widget_queue_draw(w);
 	}
-
 	return FALSE;
 }
-
-
 
 
 static void jbplot_class_init (jbplotClass *class) {
@@ -661,8 +668,20 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	// calculate data ranges and tic labels
   data_range x_range, y_range;
-  x_range = get_x_range(p->traces, p->num_traces);
-  y_range = get_y_range(p->traces, p->num_traces);
+	if(x_axis->do_autoscale) {
+	  x_range = get_x_range(p->traces, p->num_traces);
+	}
+	else {
+		x_range.min = x_axis->min_val;
+		x_range.max = x_axis->max_val;
+	}
+	if(y_axis->do_autoscale) {
+		y_range = get_y_range(p->traces, p->num_traces);
+	}
+	else {
+		y_range.min = y_axis->min_val;
+		y_range.max = y_axis->max_val;
+	}
   set_major_tic_values(x_axis, x_range.min, x_range.max);
   set_major_tic_values(y_axis, y_range.min, y_range.max);
   set_major_tic_labels(x_axis);
@@ -693,7 +712,11 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double x_m = (plot_area_right_edge - plot_area_left_edge) / (x_axis->max_val - x_axis->min_val);	
 	double x_b = plot_area_left_edge - x_m * x_axis->min_val;	
 	double y_m = (plot_area_top_edge - plot_area_bottom_edge) / (y_axis->max_val - y_axis->min_val);	
-	double y_b = plot_area_bottom_edge - y_m * y_axis->min_val;		
+	double y_b = plot_area_bottom_edge - y_m * y_axis->min_val;
+	priv->x_m = x_m;	
+	priv->y_m = y_m;	
+	priv->x_b = x_b;	
+	priv->y_b = y_b;	
 	
 	// fill the plot area (we'll stroke the border later)
 	cairo_set_source_rgb (cr, 1, 1, 1);
@@ -778,29 +801,53 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	}
 	
 	// draw the data!!!
+	cairo_save(cr);
+	cairo_rectangle(	cr, 
+										plot_area_left_edge,
+										plot_area_top_edge,
+										(plot_area_right_edge-plot_area_left_edge),
+										(plot_area_bottom_edge-plot_area_top_edge)
+									);
+	cairo_clip(cr);
 	cairo_set_source_rgb (cr, 1.0, 0, 0);
 	for(i = 0; i < p->num_traces; i++) {
+		char first_pt = 1;
 		trace_t *t = p->traces[i];
 		if(t->length <= 0) continue;
-		cairo_move_to(
-			cr, 
-			x_m * t->x_data[t->start_index] + x_b,
-			y_m * t->y_data[t->start_index] + y_b
-		);
-		for(j = 1; j < t->length; j++) {
+		for(j = 0; j < t->length; j++) {
 			int n;
 			n = t->start_index + j;
 			if(n >= t->capacity) {
 				n -= t->capacity;
 			}
-			cairo_line_to(
-				cr,
-				x_m * t->x_data[n] + x_b, 
-				y_m * t->y_data[n] + y_b
-			);
+/*
+			if(t->x_data[n] < x_axis->min_val ||
+			   t->x_data[n] > x_axis->max_val ||
+			   t->y_data[n] < y_axis->min_val || 
+			   t->y_data[n] > y_axis->max_val
+			) {
+				continue;
+			}
+*/
+			if(first_pt) {
+				cairo_move_to(
+					cr, 
+					x_m * t->x_data[n] + x_b,
+					y_m * t->y_data[n] + y_b
+				);
+				first_pt = 0;
+			}
+			else {
+				cairo_line_to(
+					cr,
+					x_m * t->x_data[n] + x_b, 
+					y_m * t->y_data[n] + y_b
+				);
+			}
 		}
 		cairo_stroke(cr);
 	}
+	cairo_restore(cr);
 
 	// draw the plot area border
 	cairo_set_source_rgb (cr, 0, 0, 0);
@@ -1145,6 +1192,26 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 
 /******************** Public Functions *******************************/
 
+int jbplot_set_x_range(jbplot *plot, float min, float max) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.x_axis.do_autoscale = 0;
+	priv->plot.x_axis.min_val = min;
+	priv->plot.x_axis.max_val = max;
+	printf("Setting x-axis range to (%g , %g)\n", min, max);
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+	
+int jbplot_set_y_range(jbplot *plot, float min, float max) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.y_axis.do_autoscale = 0;
+	priv->plot.y_axis.min_val = min;
+	priv->plot.y_axis.max_val = max;
+	printf("Setting y-axis range to (%g , %g)\n", min, max);
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+	
 void jbplot_refresh(jbplot *plot) {
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return;
