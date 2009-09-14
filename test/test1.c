@@ -74,11 +74,11 @@ int main (int argc, char **argv) {
 	g_timeout_add(50, update_data, th);
 
 	jbplot_set_plot_title((jbplot *)plot, "Hello World", 1);
-	jbplot_set_plot_title_visible((jbplot *)plot, 0);
+	jbplot_set_plot_title_visible((jbplot *)plot, 1);
 	jbplot_set_x_axis_label((jbplot *)plot, "Time (sec)", 1);
-	jbplot_set_x_axis_label_visible((jbplot *)plot, 0);
+	jbplot_set_x_axis_label_visible((jbplot *)plot, 1);
 	jbplot_set_y_axis_label((jbplot *)plot, "Amplitude", 1);
-	jbplot_set_y_axis_label_visible((jbplot *)plot, 0);
+	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
 
 	th = jbplot_create_trace(2000);
 	if(th==NULL) {
