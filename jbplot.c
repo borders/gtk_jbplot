@@ -1157,7 +1157,7 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 		return -1;
 	}
 	
-	if(a->do_loose_fit) {
+	if(a->do_autoscale && a->do_loose_fit) {
 		a->major_tic_values[i] = tic_val;
 		a->max_val = tic_val;	
 		a->num_actual_major_tics = i+1;
