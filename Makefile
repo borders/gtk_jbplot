@@ -10,6 +10,11 @@ jbplot-marshallers.c: jbplot-marshallers.list
 jbplot-marshallers.h: jbplot-marshallers.list
 	glib-genmarshal --prefix _plot_marshal --header $< > $@
 
+.PHONY: docs
+docs: jbplot.c jbplot.h
+	@ echo "Generating documentation..."
+	@ doxygen Doxyfile > /dev/null
+
 clean:
 	rm -f jbplot-marshallers.h jbplot-marshallers.c
 	rm -f test/test1
