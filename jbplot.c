@@ -1,4 +1,4 @@
-/**
+/*
  * jbplot.c
  *
  * A GTK+ widget that implements a plot
@@ -25,7 +25,6 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
 static gboolean jbplot_update (gpointer data);
 
 
-/* Here are the plot structs */
 #define MAX_NUM_MAJOR_TICS    50
 #define MAJOR_TIC_LABEL_SIZE  100
 #define MAX_NUM_TRACES    10
@@ -48,6 +47,8 @@ typedef struct axis_t {
   char do_loose_fit;
   char do_show_major_gridlines;
   float major_gridline_width;
+	rgb_color_t major_gridline_color;
+	int major_gridline_type;
   char do_show_minor_gridlines;
   float major_tic_values[MAX_NUM_MAJOR_TICS];
   char *major_tic_labels[MAX_NUM_MAJOR_TICS];
@@ -73,6 +74,8 @@ typedef struct plot_area_t {
 	float right_edge;
 	float top_edge;
 	float bottom_edge;
+	rgb_color_t bg_color;
+	rgb_color_t border_color;
 } plot_area_t;
 
 typedef struct trace_t {
@@ -93,6 +96,7 @@ typedef struct trace_t {
 
 
 typedef struct plot_t {
+	rgb_color_t bg_color;
   struct plot_area_t plot_area;
   struct axis_t x_axis;
   struct axis_t y_axis;
@@ -119,7 +123,6 @@ static double round_up_to_nearest(double num, double nearest);
 static double round_down_to_nearest(double num, double nearest);
 static data_range get_y_range(trace_t **traces, int num_traces);
 static data_range get_x_range(trace_t **traces, int num_traces);
-
 
 
 
@@ -158,7 +161,7 @@ static guint jbplot_signals[LAST_SIGNAL] = { 0 };
 
 
 static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
-	printf("Action not implemented (%s)\n", (char *)data);
+	printf("Action not yet implemented (%s)\n", (char *)data);
 	return FALSE;
 }
 
@@ -373,8 +376,8 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 			priv->pan_start_x_range.max = priv->plot.x_axis.max_val;
 			priv->pan_start_y_range.min = priv->plot.y_axis.min_val;
 			priv->pan_start_y_range.max = priv->plot.y_axis.max_val;
-			jbplot_set_x_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
-			jbplot_set_y_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
+			jbplot_set_x_axis_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
+			jbplot_set_y_axis_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
 		}
 	}
 	return FALSE;
@@ -393,8 +396,8 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
 				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
 				y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
-				jbplot_set_x_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
-				jbplot_set_y_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
+				jbplot_set_x_axis_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
+				jbplot_set_y_axis_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
 			}
 			gtk_widget_queue_draw(w);
 		}
@@ -417,8 +420,8 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 		gtk_widget_queue_draw(w);
 	}
 	if(priv->panning) {
-		jbplot_set_x_range((jbplot *)w, priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m , priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m);
-		jbplot_set_y_range((jbplot *)w, priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m, priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m);
+		jbplot_set_x_axis_range((jbplot *)w, priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m , priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m);
+		jbplot_set_y_axis_range((jbplot *)w, priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m, priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m);
 		gtk_widget_queue_draw(w);
 	}
 	if(priv->do_show_coords) {
@@ -449,6 +452,7 @@ static void jbplot_class_init (jbplotClass *class) {
 
 static int init_axis(axis_t *axis) {
 	int i;
+	rgb_color_t color = {0.8, 0.8, 0.8};
   axis->do_show_axis_label = 1;
   axis->axis_label = "axis_label";
 	axis->is_axis_label_owner = 0;
@@ -457,6 +461,8 @@ static int init_axis(axis_t *axis) {
   axis->do_loose_fit = 0;
   axis->do_show_major_gridlines = 1;
   axis->major_gridline_width = 1.0;
+	axis->major_gridline_color = color;
+	axis->major_gridline_type = LINETYPE_SOLID;
   axis->do_show_minor_gridlines = 0;
 	for(i=0; i<MAX_NUM_MAJOR_TICS; i++) {
 		axis->major_tic_labels[i] = malloc(MAJOR_TIC_LABEL_SIZE);
@@ -476,13 +482,18 @@ static int init_axis(axis_t *axis) {
 }
 
 static int init_plot_area(plot_area_t *area) {
+	rgb_color_t color = {0.0, 0.0, 0.0};
   area->do_show_bounding_box = 1;
   area->bounding_box_width = 1.0;
+	area->border_color = color;
+	color.red = color.green = color.blue = 1.0;
+	area->bg_color = color;
 	return 0;
 }
 
 
 static int init_plot(plot_t *plot) {
+	rgb_color_t color = {1.0, 1.0, 1.0};
 
 	if(	init_axis(&(plot->x_axis)) 
 							||
@@ -496,6 +507,7 @@ static int init_plot(plot_t *plot) {
   plot->plot_title = "";
 	plot->is_plot_title_owner = 0;
 	plot->plot_title_font_size = 12.;
+	plot->bg_color = color;
   
   plot->num_traces = 0;
 	return 0;
@@ -677,6 +689,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	plot_t *p = &(priv->plot);
 	axis_t *x_axis = &(p->x_axis);
 	axis_t *y_axis = &(p->y_axis);
+	plot_area_t *pa = &(p->plot_area);
 
 	width = plot->allocation.width;
 	height = plot->allocation.height;
@@ -689,7 +702,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	//First fill the background
 	cairo_rectangle(cr, 0., 0., width, height);
-	cairo_set_source_rgb (cr, 0.9, 0.9, 0.9);
+	cairo_set_source_rgb (cr, p->bg_color.red, p->bg_color.green, p->bg_color.blue);
 	cairo_fill(cr);
 
 	// now do the layout calcs
@@ -784,7 +797,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	priv->y_b = y_b;	
 	
 	// fill the plot area (we'll stroke the border later)
-	cairo_set_source_rgb (cr, 1, 1, 1);
+	cairo_set_source_rgb (cr, pa->bg_color.red, pa->bg_color.green, pa->bg_color.blue);
 	cairo_rectangle(	cr, 
 										plot_area_left_edge,
 										plot_area_top_edge,
@@ -809,13 +822,20 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	cairo_restore(cr);
 
 	// draw the y major gridlines
-	cairo_set_source_rgb (cr, 0.6, 0.6, 0.6);
-	for(i=0; i<y_axis->num_actual_major_tics; i++) {
-		double y = y_m * y_axis->major_tic_values[i] + y_b;
-		cairo_move_to(cr, plot_area_left_edge, y);
-		cairo_line_to(cr, plot_area_right_edge, y);
-		cairo_stroke(cr);
-	}	
+	if(y_axis->do_show_major_gridlines && y_axis->major_gridline_type != LINETYPE_NONE) {
+		cairo_set_source_rgb(cr, 
+		                     y_axis->major_gridline_color.red, 
+		                     y_axis->major_gridline_color.green, 
+		                     y_axis->major_gridline_color.blue
+		);
+		cairo_set_line_width(cr, y_axis->major_gridline_width);
+		for(i=0; i<y_axis->num_actual_major_tics; i++) {
+			double y = y_m * y_axis->major_tic_values[i] + y_b;
+			cairo_move_to(cr, plot_area_left_edge, y);
+			cairo_line_to(cr, plot_area_right_edge, y);
+			cairo_stroke(cr);
+		}	
+	}
 	
 	// draw the x tic labels
 	cairo_set_source_rgb (cr, 0., 0., 0.);
@@ -833,13 +853,20 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	cairo_restore(cr);
 
 	// draw the x major gridlines
-	cairo_set_source_rgb (cr, 0.6, 0.6, 0.6);
-	for(i=0; i<x_axis->num_actual_major_tics; i++) {
-		double x = x_m * x_axis->major_tic_values[i] + x_b;		
-		cairo_move_to(cr, x, plot_area_bottom_edge);
-		cairo_line_to(cr, x, plot_area_top_edge);
-		cairo_stroke(cr);
-	}	
+	if(x_axis->do_show_major_gridlines && x_axis->major_gridline_type != LINETYPE_NONE) {
+		cairo_set_source_rgb(cr, 
+		                     x_axis->major_gridline_color.red, 
+		                     x_axis->major_gridline_color.green, 
+		                     x_axis->major_gridline_color.blue
+		);
+		cairo_set_line_width(cr, x_axis->major_gridline_width);
+		for(i=0; i<x_axis->num_actual_major_tics; i++) {
+			double x = x_m * x_axis->major_tic_values[i] + x_b;		
+			cairo_move_to(cr, x, plot_area_bottom_edge);
+			cairo_line_to(cr, x, plot_area_top_edge);
+			cairo_stroke(cr);
+		}	
+	}
 			
 	// draw the y-axis label if desired
 	cairo_set_source_rgb (cr, 0, 0, 0);
@@ -892,15 +919,6 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			if(n >= t->capacity) {
 				n -= t->capacity;
 			}
-/*
-			if(t->x_data[n] < x_axis->min_val ||
-			   t->x_data[n] > x_axis->max_val ||
-			   t->y_data[n] < y_axis->min_val || 
-			   t->y_data[n] > y_axis->max_val
-			) {
-				continue;
-			}
-*/
 			if(first_pt) {
 				cairo_move_to(
 					cr, 
@@ -949,15 +967,18 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	cairo_restore(cr);
 
 	// draw the plot area border
-	cairo_set_source_rgb (cr, 0, 0, 0);
-	cairo_rectangle(
-		cr, 
-		plot_area_left_edge, 
-		plot_area_top_edge,
-		plot_area_right_edge - plot_area_left_edge,
-		plot_area_bottom_edge - plot_area_top_edge
-	);
-	cairo_stroke(cr);	
+	if(pa->do_show_bounding_box) {
+		cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
+		cairo_set_line_width(cr, pa->bounding_box_width);
+		cairo_rectangle(
+			cr, 
+			plot_area_left_edge, 
+			plot_area_top_edge,
+			plot_area_right_edge - plot_area_left_edge,
+			plot_area_bottom_edge - plot_area_top_edge
+		);
+		cairo_stroke(cr);	
+	}
 
 	// draw the zoom box if zooming is active
 	if(priv->zooming) {
@@ -1115,7 +1136,7 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 	}
 
 	double min_tic_val;
-	if(a->do_loose_fit) {
+	if(a->do_autoscale && a->do_loose_fit) {
 		min_tic_val = round_down_to_nearest(min, actual_tic_delta);
 		a->min_val = min_tic_val;
 	}
@@ -1290,8 +1311,98 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(visible) {
+		priv->plot.x_axis.do_show_major_gridlines = 1;	
+	}
+	else {
+		priv->plot.x_axis.do_show_major_gridlines = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
 
-int jbplot_set_x_range(jbplot *plot, float min, float max) {
+int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.x_axis.major_gridline_width = width;	
+	priv->plot.x_axis.major_gridline_color = color;	
+	priv->plot.x_axis.major_gridline_type = type;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_bg_color(jbplot *plot, rgb_color_t color) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.bg_color = color;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t color) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.plot_area.bg_color = color;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t color) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.plot_area.bounding_box_width = width;
+	priv->plot.plot_area.border_color = color;
+	if(width > 0) {
+		priv->plot.plot_area.do_show_bounding_box = 1;
+	}
+	else {
+		priv->plot.plot_area.do_show_bounding_box = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_plot_area_margins(jbplot *plot, float left, float right, float top, float bottom) {
+	// TODO
+	return 0;
+}
+
+
+int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(mode == SCALE_AUTO_TIGHT) {
+		priv->plot.x_axis.do_autoscale = 1;
+		priv->plot.x_axis.do_loose_fit = 0;
+	}
+	else if(mode == SCALE_AUTO_LOOSE) {
+		priv->plot.x_axis.do_autoscale = 1;
+		priv->plot.x_axis.do_loose_fit = 1;
+	}
+	else if(mode == SCALE_MANUAL) {
+		priv->plot.x_axis.do_autoscale = 0;
+		priv->plot.x_axis.do_loose_fit = 0;
+	}
+
+	return 0;
+}
+
+int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(mode == SCALE_AUTO_TIGHT) {
+		priv->plot.y_axis.do_autoscale = 1;
+		priv->plot.y_axis.do_loose_fit = 0;
+	}
+	else if(mode == SCALE_AUTO_LOOSE) {
+		priv->plot.y_axis.do_autoscale = 1;
+		priv->plot.y_axis.do_loose_fit = 1;
+	}
+	else if(mode == SCALE_MANUAL) {
+		priv->plot.y_axis.do_autoscale = 0;
+		priv->plot.y_axis.do_loose_fit = 0;
+	}
+
+	return 0;
+}
+
+int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.do_autoscale = 0;
 	priv->plot.x_axis.min_val = min;
@@ -1301,7 +1412,7 @@ int jbplot_set_x_range(jbplot *plot, float min, float max) {
 	return 0;
 }
 	
-int jbplot_set_y_range(jbplot *plot, float min, float max) {
+int jbplot_set_y_axis_range(jbplot *plot, float min, float max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.y_axis.do_autoscale = 0;
 	priv->plot.y_axis.min_val = min;

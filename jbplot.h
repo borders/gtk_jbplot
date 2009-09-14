@@ -1,11 +1,5 @@
-/**
- * jbplot.h
- *
- * A GTK+ widget that implements a plot
- *
- *
- * Authors:
- *   James Borders
+/** \file jbplot.h
+ * \brief This file describes the public interface to the jbplot widget
  */
 
 #ifndef __JBPLOT_H__
@@ -22,7 +16,9 @@ G_BEGIN_DECLS
 #define IS_JBPLOT_CLASS(obj)	(G_TYPE_CHECK_CLASS_TYPE ((obj), JBPLOT_TYPE))
 #define JBPLOT_GET_CLASS	(G_TYPE_INSTANCE_GET_CLASS ((obj), JBPLOT_TYPE, jbplotClass))
 
-
+/**
+ * Type used to specify colors
+ */
 typedef struct rgb_color_t {
 	float red;
 	float green;
@@ -30,6 +26,19 @@ typedef struct rgb_color_t {
 } rgb_color_t;
 
 
+/**
+ * Supported axis scaling modes
+ */
+typedef enum {
+	SCALE_AUTO_TIGHT,
+	SCALE_AUTO_LOOSE,
+	SCALE_MANUAL
+} scale_mode_t;
+
+
+/**
+ * Supported trace marker types
+ */
 typedef enum {
 	MARKER_NONE,
 	MARKER_CIRCLE,
@@ -37,6 +46,10 @@ typedef enum {
 	MARKER_X
 } marker_type_t;
 
+
+/**
+ * Supported trace line types
+ */
 typedef enum {
 	LINETYPE_NONE,
 	LINETYPE_SOLID,
@@ -53,30 +66,95 @@ struct _jbplot
 {
 	GtkDrawingArea parent;
 
-	/* < private > */
 };
 
 struct _jbplotClass
 {
 	GtkDrawingAreaClass parent_class;
 
-/*
-	void	(* time_changed)	(EggClockFace *clock,
-					 int hours, int minutes);
-*/
 };
 
+
+/**
+ * Create a new jbplot widget
+ */
 GtkWidget *jbplot_new (void);
+
+
+/**
+ * Set the plot title text
+ * @param plot a jbplot pointer
+ * @param title the title string
+ * @param copy 1 = copy given title string to internal data structure; 0 = use given pointer 
+ */
 int jbplot_set_plot_title(jbplot *plot, char *title, int copy);
+
+
+/**
+ * Set the plot title visibility state
+ * @param plot a jbplot pointer
+ * @param visible TRUE=show it; FALSE=do not show it
+ */
 int jbplot_set_plot_title_visible(jbplot *plot, gboolean visible);
+
+
+/**
+ * Set the plot background color
+ * @param plot a jbplot pointer
+ * @param color color to use for background
+ */
+int jbplot_set_bg_color(jbplot *plot, rgb_color_t color);
+
+
+/********************** X-axis functions *********************************************/
+
+/**
+ * Set the x-axis label text
+ * @param plot a jbplot pointer
+ * @param title the title string
+ * @param copy 1 = copy given title string to internal data structure; 0 = use given pointer 
+ */
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
+
+
+/**
+ * Set the x-axis label visibility state
+ * @param plot a jbplot pointer
+ * @param visible TRUE=show it; FALSE=do not show it
+ */
 int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
+
+
+/**
+ * Set the x-axis range
+ * @param plot a jbplot pointer
+ * @param min The minimum value
+ * @param max The maximum value
+ */
+int jbplot_set_x_axis_range(jbplot *plot, float min, float max);
+
+int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode);
+int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color);
+int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
+
+
+
+/********************* Y-axis functions *******************************************/
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
+int jbplot_set_y_axis_range(jbplot *plot, float min, float max);
+int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode);
+
+/* Plot-Area functions */
+int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t color);
+int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t color);
+int jbplot_set_plot_area_margins(jbplot *plot, float left, float right, float top, float bottom);
+
+
+/* Trace-related functions */
 int jbplot_add_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
-
 
 int jbplot_trace_add_point(trace_handle th, float x, float y);
 int jbplot_trace_set_line_props(trace_handle th, line_type_t type, float width, rgb_color_t color);
@@ -84,8 +162,6 @@ int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float siz
 
 
 void jbplot_refresh(jbplot *plot);
-int jbplot_set_x_range(jbplot *plot, float min, float max);
-int jbplot_set_y_range(jbplot *plot, float min, float max);
 
 G_END_DECLS
 
