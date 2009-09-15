@@ -29,6 +29,10 @@ static gboolean jbplot_update (gpointer data);
 #define MAJOR_TIC_LABEL_SIZE  100
 #define MAX_NUM_TRACES    10
 
+
+double dash_pattern[] = {4.0, 4.0};
+double dot_pattern[] =  {2.0, 4.0};
+
 typedef struct box_size_t {
   float width;
   float height;
@@ -484,7 +488,7 @@ static int init_axis(axis_t *axis) {
 static int init_plot_area(plot_area_t *area) {
 	rgb_color_t color = {0.0, 0.0, 0.0};
   area->do_show_bounding_box = 1;
-  area->bounding_box_width = 1.0;
+  area->bounding_box_width = 2.0;
 	area->border_color = color;
 	color.red = color.green = color.blue = 1.0;
 	area->bg_color = color;
@@ -823,6 +827,16 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	// draw the y major gridlines
 	if(y_axis->do_show_major_gridlines && y_axis->major_gridline_type != LINETYPE_NONE) {
+		cairo_save(cr);
+		if(y_axis->major_gridline_type == LINETYPE_SOLID) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
+		}	
+		else if(y_axis->major_gridline_type == LINETYPE_DASHED) {
+			cairo_set_dash(cr, dash_pattern, 2, 0);
+		}	
+		else if(y_axis->major_gridline_type == LINETYPE_DOTTED) {
+			cairo_set_dash(cr, dot_pattern, 2, 0);
+		}	
 		cairo_set_source_rgb(cr, 
 		                     y_axis->major_gridline_color.red, 
 		                     y_axis->major_gridline_color.green, 
@@ -835,6 +849,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			cairo_line_to(cr, plot_area_right_edge, y);
 			cairo_stroke(cr);
 		}	
+		cairo_restore(cr);
 	}
 	
 	// draw the x tic labels
@@ -854,6 +869,16 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	// draw the x major gridlines
 	if(x_axis->do_show_major_gridlines && x_axis->major_gridline_type != LINETYPE_NONE) {
+		cairo_save(cr);
+		if(x_axis->major_gridline_type == LINETYPE_SOLID) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
+		}	
+		else if(x_axis->major_gridline_type == LINETYPE_DASHED) {
+			cairo_set_dash(cr, dash_pattern, 2, 0);
+		}	
+		else if(x_axis->major_gridline_type == LINETYPE_DOTTED) {
+			cairo_set_dash(cr, dot_pattern, 2, 0);
+		}	
 		cairo_set_source_rgb(cr, 
 		                     x_axis->major_gridline_color.red, 
 		                     x_axis->major_gridline_color.green, 
@@ -866,6 +891,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			cairo_line_to(cr, x, plot_area_top_edge);
 			cairo_stroke(cr);
 		}	
+		cairo_restore(cr);
 	}
 			
 	// draw the y-axis label if desired
@@ -912,6 +938,15 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			continue;
 		}
 		cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
+		if(t->line_type == LINETYPE_SOLID) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
+		}	
+		else if(t->line_type == LINETYPE_DASHED) {
+			cairo_set_dash(cr, dash_pattern, 2, 0);
+		}	
+		else if(t->line_type == LINETYPE_DOTTED) {
+			cairo_set_dash(cr, dot_pattern, 2, 0);
+		}	
 		if(t->length <= 0) continue;
 		for(j = 0; j < t->length; j++) {
 			int n;
@@ -982,9 +1017,9 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 	// draw the zoom box if zooming is active
 	if(priv->zooming) {
-		double dashes[] = {4.0,4.0};
+		double dashes[] = {8.0,4.0};
 		cairo_save(cr);
-		cairo_set_source_rgb (cr, 0.5, 0.5, 0.5);
+		cairo_set_source_rgb (cr, 0.529, 0.808, 0.980);
 		cairo_set_line_width (cr, 1.0);
 		cairo_set_dash(cr, dashes, 2, 0);
 		cairo_rectangle(
@@ -1323,11 +1358,32 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	return 0;
 }
 
+int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(visible) {
+		priv->plot.y_axis.do_show_major_gridlines = 1;	
+	}
+	else {
+		priv->plot.y_axis.do_show_major_gridlines = 0;
+	}
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
 int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.major_gridline_width = width;	
 	priv->plot.x_axis.major_gridline_color = color;	
 	priv->plot.x_axis.major_gridline_type = type;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.y_axis.major_gridline_width = width;	
+	priv->plot.y_axis.major_gridline_color = color;	
+	priv->plot.y_axis.major_gridline_type = type;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }

@@ -80,13 +80,17 @@ int main (int argc, char **argv) {
 	jbplot_set_y_axis_label((jbplot *)plot, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
 
+	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
+	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
+
 	th = jbplot_create_trace(2000);
 	if(th==NULL) {
 		printf("error creating trace!\n");
 		return 0;
 	}
 	rgb_color_t color = {0.0, 1.0, 0.0};
-	jbplot_trace_set_line_props(th, LINETYPE_SOLID, 1.0, color);
+	jbplot_trace_set_line_props(th, LINETYPE_DOTTED, 1.0, color);
 	color.red = 1.0;
 	color.green = 0.0;
 	color.blue = 0.0;
