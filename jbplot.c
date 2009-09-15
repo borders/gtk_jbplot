@@ -82,6 +82,15 @@ typedef struct plot_area_t {
 	rgb_color_t border_color;
 } plot_area_t;
 
+typedef struct legend_t {
+  char do_show_bounding_box;
+  float bounding_box_width;
+	rgb_color_t bg_color;
+	rgb_color_t border_color;
+	legend_pos_t position;
+	double font_size;
+} legend_t;
+
 typedef struct trace_t {
   float *x_data;
   float *y_data;
@@ -96,12 +105,14 @@ typedef struct trace_t {
 	rgb_color_t marker_color;
 	int marker_type;
 	float marker_size;
+	char name[255];
 } trace_t;
 
 
 typedef struct plot_t {
 	rgb_color_t bg_color;
   struct plot_area_t plot_area;
+  struct legend_t legend;
   struct axis_t x_axis;
   struct axis_t y_axis;
   char do_show_plot_title;
@@ -512,6 +523,18 @@ static int init_plot_area(plot_area_t *area) {
 	return 0;
 }
 
+static int init_legend(legend_t *legend) {
+	rgb_color_t color = {0.0, 0.0, 0.0};
+  legend->do_show_bounding_box = 1;
+  legend->bounding_box_width = 1.0;
+	legend->border_color = color;
+	color.red = color.green = color.blue = 1.0;
+	legend->bg_color = color;
+	legend->position = LEGEND_POS_RIGHT;
+	legend->font_size = 10.;
+	return 0;
+}
+
 
 static int init_plot(plot_t *plot) {
 	rgb_color_t color = {1.0, 1.0, 1.0};
@@ -521,6 +544,8 @@ static int init_plot(plot_t *plot) {
 			init_axis(&(plot->y_axis)) 
 							||
 			init_plot_area(&(plot->plot_area))
+	            ||
+	    init_legend(&(plot->legend))
 		) {
 		return -1;
 	}
@@ -705,6 +730,25 @@ void draw_marker(cairo_t *cr, int type, float size) {
 	return;
 }
 
+int calc_legend_dims(plot_t *plot, cairo_t *cr, double *width, double *height, double *spacing) {
+	double max_width = 10.;
+	double h_sum = 10.;
+	int i;
+		double w;
+		double h;
+	for(i=0; i < plot->num_traces; i++) {
+		w = get_text_width(cr, plot->traces[i]->name, plot->legend.font_size);
+		h = get_text_height(cr, plot->traces[i]->name, plot->legend.font_size);
+		if(w > max_width) {
+			max_width = w;
+		}
+		h_sum = h_sum + h + 10;
+	}
+	*width = max_width + 15 + 10;
+	*height = h_sum;
+	*spacing = h + 10;
+	return 0;
+}
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double width, height;
@@ -714,6 +758,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	axis_t *x_axis = &(p->x_axis);
 	axis_t *y_axis = &(p->y_axis);
 	plot_area_t *pa = &(p->plot_area);
+	legend_t *l = &(p->legend);
 
 	width = plot->allocation.width;
 	height = plot->allocation.height;
@@ -748,6 +793,42 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_restore(cr);
   }
 
+	/********** Draw the legend ***********************/
+	double legend_width, legend_height, entry_spacing;
+	double legend_right_edge, legend_left_edge, legend_top_edge;
+	legend_top_edge = 50.;
+	if(l->position == LEGEND_POS_RIGHT) {
+		calc_legend_dims(p, cr, &legend_width, &legend_height, &entry_spacing);
+		int i;
+		legend_left_edge = width - 10 - legend_width;
+		cairo_set_font_size(cr, p->legend.font_size);
+		for(i=0; i < p->num_traces; i++) {
+			cairo_set_source_rgb (cr, 0., 0., 0.);
+			draw_horiz_text_at_point(	plot,
+																cr, 
+			                          p->traces[i]->name, 
+																legend_left_edge, 
+																legend_top_edge + entry_spacing*i, 
+																ANCHOR_TOP_LEFT
+															);
+			if(p->traces[i]->line_type != LINETYPE_NONE) {
+				cairo_set_source_rgb(cr, 
+				                     p->traces[i]->line_color.red,
+				                     p->traces[i]->line_color.green,
+				                     p->traces[i]->line_color.blue
+				);
+				cairo_set_line_width(cr, p->traces[i]->line_width);
+				double h = legend_top_edge + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+				cairo_move_to(cr, 
+				              legend_left_edge + get_text_width(cr, p->traces[i]->name, p->legend.font_size) + 2, 
+				              h
+				);
+				cairo_line_to(cr, legend_left_edge + legend_width, h);
+				cairo_stroke(cr);
+			}
+		}	
+	}
+
 	// calculate data ranges and tic labels
   data_range x_range, y_range;
 	if(x_axis->do_autoscale) {
@@ -780,7 +861,14 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
   double y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
   double plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
 	priv->plot.plot_area.left_edge = plot_area_left_edge;
-  double plot_area_right_edge = width - 0.06 * width;
+
+  double plot_area_right_edge;
+	if(l->position == LEGEND_POS_RIGHT) {
+		plot_area_right_edge = width - 10 - legend_width - 10;
+	}
+	else {
+	  plot_area_right_edge = width - 0.06 * width;
+	}
 	priv->plot.plot_area.right_edge = plot_area_right_edge;
 	double plot_area_top_edge;
 	if(p->do_show_plot_title) {
@@ -1406,10 +1494,27 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 	t->start_index = 0;
 	t->end_index = length - 1;
 	t->is_data_owner = 0;
+	strcpy(t->name, "trace");
 	return t;
 }
 
 /******************** Public Functions *******************************/
+
+int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t bg_color, rgb_color_t border_color, legend_pos_t position) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(border_width > 0) {
+		priv->plot.legend.bounding_box_width = border_width;
+		priv->plot.legend.do_show_bounding_box = 1;
+	}
+	else {
+		priv->plot.legend.do_show_bounding_box = 0;
+	}
+	priv->plot.legend.bg_color = bg_color;
+	priv->plot.legend.border_color = border_color;
+	priv->plot.legend.position = position;
+	return 0;	
+}
+
 int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	if(visible) {
@@ -1611,6 +1716,7 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->marker_color.red = 0.0;
 	t->marker_color.green = 0.0;
 	t->marker_color.blue = 0.0;
+	strcpy(t->name, "trace_name");
 
 	return t;
 }

@@ -57,6 +57,15 @@ typedef enum {
 	LINETYPE_DOTTED
 } line_type_t;
 
+/**
+ * Supported legend positions
+ */
+typedef enum {
+	LEGEND_POS_NONE,
+	LEGEND_POS_RIGHT,
+	LEGEND_POS_TOP
+} legend_pos_t;
+
 typedef struct _jbplot		jbplot;
 typedef struct _jbplotClass	jbplotClass;
 
@@ -152,6 +161,7 @@ int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t color);
 int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t color);
 int jbplot_set_plot_area_margins(jbplot *plot, float left, float right, float top, float bottom);
 
+int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t bg_color, rgb_color_t border_color, legend_pos_t position);
 
 /* Trace-related functions */
 int jbplot_add_trace(jbplot *plot, trace_handle th);
