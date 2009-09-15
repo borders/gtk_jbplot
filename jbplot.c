@@ -186,6 +186,12 @@ static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer d
 }
 
 
+static gboolean popup_callback_zoom_all(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplot_set_x_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
+	jbplot_set_y_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
+	return FALSE;
+}
+
 static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Clearing plot (FIXME!!!!)\n");
@@ -244,6 +250,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 
 
 	GtkWidget *clear_plot = gtk_menu_item_new_with_label("Clear Plot");
+	GtkWidget *zoom_all = gtk_menu_item_new_with_label("Zoom All");
 	GtkWidget *x = gtk_menu_item_new_with_label("x-axis");
 	GtkWidget *y = gtk_menu_item_new_with_label("y-axis");
 	GtkWidget *show_coords = gtk_check_menu_item_new_with_label("Show Coords");
@@ -258,12 +265,14 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	}
 
 	g_signal_connect(G_OBJECT(clear_plot), "button-press-event", G_CALLBACK(popup_callback_clear), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(zoom_all), "button-press-event", G_CALLBACK(popup_callback_zoom_all), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(x), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "x-axis");
 	g_signal_connect(G_OBJECT(y), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y-axis");
 	g_signal_connect(G_OBJECT(show_coords), "button-press-event", G_CALLBACK(popup_callback_show_coords), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(show_cross_hair), "button-press-event", G_CALLBACK(popup_callback_show_cross_hair), (gpointer) my_widget);
 
 	gtk_menu_shell_append((GtkMenuShell *)menu, clear_plot);
+	gtk_menu_shell_append((GtkMenuShell *)menu, zoom_all);
 	gtk_menu_shell_append((GtkMenuShell *)menu, x);
 	gtk_menu_shell_append((GtkMenuShell *)menu, y);
 	gtk_menu_shell_append((GtkMenuShell *)menu, show_coords);
@@ -327,6 +336,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_menu_item_set_submenu((GtkMenuItem *)y, y_axis_submenu);
 
 	gtk_widget_show(clear_plot);
+	gtk_widget_show(zoom_all);
 	gtk_widget_show(x);
 	gtk_widget_show(y);
 	gtk_widget_show(show_coords);
@@ -351,37 +361,43 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-	if(event->button == 3) {
-		do_popup_menu(w, event);
+	if(event->type == GDK_2BUTTON_PRESS) {
+		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
+		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
 	}
-	else if(event->button == 1) {
-		if(event->x >= priv->plot.plot_area.left_edge &&
-		   event->x <= priv->plot.plot_area.right_edge &&
-		   event->y >= priv->plot.plot_area.top_edge &&
-		   event->y <= priv->plot.plot_area.bottom_edge
-		) {
-			priv->zooming = TRUE;
-			priv->drag_start_x = event->x;
-			priv->drag_start_y = event->y;
-			priv->drag_end_x = event->x;
-			priv->drag_end_y = event->y;
+	else {
+		if(event->button == 3) {
+			do_popup_menu(w, event);
 		}
-	}
-	else if(event->button == 2) {
-		if(event->x >= priv->plot.plot_area.left_edge &&
-		   event->x <= priv->plot.plot_area.right_edge &&
-		   event->y >= priv->plot.plot_area.top_edge &&
-		   event->y <= priv->plot.plot_area.bottom_edge
-		) {
-			priv->panning = TRUE;
-			priv->pan_start_x = event->x;
-			priv->pan_start_y = event->y;
-			priv->pan_start_x_range.min = priv->plot.x_axis.min_val;
-			priv->pan_start_x_range.max = priv->plot.x_axis.max_val;
-			priv->pan_start_y_range.min = priv->plot.y_axis.min_val;
-			priv->pan_start_y_range.max = priv->plot.y_axis.max_val;
-			jbplot_set_x_axis_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
-			jbplot_set_y_axis_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
+		else if(event->button == 1) {
+			if(event->x >= priv->plot.plot_area.left_edge &&
+				 event->x <= priv->plot.plot_area.right_edge &&
+				 event->y >= priv->plot.plot_area.top_edge &&
+				 event->y <= priv->plot.plot_area.bottom_edge
+			) {
+				priv->zooming = TRUE;
+				priv->drag_start_x = event->x;
+				priv->drag_start_y = event->y;
+				priv->drag_end_x = event->x;
+				priv->drag_end_y = event->y;
+			}
+		}
+		else if(event->button == 2) {
+			if(event->x >= priv->plot.plot_area.left_edge &&
+				 event->x <= priv->plot.plot_area.right_edge &&
+				 event->y >= priv->plot.plot_area.top_edge &&
+				 event->y <= priv->plot.plot_area.bottom_edge
+			) {
+				priv->panning = TRUE;
+				priv->pan_start_x = event->x;
+				priv->pan_start_y = event->y;
+				priv->pan_start_x_range.min = priv->plot.x_axis.min_val;
+				priv->pan_start_x_range.max = priv->plot.x_axis.max_val;
+				priv->pan_start_y_range.min = priv->plot.y_axis.min_val;
+				priv->pan_start_y_range.max = priv->plot.y_axis.max_val;
+				jbplot_set_x_axis_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
+				jbplot_set_y_axis_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
+			}
 		}
 	}
 	return FALSE;
@@ -938,6 +954,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			continue;
 		}
 		cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
+		cairo_set_line_width(cr, t->line_width);
 		if(t->line_type == LINETYPE_SOLID) {
 			cairo_set_dash(cr, dash_pattern, 0, 0);
 		}	
@@ -1436,7 +1453,7 @@ int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 		priv->plot.x_axis.do_autoscale = 0;
 		priv->plot.x_axis.do_loose_fit = 0;
 	}
-
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
@@ -1454,7 +1471,7 @@ int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 		priv->plot.y_axis.do_autoscale = 0;
 		priv->plot.y_axis.do_loose_fit = 0;
 	}
-
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
