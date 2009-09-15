@@ -139,6 +139,7 @@ struct _jbplotPrivate
 	gboolean panning; 
 	gboolean do_show_coords;
 	gboolean do_show_cross_hair;
+	gboolean do_snap_to_data;
 	gdouble drag_start_x;
 	gdouble drag_start_y;
 	gdouble drag_end_x;
@@ -170,6 +171,13 @@ static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
 	return FALSE;
 }
 
+static gboolean popup_callback_snap_to_data(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	printf("Toggling snap_to_data state\n");
+	priv->do_snap_to_data = !(priv->do_snap_to_data);
+	return FALSE;
+}
+
 static gboolean popup_callback_show_cross_hair(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling show_cross_hair state\n");
@@ -190,19 +198,6 @@ static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer d
 static gboolean popup_callback_zoom_all(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplot_set_x_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
 	jbplot_set_y_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
-	return FALSE;
-}
-
-static gboolean popup_callback_clear(GtkWidget *w, GdkEvent *e, gpointer data) {
-	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
-	printf("Clearing plot (FIXME!!!!)\n");
-	if(priv->plot.num_traces > 0) {
-		trace_t *t = priv->plot.traces[0];
-		t->length = 0;
-		t->start_index = 0;
-		t->end_index = 0;
-		gtk_widget_queue_draw((GtkWidget *)data);
-	}
 	return FALSE;
 }
 
@@ -255,13 +250,16 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	GtkWidget *y = gtk_menu_item_new_with_label("y-axis");
 	GtkWidget *show_coords = gtk_check_menu_item_new_with_label("Show Coords");
 	GtkWidget *show_cross_hair = gtk_check_menu_item_new_with_label("Show Crosshair");
+	GtkWidget *snap_to_data = gtk_check_menu_item_new_with_label("Snap to Data");
 
 	if(priv->do_show_coords) {
 		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_coords, TRUE);
 	}
-
 	if(priv->do_show_cross_hair) {
 		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_cross_hair, TRUE);
+	}
+	if(priv->do_snap_to_data) {
+		gtk_check_menu_item_set_active((GtkCheckMenuItem *)snap_to_data, TRUE);
 	}
 
 	g_signal_connect(G_OBJECT(zoom_all), "button-press-event", G_CALLBACK(popup_callback_zoom_all), (gpointer) my_widget);
@@ -269,12 +267,14 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	g_signal_connect(G_OBJECT(y), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y-axis");
 	g_signal_connect(G_OBJECT(show_coords), "button-press-event", G_CALLBACK(popup_callback_show_coords), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(show_cross_hair), "button-press-event", G_CALLBACK(popup_callback_show_cross_hair), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(snap_to_data), "button-press-event", G_CALLBACK(popup_callback_snap_to_data), (gpointer) my_widget);
 
 	gtk_menu_shell_append((GtkMenuShell *)menu, zoom_all);
 	gtk_menu_shell_append((GtkMenuShell *)menu, x);
 	gtk_menu_shell_append((GtkMenuShell *)menu, y);
 	gtk_menu_shell_append((GtkMenuShell *)menu, show_coords);
 	gtk_menu_shell_append((GtkMenuShell *)menu, show_cross_hair);
+	gtk_menu_shell_append((GtkMenuShell *)menu, snap_to_data);
 
 	/* x-axis submenu */
   x_axis_submenu = gtk_menu_new();
@@ -338,20 +338,19 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_widget_show(y);
 	gtk_widget_show(show_coords);
 	gtk_widget_show(show_cross_hair);
+	gtk_widget_show(snap_to_data);
 
-  if (event)
-    {
-      button = event->button;
-      event_time = event->time;
-    }
-  else
-    {
-      button = 0;
-      event_time = gtk_get_current_event_time ();
-    }
+  if(event) {
+		button = event->button;
+		event_time = event->time;
+	}
+  else {
+		button = 0;
+		event_time = gtk_get_current_event_time ();
+	}
 
-  gtk_menu_attach_to_widget (GTK_MENU (menu), my_widget, NULL);
-  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, button, event_time);
+	gtk_menu_attach_to_widget (GTK_MENU (menu), my_widget, NULL);
+	gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, button, event_time);
 }
 
 
@@ -547,6 +546,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->panning = FALSE;
 	priv->do_show_coords = FALSE;
 	priv->do_show_cross_hair = FALSE;
+	priv->do_snap_to_data = FALSE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -1022,7 +1022,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	}
 	cairo_restore(cr);
 
-	// draw the plot area border
+	/*********** draw the plot area border ******************/
 	if(pa->do_show_bounding_box) {
 		cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
 		cairo_set_line_width(cr, pa->bounding_box_width);
@@ -1036,7 +1036,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_stroke(cr);	
 	}
 
-	// draw the zoom box if zooming is active
+	/************* draw the zoom box if zooming is active *****************/
 	if(priv->zooming) {
 		double dashes[] = {8.0,4.0};
 		cairo_save(cr);
@@ -1053,10 +1053,47 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_stroke(cr);	
 		cairo_restore(cr);
 	}
-	// draw crosshair if active
-	if(priv->do_show_cross_hair) {
+
+	/********** find closest data point if showing coords or cross-hair *****/
+	double x_px = 0.0;
+	double y_px = 0.0;
+	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
 		gint x,y;
 		gtk_widget_get_pointer(plot, &x, &y);
+		if(x >= priv->plot.plot_area.left_edge && x <= priv->plot.plot_area.right_edge &&
+		   y >= priv->plot.plot_area.top_edge &&  y <= priv->plot.plot_area.bottom_edge) {
+			int i, j;
+			int closest_point_index = 0;
+			int closest_trace_index = 0;
+			float min_dist = FLT_MAX;
+			double data_x = ((float)x-x_b)/x_m;
+			double data_y = ((float)y-y_b)/y_m;
+			for(j=0; j < p->num_traces; j++) {
+				for(i=0; i<(p->traces[0])->length; i++) {
+					double dist;
+					dist = pow((p->traces[j])->x_data[i] - data_x,2) + pow((p->traces[j])->y_data[i] - data_y,2);
+					if(dist < min_dist) {
+						min_dist = dist;
+						closest_point_index = i;
+						closest_trace_index = j;
+					}
+				}
+			}
+			x_px = x_m * (p->traces[closest_trace_index])->x_data[closest_point_index] + x_b;
+			y_px = y_m * (p->traces[closest_trace_index])->y_data[closest_point_index] + y_b;
+		}
+	}
+
+	/************** draw crosshair if active ****************************/
+	if(priv->do_show_cross_hair) {
+		gint x,y;
+		if(priv->do_snap_to_data) {
+			x = x_px;
+			y = y_px;
+		}
+		else {
+			gtk_widget_get_pointer(plot, &x, &y);
+		}
 		if(x < priv->plot.plot_area.left_edge) {
 			x = priv->plot.plot_area.left_edge;
 		}
@@ -1090,10 +1127,16 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_restore(cr);
 	}
 
-	// draw coordinates if active (whether zooming or not)
+	/**************** draw coordinates if active (whether zooming or not) *************/
 	if(priv->do_show_coords) {
 		gint x,y;
-		gtk_widget_get_pointer(plot, &x, &y);
+		if(priv->do_snap_to_data) {
+			x = x_px;
+			y = y_px;
+		}
+		else {
+			gtk_widget_get_pointer(plot, &x, &y);
+		}
 		if(x >= priv->plot.plot_area.left_edge &&
 		   x <= priv->plot.plot_area.right_edge &&
 		   y >= priv->plot.plot_area.top_edge &&
