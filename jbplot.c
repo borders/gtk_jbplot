@@ -249,7 +249,6 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
                     G_CALLBACK (gtk_widget_destroy), NULL);
 
 
-	GtkWidget *clear_plot = gtk_menu_item_new_with_label("Clear Plot");
 	GtkWidget *zoom_all = gtk_menu_item_new_with_label("Zoom All");
 	GtkWidget *x = gtk_menu_item_new_with_label("x-axis");
 	GtkWidget *y = gtk_menu_item_new_with_label("y-axis");
@@ -264,14 +263,12 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_cross_hair, TRUE);
 	}
 
-	g_signal_connect(G_OBJECT(clear_plot), "button-press-event", G_CALLBACK(popup_callback_clear), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(zoom_all), "button-press-event", G_CALLBACK(popup_callback_zoom_all), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(x), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "x-axis");
 	g_signal_connect(G_OBJECT(y), "button-press-event", G_CALLBACK(popup_responder), (gpointer) "y-axis");
 	g_signal_connect(G_OBJECT(show_coords), "button-press-event", G_CALLBACK(popup_callback_show_coords), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(show_cross_hair), "button-press-event", G_CALLBACK(popup_callback_show_cross_hair), (gpointer) my_widget);
 
-	gtk_menu_shell_append((GtkMenuShell *)menu, clear_plot);
 	gtk_menu_shell_append((GtkMenuShell *)menu, zoom_all);
 	gtk_menu_shell_append((GtkMenuShell *)menu, x);
 	gtk_menu_shell_append((GtkMenuShell *)menu, y);
@@ -335,7 +332,6 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_menu_item_set_submenu((GtkMenuItem *)x, x_axis_submenu);
 	gtk_menu_item_set_submenu((GtkMenuItem *)y, y_axis_submenu);
 
-	gtk_widget_show(clear_plot);
 	gtk_widget_show(zoom_all);
 	gtk_widget_show(x);
 	gtk_widget_show(y);
@@ -1036,7 +1032,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	if(priv->zooming) {
 		double dashes[] = {8.0,4.0};
 		cairo_save(cr);
-		cairo_set_source_rgb (cr, 0.529, 0.808, 0.980);
+		cairo_set_source_rgb (cr, 0.423, 0.646, 0.784);
 		cairo_set_line_width (cr, 1.0);
 		cairo_set_dash(cr, dashes, 2, 0);
 		cairo_rectangle(
