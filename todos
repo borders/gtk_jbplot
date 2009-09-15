@@ -1,0 +1,9 @@
+- add legend support
+- add "subplot" support, such that axes actually line up!
+- make layout "smarter"
+  - only calculate scale values if min and/or max limits have changed
+  - only calculate scale label sizes if they're changed
+	- cache the size of title and axis labels, so don't need to get their sizes each time
+- add an alternative layout where user specifies plot area margins (between plot boundaries
+  and plot_area edges).  Then, positions of axis labels and tic labels are determined based
+  on that (and hopefully they fit within the margins).
