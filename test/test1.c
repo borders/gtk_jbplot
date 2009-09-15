@@ -9,7 +9,7 @@
 #include "../jbplot.h"
 
 static int t = 0;
-static trace_handle th;
+static trace_handle t1, t2;
 GtkWidget *plot;
 static int run = 1;
 
@@ -20,14 +20,21 @@ void init_trace_with_data(trace_handle th) {
 	return;
 }
 
+void init_trace_with_data_2(trace_handle th) {
+	for(t=0; t < 10; t++) {
+		jbplot_trace_add_point(th, t, 2*sin(0.11*t)+4*sin(0.09*t));
+	}
+	return;
+}
+
 gboolean update_data(gpointer data) {
 	int i;
-	//printf("hello!\n");
 	if(!run) {
 		return TRUE;
 	}
 	for(i=1; i <= 5; i++) {
-		jbplot_trace_add_point(th, t+i, 2*sin(0.1*(t+i))+4*sin(0.11*(t+i))); 
+		jbplot_trace_add_point(t1, t+i, 2*sin(0.1*(t+i))+4*sin(0.11*(t+i))); 
+		jbplot_trace_add_point(t2, t+i, 2*sin(0.11*(t+i))+4*sin(0.09*(t+i))); 
 	}
 	t += 5;
 	gtk_widget_queue_draw(plot);	
@@ -50,7 +57,6 @@ int main (int argc, char **argv) {
 	GtkWidget *window;
 	GtkWidget *v_box;
 	GtkWidget *button;
-	//trace_handle th;
 
 	gtk_init (&argc, &argv);
 
@@ -71,7 +77,7 @@ int main (int argc, char **argv) {
 
 	gtk_widget_show_all (window);
 
-	g_timeout_add(50, update_data, th);
+	g_timeout_add(50, update_data, t1);
 
 	jbplot_set_plot_title((jbplot *)plot, "Hello World", 1);
 	jbplot_set_plot_title_visible((jbplot *)plot, 1);
@@ -84,19 +90,21 @@ int main (int argc, char **argv) {
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
 
-	th = jbplot_create_trace(2000);
-	if(th==NULL) {
-		printf("error creating trace!\n");
+	t1 = jbplot_create_trace(2000);
+	t2 = jbplot_create_trace(1500);
+	if(t1==NULL || t2==NULL) {
+		printf("error creating traces!\n");
 		return 0;
 	}
 	rgb_color_t color = {0.0, 1.0, 0.0};
-	jbplot_trace_set_line_props(th, LINETYPE_SOLID, 2.0, color);
-	color.red = 1.0;
-	color.green = 0.0;
-	color.blue = 0.0;
-	jbplot_trace_set_marker_props(th, MARKER_NONE, 5.0, color);
-	init_trace_with_data(th);
-	jbplot_add_trace((jbplot *)plot, th);
+	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 2.0, color);
+	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
+	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 2.0, color);
+	//jbplot_trace_set_marker_props(t1, MARKER_NONE, 5.0, color);
+	init_trace_with_data(t1);
+	init_trace_with_data_2(t2);
+	jbplot_add_trace((jbplot *)plot, t1);
+	jbplot_add_trace((jbplot *)plot, t2);
 
 	gtk_main ();
 
