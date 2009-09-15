@@ -147,6 +147,7 @@ struct _jbplotPrivate
 	gdouble pan_start_y;
 	data_range pan_start_x_range;
 	data_range pan_start_y_range;
+	GTimer *mouse_motion_timer;
 
 	/* these are used to convert from device coords (pixels) to data coords */
 	double x_m;
@@ -430,6 +431,11 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
+	if(g_timer_elapsed(priv->mouse_motion_timer,NULL) < 60.e-3) {
+		//printf("not responding to motion\n");
+		return FALSE;
+	}
+	g_timer_reset(priv->mouse_motion_timer);
 	if(priv->zooming) {
 		priv->drag_end_x = event->x;
 		priv->drag_end_y = event->y;
@@ -548,6 +554,8 @@ static void jbplot_init (jbplot *plot) {
 	jbplot_set_plot_title(plot, " ", 1);
 	jbplot_set_x_axis_label(plot, " ", 1);
 	jbplot_set_y_axis_label(plot, " ", 1);
+
+	priv->mouse_motion_timer = g_timer_new();
 	
 }
 
