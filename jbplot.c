@@ -94,6 +94,7 @@ typedef struct legend_t {
 	double font_size;
 } legend_t;
 
+#define MAX_TRACE_NAME_LENGTH 255
 typedef struct trace_t {
   float *x_data;
   float *y_data;
@@ -108,7 +109,7 @@ typedef struct trace_t {
 	rgb_color_t marker_color;
 	int marker_type;
 	float marker_size;
-	char name[255];
+	char name[MAX_TRACE_NAME_LENGTH + 1];
 } trace_t;
 
 
@@ -1525,6 +1526,11 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+int jbplot_trace_set_name(trace_t *t, char *name) {
+	t->name[0] = '\0';
+	strncat(t->name, name, MAX_TRACE_NAME_LENGTH);
+	return 0;
+}
 
 int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t bg_color, rgb_color_t border_color, legend_pos_t position) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);

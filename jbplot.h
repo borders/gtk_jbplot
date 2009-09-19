@@ -171,6 +171,7 @@ void jbplot_destroy_trace(trace_handle th);
 int jbplot_trace_add_point(trace_handle th, float x, float y);
 int jbplot_trace_set_line_props(trace_handle th, line_type_t type, float width, rgb_color_t color);
 int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float size, rgb_color_t color);
+int jbplot_trace_set_name(trace_handle th, char *name);
 
 
 void jbplot_refresh(jbplot *plot);
