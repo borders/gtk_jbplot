@@ -1,7 +1,11 @@
-all: test/test1
+all: test/test1 test/dp
 
 test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/test1 jbplot.c test/test1.c jbplot-marshallers.c \
+		`pkg-config --libs --cflags gtk+-2.0`
+
+test/dp: jbplot.c jbplot.h test/dp.c jbplot-marshallers.c jbplot-marshallers.h
+	gcc -g -o test/dp jbplot.c test/dp.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
 
 jbplot-marshallers.c: jbplot-marshallers.list
