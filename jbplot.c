@@ -1141,9 +1141,9 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	if(priv->zooming) {
 		double dashes[] = {8.0,4.0};
 		cairo_save(cr);
-		cairo_set_source_rgb (cr, 0.423, 0.646, 0.784);
+		cairo_set_source_rgba (cr, 0.423, 0.646, 0.784, 0.3);
 		cairo_set_line_width (cr, 1.0);
-		cairo_set_dash(cr, dashes, 2, 0);
+		//cairo_set_dash(cr, dashes, 2, 0);
 		cairo_rectangle(
 			cr, 
 			priv->drag_start_x, 
@@ -1151,6 +1151,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			priv->drag_end_x - priv->drag_start_x,
 			priv->drag_end_y - priv->drag_start_y
 		);
+		cairo_fill_preserve(cr);
+		cairo_set_source_rgb (cr, 0.423, 0.646, 0.784);
 		cairo_stroke(cr);	
 		cairo_restore(cr);
 	}
@@ -1158,6 +1160,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	/********** find closest data point if showing coords or cross-hair *****/
 	double x_px = 0.0;
 	double y_px = 0.0;
+	gboolean is_in_plot_area = FALSE;
 	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
 		gint x,y;
 		gtk_widget_get_pointer(plot, &x, &y);
@@ -1167,12 +1170,11 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			int closest_point_index = 0;
 			int closest_trace_index = 0;
 			float min_dist = FLT_MAX;
-			double data_x = ((float)x-x_b)/x_m;
-			double data_y = ((float)y-y_b)/y_m;
+			is_in_plot_area = TRUE;
 			for(j=0; j < p->num_traces; j++) {
 				for(i=0; i<(p->traces[0])->length; i++) {
 					double dist;
-					dist = pow((p->traces[j])->x_data[i] - data_x,2) + pow((p->traces[j])->y_data[i] - data_y,2);
+					dist = pow((p->traces[j])->x_data[i] * x_m + x_b - x,2) + pow((p->traces[j])->y_data[i] * y_m + y_b - y,2);
 					if(dist < min_dist) {
 						min_dist = dist;
 						closest_point_index = i;
@@ -1183,18 +1185,15 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			x_px = x_m * (p->traces[closest_trace_index])->x_data[closest_point_index] + x_b;
 			y_px = y_m * (p->traces[closest_trace_index])->y_data[closest_point_index] + y_b;
 		}
+		else {
+			is_in_plot_area = FALSE;
+		}
 	}
 
 	/************** draw crosshair if active ****************************/
 	if(priv->do_show_cross_hair) {
 		gint x,y;
-		if(priv->do_snap_to_data) {
-			x = x_px;
-			y = y_px;
-		}
-		else {
-			gtk_widget_get_pointer(plot, &x, &y);
-		}
+		gtk_widget_get_pointer(plot, &x, &y);
 		if(x < priv->plot.plot_area.left_edge) {
 			x = priv->plot.plot_area.left_edge;
 		}
@@ -1207,8 +1206,13 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		if(y > priv->plot.plot_area.bottom_edge) {
 			y = priv->plot.plot_area.bottom_edge;
 		}
+		if(priv->do_snap_to_data && is_in_plot_area) {
+			x = x_px;
+			y = y_px;
+		}
 		cairo_save(cr);
-		cairo_set_source_rgb (cr, 1.0, 1.0, 0.0);
+		//cairo_set_source_rgb (cr, 1.0, 1.0, 0.0); // yellow
+		cairo_set_source_rgb (cr, 0.0, 0.0, 1.0); // blue
 		cairo_set_line_width (cr, 1.0);
 
 		cairo_move_to(cr, priv->plot.plot_area.left_edge, y);
@@ -1231,12 +1235,10 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	/**************** draw coordinates if active (whether zooming or not) *************/
 	if(priv->do_show_coords) {
 		gint x,y;
-		if(priv->do_snap_to_data) {
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(priv->do_snap_to_data && is_in_plot_area) {
 			x = x_px;
 			y = y_px;
-		}
-		else {
-			gtk_widget_get_pointer(plot, &x, &y);
 		}
 		if(x >= priv->plot.plot_area.left_edge &&
 		   x <= priv->plot.plot_area.right_edge &&
