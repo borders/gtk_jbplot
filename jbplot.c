@@ -30,6 +30,9 @@ static gboolean jbplot_update (gpointer data);
 #define MAX_NUM_TRACES    10
 
 
+cairo_surface_t *legend_buffer;
+cairo_t *legend_context;
+
 double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
 
@@ -581,6 +584,16 @@ static void jbplot_init (jbplot *plot) {
 	jbplot_set_y_axis_label(plot, " ", 1);
 
 	priv->mouse_motion_timer = g_timer_new();
+
+	legend_buffer	= cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
+	legend_context = cairo_create(legend_buffer);
+	if(legend_buffer ==NULL || legend_context==NULL) {
+		printf("Error creating legend buffer\n");
+		return;
+	}
+	cairo_set_source_rgb(legend_context, 1.0, 0.0, 0.0);
+	cairo_rectangle(legend_context, 20, 20, 20, 20);
+	cairo_fill(legend_context);
 	
 }
 
@@ -1259,6 +1272,17 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		}
 			
 	}
+
+/*
+	// DEBUG!!!!!
+	// Draw the legend image
+	cairo_save(cr);
+	cairo_set_source_surface(cr, legend_buffer, 50, 50);
+	cairo_rectangle(cr, 50, 50, 30, 100);
+	cairo_clip(cr);
+	cairo_paint(cr);
+	cairo_restore(cr);
+*/
 		
 	cairo_destroy(cr);
 
