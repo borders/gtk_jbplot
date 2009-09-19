@@ -174,6 +174,8 @@ int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float siz
 int jbplot_trace_set_name(trace_handle th, char *name);
 
 
+int jbplot_capture_png(jbplot *plot, char *filename);
+
 void jbplot_refresh(jbplot *plot);
 
 G_END_DECLS

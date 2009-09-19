@@ -1526,6 +1526,15 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+int jbplot_capture_png(jbplot *plot, char *filename) {
+	cairo_t *cr;
+	cr = gdk_cairo_create(((GtkWidget *)plot)->window);
+	cairo_surface_write_to_png(cairo_get_target(cr), filename);
+	cairo_destroy(cr);
+	return 0;
+}
+
+
 int jbplot_trace_set_name(trace_t *t, char *name) {
 	t->name[0] = '\0';
 	strncat(t->name, name, MAX_TRACE_NAME_LENGTH);
