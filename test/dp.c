@@ -13,12 +13,21 @@
 #define L1 1.0
 #define L2 1.0
 #define g 9.81
-#define DT 0.008
+#define DT 0.002
 
 static int t = 0;
 static trace_handle t1, t2;
 GtkWidget *plot;
+GtkWidget *canvas;
 static int run = 1;
+
+
+// Global pendulum state variables
+static double q1 = 1.0;
+static double q2 = 0.0;
+static double q1d = 0.0;
+static double q2d = 0.0;
+
 
 
 void calc_accels(double q1, 
@@ -86,21 +95,26 @@ void init_trace_with_data_2(trace_handle th) {
 }
 
 gboolean update_data(gpointer data) {
-	static double q1 = 1.0;
+/*
+ 	static double q1 = 1.0;
 	static double q2 = 0.0;
 	static double q1d = 0.0;
 	static double q2d = 0.0;
+*/
 	int i;
 	if(!run) {
 		return TRUE;
 	}
-	for(i=1; i <= 40; i++) {
+	for(i=1; i <= 20; i++) {
 		time_step(q1, q2, q1d, q2d, DT, &q1, &q2, &q1d, &q2d);
-		jbplot_trace_add_point(t1, t+i, q1); 
-		jbplot_trace_add_point(t2, t+i, q2); 
+		//jbplot_trace_add_point(t1, t+i, q1); 
+		//jbplot_trace_add_point(t2, t+i, q2); 
 	}
-	t += 40;
+	t += 20;
+	jbplot_trace_add_point(t1, t, q1); 
+	jbplot_trace_add_point(t2, t, q2); 
 	gtk_widget_queue_draw(plot);	
+	gtk_widget_queue_draw(canvas);	
 	return TRUE;
 }
 
@@ -116,6 +130,55 @@ void button_activate(GtkButton *b, gpointer data) {
 	return;
 }
 
+
+
+gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+  cairo_t *cr = gdk_cairo_create(widget->window);
+  int w, h, i;
+  gtk_widget_get_size_request(widget, &w, &h);
+
+  // fill background first
+  cairo_set_source_rgb (cr, 1, 1, 1); /* white */
+  cairo_paint(cr);
+ 
+  cairo_translate(cr, w/2, h/2);
+  //cairo_scale(cr, w/(2.*(L1+L2)), -h/(2.*(L1+L2)));
+  cairo_scale(cr, 1, -1);
+
+	//draw the upper link
+	cairo_set_line_width(cr, 2.0);
+	cairo_set_source_rgb(cr, 0, 0, 1.0);
+	cairo_move_to(cr, 0.0, 0.0);
+	double x1 = L1*sin(q1);
+	double y1 = -L1*cos(q1);
+	double x2 = x1 + L2*sin(q2);
+	double y2 = y1 - L2*cos(q2);
+	cairo_line_to(cr, x1 * w/(2.*(L1+L2)), y1 * h/(2.*(L1+L2)));
+	cairo_stroke(cr);
+
+	//draw the lower link
+	cairo_set_line_width(cr, 2.0);
+	cairo_set_source_rgb(cr, 1.0, 0, 0);
+	cairo_move_to(cr, x1 * w/(2.*(L1+L2)), y1 * h/(2.*(L1+L2)));
+	cairo_line_to(cr, x2 * w/(2.*(L1+L2)), y2 * h/(2.*(L1+L2)));
+	cairo_stroke(cr);
+
+	// draw the upper mass
+	cairo_set_source_rgb(cr, 0, 0, 1.0);
+	cairo_arc(cr, x1 * w/(2.*(L1+L2)), y1 * h/(2.*(L1+L2)), 6.0, 0, 2*M_PI);
+	cairo_fill(cr);
+
+	// draw the lower mass
+	cairo_set_source_rgb(cr, 1.0, 0, 0.0);
+	cairo_arc(cr, x2 * w/(2.*(L1+L2)), y2 * h/(2.*(L1+L2)), 6.0, 0, 2*M_PI);
+	cairo_fill(cr);
+
+  cairo_destroy(cr);
+
+  return TRUE;
+}
+
+
 int main (int argc, char **argv) {
 	GtkWidget *window;
 	GtkWidget *v_box;
@@ -129,12 +192,17 @@ int main (int argc, char **argv) {
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 	
 	plot = jbplot_new ();
-	gtk_widget_set_size_request(plot, 700, 700);
+	gtk_widget_set_size_request(plot, 700, 400);
 	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
 
 	button = gtk_button_new_with_label("Pause");
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
+
+	canvas = gtk_drawing_area_new();
+	gtk_widget_set_size_request(canvas, 700,400);
+	gtk_box_pack_start (GTK_BOX(v_box), canvas, TRUE, TRUE, 0);
+	g_signal_connect(canvas, "expose_event", G_CALLBACK(draw_pendulum), NULL);
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
@@ -163,6 +231,8 @@ int main (int argc, char **argv) {
 	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 2.0, color);
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
 	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 2.0, color);
+	jbplot_trace_set_name(t1, "theta_1");
+	jbplot_trace_set_name(t2, "theta_2");
 	//init_trace_with_data(t1);
 	//init_trace_with_data_2(t2);
 	jbplot_add_trace((jbplot *)plot, t1);
