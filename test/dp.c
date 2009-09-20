@@ -96,12 +96,6 @@ void init_trace_with_data_2(trace_handle th) {
 }
 
 gboolean update_data(gpointer data) {
-/*
- 	static double q1 = 1.0;
-	static double q2 = 0.0;
-	static double q1d = 0.0;
-	static double q2d = 0.0;
-*/
 	int i;
 	if(!run) {
 		return TRUE;
@@ -135,6 +129,12 @@ void button_activate(GtkButton *b, gpointer data) {
 void save_button_activate(GtkButton *b, gpointer data) {
 	jbplot_capture_png((jbplot *)plot, "capture.png");
 	//printf("save button activated!\n");
+	return;
+}
+
+void save_button_activate_2(GtkButton *b, gpointer data) {
+	jbplot_capture_svg((jbplot *)plot, "capture.svg");
+	printf("save button 2 activated!\n");
 	return;
 }
 
@@ -202,6 +202,8 @@ int main (int argc, char **argv) {
 	GtkWidget *v_box;
 	GtkWidget *button;
 	GtkWidget *save_button;
+	GtkWidget *save_button_2;
+	double start_dt;
 
 	gtk_init (&argc, &argv);
 
@@ -218,13 +220,29 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	save_button = gtk_button_new_with_label("Capture Plot to File");
+	save_button = gtk_button_new_with_label("Capture Plot to File (PNG)");
 	gtk_box_pack_start (GTK_BOX(v_box), save_button, FALSE, FALSE, 0);
 	g_signal_connect(save_button, "clicked", G_CALLBACK(save_button_activate), NULL);
+
+	save_button_2 = gtk_button_new_with_label("Capture Plot to File (SVG)");
+	gtk_box_pack_start (GTK_BOX(v_box), save_button_2, FALSE, FALSE, 0);
+	g_signal_connect(save_button_2, "clicked", G_CALLBACK(save_button_activate_2), NULL);
 
 	dt_scale = gtk_hscale_new_with_range(0.00025, 0.002, 0.00025);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
+
+	if(argc > 1) {
+		if(sscanf(argv[1], "%lg", &start_dt) != 1) {
+			printf("Error parsing start_dt parameter\n");
+			return -1;
+		}
+		else {
+			gtk_range_set_value((GtkRange *)dt_scale, start_dt);
+		}
+	}
+
+
 
 	canvas = gtk_drawing_area_new();
 	gtk_widget_set_size_request(canvas, 700,400);
@@ -237,7 +255,7 @@ int main (int argc, char **argv) {
 
 	g_timeout_add(20, update_data, t1);
 
-	jbplot_set_plot_title((jbplot *)plot, "Hello World", 1);
+	jbplot_set_plot_title((jbplot *)plot, "Double Pendulum", 1);
 	jbplot_set_plot_title_visible((jbplot *)plot, 1);
 	jbplot_set_x_axis_label((jbplot *)plot, "Time (sec)", 1);
 	jbplot_set_x_axis_label_visible((jbplot *)plot, 1);
@@ -248,8 +266,8 @@ int main (int argc, char **argv) {
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
 
-	t1 = jbplot_create_trace(8000);
-	t2 = jbplot_create_trace(8000);
+	t1 = jbplot_create_trace(5000);
+	t2 = jbplot_create_trace(5000);
 	if(t1==NULL || t2==NULL) {
 		printf("error creating traces!\n");
 		return 0;
