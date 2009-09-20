@@ -22,7 +22,6 @@
 G_DEFINE_TYPE (jbplot, jbplot, GTK_TYPE_DRAWING_AREA);
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
-static gboolean jbplot_update (gpointer data);
 
 
 #define MAX_NUM_MAJOR_TICS    50
@@ -764,8 +763,10 @@ int calc_legend_dims(plot_t *plot, cairo_t *cr, double *width, double *height, d
 	return 0;
 }
 
-static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
-	double width, height;
+
+static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double height) {
+//static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
+//	double width, height;
 	int i, j;
 	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
 	plot_t *p = &(priv->plot);
@@ -774,11 +775,11 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	plot_area_t *pa = &(p->plot_area);
 	legend_t *l = &(p->legend);
 
-	width = plot->allocation.width;
-	height = plot->allocation.height;
+//	width = plot->allocation.width;
+//	height = plot->allocation.height;
 	
-	cairo_t *cr;
-	cr = gdk_cairo_create(plot->window);
+//	cairo_t *cr;
+//	cr = gdk_cairo_create(plot->window);
 
 	// set some default values in cairo context
 	cairo_set_line_width(cr, 1.0);
@@ -1287,10 +1288,19 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	cairo_restore(cr);
 */
 		
-	cairo_destroy(cr);
+//	cairo_destroy(cr);
 
 	return FALSE;
 }
+
+
+static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
+	cairo_t *cr = gdk_cairo_create(plot->window);
+	draw_plot(plot, cr, plot->allocation.width, plot->allocation.height);
+	cairo_destroy(cr);
+	return FALSE;
+}
+
 
 static void jbplot_redraw_canvas (jbplot *plot) {
 	GtkWidget *widget;
@@ -1306,20 +1316,6 @@ static void jbplot_redraw_canvas (jbplot *plot) {
 	gdk_window_process_updates (widget->window, TRUE);
 
 	gdk_region_destroy (region);
-}
-
-
-
-static gboolean jbplot_update (gpointer data) {
-	jbplot *plot;
-	jbplotPrivate *priv;
-
-	plot = JBPLOT(data);
-	priv = JBPLOT_GET_PRIVATE(plot);
-	
-	jbplot_redraw_canvas (plot);
-
-	return TRUE; /* keep running this event */
 }
 
 
@@ -1526,6 +1522,20 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+int jbplot_capture_svg(jbplot *plot, char *filename) {
+	cairo_surface_t *svg_surf;
+	svg_surf = (cairo_surface_t *)cairo_svg_surface_create((const char *)filename, 400., 400.);
+
+	cairo_t *cr = cairo_create(svg_surf);
+	draw_plot((GtkWidget *)plot, cr, 400, 400);
+	cairo_destroy(cr);
+
+	cairo_surface_flush(svg_surf);
+	cairo_surface_destroy(svg_surf);
+	return 0;
+}
+
+
 int jbplot_capture_png(jbplot *plot, char *filename) {
 	cairo_t *cr;
 	cr = gdk_cairo_create(((GtkWidget *)plot)->window);

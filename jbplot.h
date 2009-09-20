@@ -175,6 +175,7 @@ int jbplot_trace_set_name(trace_handle th, char *name);
 
 
 int jbplot_capture_png(jbplot *plot, char *filename);
+int jbplot_capture_svg(jbplot *plot, char *filename);
 
 void jbplot_refresh(jbplot *plot);
 
