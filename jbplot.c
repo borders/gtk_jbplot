@@ -880,6 +880,15 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	else {
 	  plot_area_right_edge = width - 0.06 * width;
 	}
+
+	double right_side_x_tic_label_width = 
+	  get_text_width(cr, 
+	  x_axis->major_tic_labels[x_axis->num_actual_major_tics-1], 
+	  x_axis->tic_label_font_size);
+	if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
+		plot_area_right_edge = width - right_side_x_tic_label_width;
+	}
+
 	priv->plot.plot_area.right_edge = plot_area_right_edge;
 	double plot_area_top_edge;
 	if(p->do_show_plot_title) {
@@ -1576,8 +1585,12 @@ int jbplot_trace_set_name(trace_t *t, char *name) {
 	return 0;
 }
 
-int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t bg_color, rgb_color_t border_color, legend_pos_t position) {
+int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.legend.position = position;
+	if(position == LEGEND_POS_NONE) {
+		return 0;
+	}
 	if(border_width > 0) {
 		priv->plot.legend.bounding_box_width = border_width;
 		priv->plot.legend.do_show_bounding_box = 1;
@@ -1585,9 +1598,12 @@ int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t bg_col
 	else {
 		priv->plot.legend.do_show_bounding_box = 0;
 	}
-	priv->plot.legend.bg_color = bg_color;
-	priv->plot.legend.border_color = border_color;
-	priv->plot.legend.position = position;
+	if(bg_color != NULL) {
+		priv->plot.legend.bg_color = *bg_color;
+	}
+	if(border_color != NULL) {
+		priv->plot.legend.border_color = *border_color;
+	}
 	return 0;	
 }
 
@@ -1615,42 +1631,52 @@ int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	return 0;
 }
 
-int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color) {
+int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.major_gridline_width = width;	
-	priv->plot.x_axis.major_gridline_color = color;	
+	if(color != NULL) {
+		priv->plot.x_axis.major_gridline_color = *color;	
+	}
 	priv->plot.x_axis.major_gridline_type = type;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
-int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t color) {
+int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.y_axis.major_gridline_width = width;	
-	priv->plot.y_axis.major_gridline_color = color;	
+	if(color != NULL) {
+		priv->plot.y_axis.major_gridline_color = *color;	
+	}
 	priv->plot.y_axis.major_gridline_type = type;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
-int jbplot_set_bg_color(jbplot *plot, rgb_color_t color) {
+int jbplot_set_bg_color(jbplot *plot, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	priv->plot.bg_color = color;
+	if(color != NULL) {
+		priv->plot.bg_color = *color;
+	}
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
-int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t color) {
+int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	priv->plot.plot_area.bg_color = color;
+	if(color != NULL) {
+		priv->plot.plot_area.bg_color = *color;
+	}
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
-int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t color) {
+int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.plot_area.bounding_box_width = width;
-	priv->plot.plot_area.border_color = color;
+	if(color != NULL) {
+		priv->plot.plot_area.border_color = *color;
+	}
 	if(width > 0) {
 		priv->plot.plot_area.do_show_bounding_box = 1;
 	}
@@ -1728,38 +1754,50 @@ void jbplot_refresh(jbplot *plot) {
 	return;
 }
 
-int jbplot_trace_set_line_props(trace_t *t, line_type_t type, float width, rgb_color_t color) {
+int jbplot_trace_set_line_props(trace_t *t, line_type_t type, float width, rgb_color_t *color) {
 	t->line_type = type;
 	t->line_width = width;
-	t->line_color = color;
+	if(color != NULL) {
+		t->line_color = *color;
+	}
 	return 0;
 }
 
-int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rgb_color_t color) {
+int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rgb_color_t *color) {
 	t->marker_type = type;
 	t->marker_size = size;
-	t->marker_color = color;
+	if(color != NULL) {
+		t->marker_color = *color;
+	}
 	return 0;
 }
 
-
 int jbplot_trace_add_point(trace_t *t, float x, float y) {
-	t->length++;
-	t->end_index++;
+	if(t->length >= t->capacity) {
+		t->x_data[t->start_index] = x;
+		t->y_data[t->start_index] = y;
+		t->start_index++;
+		if(t->start_index >= t->capacity) {
+			t->start_index = 0;
+		}
+	}
+	else {
+		int index;
+		index = t->start_index + t->length;
+		if(index >= t->capacity) {
+			index = 0;
+		}
+		t->x_data[index] = x;
+		t->y_data[index] = y;
+		t->length++;
+	}
+	t->end_index = t->start_index + t->length - 1;
 	if(t->end_index >= t->capacity) {
 		t->end_index = 0;
 	}
-	if(t->end_index == t->start_index) {
-		t->start_index++;
-		t->length = t->capacity;
-	}
-	if(t->start_index >= t->capacity) {
-		t->start_index = 0;
-	}
-	*(t->x_data + t->end_index) = x;
-	*(t->y_data + t->end_index) = y;
 	return 0;
 }
+
 
 trace_t *jbplot_create_trace(int capacity) {
 	trace_t *t;
