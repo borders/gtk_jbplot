@@ -28,7 +28,7 @@ static int run = 1;
 static double q1 = 1.0;
 static double q2 = 3.0;
 static double q1d = 0.0;
-static double q2d = 1.0;
+static double q2d = 4.0;
 
 
 
@@ -188,34 +188,37 @@ gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data)
   cairo_paint(cr);
  
   cairo_translate(cr, w/2, h/2);
-  cairo_scale(cr, 1, -1);
+  //cairo_scale(cr, 1, -1);
+  cairo_scale(cr, scale_factor, -scale_factor);
 
 	//draw the upper link
-	cairo_set_line_width(cr, 2.0);
+	cairo_set_line_width(cr, 0.05 * L1);
 	cairo_set_source_rgb(cr, 0, 0, 1.0);
 	cairo_move_to(cr, 0.0, 0.0);
 	double x1 = L1*sin(q1);
 	double y1 = -L1*cos(q1);
 	double x2 = x1 + L2*sin(q2);
 	double y2 = y1 - L2*cos(q2);
-	cairo_line_to(cr, x1 * scale_factor, y1 * scale_factor);
+	cairo_line_to(cr, x1, y1);
 	cairo_stroke(cr);
 
 	//draw the lower link
-	cairo_set_line_width(cr, 2.0);
+	cairo_set_line_width(cr, 0.05*L2);
 	cairo_set_source_rgb(cr, 1.0, 0, 0);
-	cairo_move_to(cr, x1 * scale_factor, y1 * scale_factor);
-	cairo_line_to(cr, x2 * scale_factor, y2 * scale_factor);
+	cairo_move_to(cr, x1, y1);
+	cairo_line_to(cr, x2, y2);
 	cairo_stroke(cr);
 
 	// draw the upper mass
 	cairo_set_source_rgb(cr, 0, 0, 1.0);
-	cairo_arc(cr, x1 * scale_factor, y1 * scale_factor, 6.0, 0, 2*M_PI);
+	//cairo_arc(cr, x1 * scale_factor, y1 * scale_factor, 6.0, 0, 2*M_PI);
+	cairo_arc(cr, x1, y1, 0.1*L1, 0, 2*M_PI);
 	cairo_fill(cr);
 
 	// draw the lower mass
 	cairo_set_source_rgb(cr, 1.0, 0, 0.0);
-	cairo_arc(cr, x2 * scale_factor, y2 * scale_factor, 6.0, 0, 2*M_PI);
+	//cairo_arc(cr, x2 * scale_factor, y2 * scale_factor, 6.0, 0, 2*M_PI);
+	cairo_arc(cr, x2, y2, 0.1*L2, 0, 2*M_PI);
 	cairo_fill(cr);
 
   cairo_destroy(cr);
@@ -293,7 +296,7 @@ int main (int argc, char **argv) {
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
-	jbplot_set_legend_props((jbplot *)plot, 1, NULL, NULL, LEGEND_POS_NONE);
+	jbplot_set_legend_props((jbplot *)plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
 
 	t1 = jbplot_create_trace(5000);
 	t2 = jbplot_create_trace(5000);
@@ -302,9 +305,9 @@ int main (int argc, char **argv) {
 		return 0;
 	}
 	rgb_color_t color = {0.0, 1.0, 0.0};
-	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 1.0, &color);
+	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 2.0, &color);
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 1.0, &color);
+	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 2.0, &color);
 	jbplot_trace_set_name(t1, "theta_1");
 	jbplot_trace_set_name(t2, "theta_2");
 	jbplot_add_trace((jbplot *)plot, t1);
