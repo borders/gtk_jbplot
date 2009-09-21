@@ -5,6 +5,7 @@
 #include <gtk/gtk.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "../jbplot.h"
 
@@ -132,9 +133,35 @@ void save_button_activate(GtkButton *b, gpointer data) {
 	return;
 }
 
+
 void save_button_activate_2(GtkButton *b, gpointer data) {
-	jbplot_capture_svg((jbplot *)plot, "capture.svg");
-	printf("save button 2 activated!\n");
+	GtkWidget *dialog;
+	dialog = gtk_file_chooser_dialog_new("Save file to...",
+	                                     NULL,
+	                                     GTK_FILE_CHOOSER_ACTION_SAVE,
+	                                     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+	                                     GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+	                                     NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
+	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
+		char *filename;
+		char fname[1000];
+		fname[0] = '\0';
+		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		strncat(fname, filename, 999);
+		int fl = strlen(filename);
+		if(        filename[fl-4]  != '.' || 
+		   tolower(filename[fl-3]) != 's' || 
+		   tolower(filename[fl-2]) != 'v' || 
+		   tolower(filename[fl-1]) != 'g') 
+			{
+			printf("Adding SVG extension\n");
+			strncat(fname, ".svg", 999-strlen(fname));
+		}
+		jbplot_capture_svg((jbplot *)plot, fname);
+		g_free(filename);
+	}
+	gtk_widget_destroy(dialog);
 	return;
 }
 
