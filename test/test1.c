@@ -32,11 +32,11 @@ gboolean update_data(gpointer data) {
 	if(!run) {
 		return TRUE;
 	}
-	for(i=1; i <= 5; i++) {
+	for(i=1; i <=15; i++) {
 		jbplot_trace_add_point(t1, t+i, 2*sin(0.1*(t+i))+4*sin(0.11*(t+i))); 
 		jbplot_trace_add_point(t2, t+i, 2*sin(0.11*(t+i))+4*sin(0.09*(t+i))); 
 	}
-	t += 5;
+	t += 15;
 	gtk_widget_queue_draw(plot);	
 	return TRUE;
 }

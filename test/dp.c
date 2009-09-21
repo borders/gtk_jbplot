@@ -137,7 +137,7 @@ void save_button_activate(GtkButton *b, gpointer data) {
 void save_button_activate_2(GtkButton *b, gpointer data) {
 	GtkWidget *dialog;
 	dialog = gtk_file_chooser_dialog_new("Save file to...",
-	                                     NULL,
+	                                     (GtkWindow *)plot,
 	                                     GTK_FILE_CHOOSER_ACTION_SAVE,
 	                                     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 	                                     GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,

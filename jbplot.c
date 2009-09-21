@@ -162,7 +162,7 @@ struct _jbplotPrivate
 	gdouble pan_start_y;
 	data_range pan_start_x_range;
 	data_range pan_start_y_range;
-	GTimer *mouse_motion_timer;
+	GTimeVal last_mouse_motion;
 
 	/* antialias mode */
 	char antialias;
@@ -447,11 +447,12 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-	if(g_timer_elapsed(priv->mouse_motion_timer,NULL) < 60.e-3) {
-		//printf("not responding to motion\n");
+	GTimeVal t_now;
+	g_get_current_time(&t_now);
+	if((t_now.tv_sec-priv->last_mouse_motion.tv_sec) + 1.e-6*(t_now.tv_usec-priv->last_mouse_motion.tv_usec) < 60.e-3) {
 		return FALSE;
 	}
-	g_timer_reset(priv->mouse_motion_timer);
+	priv->last_mouse_motion = t_now;
 	if(priv->zooming) {
 		priv->drag_end_x = event->x;
 		priv->drag_end_y = event->y;
@@ -587,7 +588,7 @@ static void jbplot_init (jbplot *plot) {
 	jbplot_set_x_axis_label(plot, " ", 1);
 	jbplot_set_y_axis_label(plot, " ", 1);
 
-	priv->mouse_motion_timer = g_timer_new();
+	g_get_current_time(&priv->last_mouse_motion);
 
 	legend_buffer	= cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
 	legend_context = cairo_create(legend_buffer);
@@ -1562,6 +1563,7 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 
 	cairo_t *cr = cairo_create(svg_surf);
 	draw_plot((GtkWidget *)plot, cr, 400, 400);
+	cairo_show_page(cr);
 	cairo_destroy(cr);
 
 	cairo_surface_flush(svg_surf);
