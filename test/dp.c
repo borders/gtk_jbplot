@@ -241,6 +241,7 @@ int main (int argc, char **argv) {
 	
 	plot = jbplot_new ();
 	gtk_widget_set_size_request(plot, 700, 400);
+	jbplot_set_antialias((jbplot *)plot, 0);
 	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
 
 	button = gtk_button_new_with_label("Pause");
@@ -300,9 +301,9 @@ int main (int argc, char **argv) {
 		return 0;
 	}
 	rgb_color_t color = {0.0, 1.0, 0.0};
-	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 2.0, color);
+	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 1.0, color);
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 2.0, color);
+	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 1.0, color);
 	jbplot_trace_set_name(t1, "theta_1");
 	jbplot_trace_set_name(t2, "theta_2");
 	jbplot_add_trace((jbplot *)plot, t1);

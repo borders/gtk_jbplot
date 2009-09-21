@@ -91,6 +91,12 @@ GtkWidget *jbplot_new (void);
 
 
 /**
+ * Destroy a new jbplot widget
+ */
+void jbplot_destroy(jbplot *plot);
+
+
+/**
  * Set the plot title text
  * @param plot a jbplot pointer
  * @param title the title string
@@ -178,6 +184,7 @@ int jbplot_capture_png(jbplot *plot, char *filename);
 int jbplot_capture_svg(jbplot *plot, char *filename);
 
 void jbplot_refresh(jbplot *plot);
+int jbplot_set_antialias(jbplot *plot, gboolean state);
 
 G_END_DECLS
 

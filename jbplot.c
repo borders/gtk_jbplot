@@ -164,6 +164,9 @@ struct _jbplotPrivate
 	data_range pan_start_y_range;
 	GTimer *mouse_motion_timer;
 
+	/* antialias mode */
+	char antialias;
+
 	/* these are used to convert from device coords (pixels) to data coords */
 	double x_m;
 	double x_b;
@@ -575,6 +578,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->do_show_coords = FALSE;
 	priv->do_show_cross_hair = FALSE;
 	priv->do_snap_to_data = FALSE;
+	priv->antialias = 0;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -765,8 +769,6 @@ int calc_legend_dims(plot_t *plot, cairo_t *cr, double *width, double *height, d
 
 
 static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double height) {
-//static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
-//	double width, height;
 	int i, j;
 	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
 	plot_t *p = &(priv->plot);
@@ -774,12 +776,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	axis_t *y_axis = &(p->y_axis);
 	plot_area_t *pa = &(p->plot_area);
 	legend_t *l = &(p->legend);
-
-//	width = plot->allocation.width;
-//	height = plot->allocation.height;
-	
-//	cairo_t *cr;
-//	cr = gdk_cairo_create(plot->window);
 
 	// set some default values in cairo context
 	cairo_set_line_width(cr, 1.0);
@@ -1288,14 +1284,19 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	cairo_restore(cr);
 */
 		
-//	cairo_destroy(cr);
-
 	return FALSE;
 }
 
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	cairo_t *cr = gdk_cairo_create(plot->window);
+	if(priv->antialias) {
+		cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
+	}
+	else {
+		cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+	}
 	draw_plot(plot, cr, plot->allocation.width, plot->allocation.height);
 	cairo_destroy(cr);
 	return FALSE;
@@ -1522,6 +1523,30 @@ trace_t *trace_create_with_external_data(float *x, float *y, int length, int cap
 }
 
 /******************** Public Functions *******************************/
+int jbplot_set_antialias(jbplot *plot, gboolean state) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(state) {
+		priv->antialias = 1;
+	}
+	else {
+		priv->antialias = 0;
+	}
+	return 0;
+}
+
+
+GtkWidget *jbplot_new (void) {
+	return g_object_new (JBPLOT_TYPE, NULL);
+}
+
+
+void jbplot_destroy(jbplot *plot) {
+	
+	cairo_destroy(legend_context);
+	cairo_surface_destroy(legend_buffer);
+}
+
+
 int jbplot_capture_svg(jbplot *plot, char *filename) {
 	cairo_surface_t *svg_surf;
 	svg_surf = (cairo_surface_t *)cairo_svg_surface_create((const char *)filename, 400., 400.);
@@ -1794,10 +1819,6 @@ int jbplot_add_trace(jbplot *plot, trace_t *t) {
 	return (p->num_traces)-1;
 }
 
-
-GtkWidget *jbplot_new (void) {
-	return g_object_new (JBPLOT_TYPE, NULL);
-}
 
 
 int jbplot_set_plot_title(jbplot *plot, char *title, int copy) {
