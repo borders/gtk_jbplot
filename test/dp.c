@@ -291,8 +291,9 @@ int main (int argc, char **argv) {
 	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
 
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
-	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
-	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, gridline_color);
+	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_legend_props((jbplot *)plot, 1, NULL, NULL, LEGEND_POS_NONE);
 
 	t1 = jbplot_create_trace(5000);
 	t2 = jbplot_create_trace(5000);
@@ -301,9 +302,9 @@ int main (int argc, char **argv) {
 		return 0;
 	}
 	rgb_color_t color = {0.0, 1.0, 0.0};
-	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 1.0, color);
+	jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 1.0, &color);
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 1.0, color);
+	jbplot_trace_set_line_props(t2, LINETYPE_SOLID, 1.0, &color);
 	jbplot_trace_set_name(t1, "theta_1");
 	jbplot_trace_set_name(t2, "theta_2");
 	jbplot_add_trace((jbplot *)plot, t1);
