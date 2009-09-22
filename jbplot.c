@@ -376,13 +376,19 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
-	if(event->type == GDK_2BUTTON_PRESS) {
+	if(event->type == GDK_2BUTTON_PRESS) { // double click
 		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
 		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
 	}
 	else {
 		if(event->button == 3) {
-			do_popup_menu(w, event);
+			if(priv->zooming) {
+				priv->zooming = FALSE;
+				gtk_widget_queue_draw(w);
+			}
+			else {
+				do_popup_menu(w, event);
+			}
 		}
 		else if(event->button == 1) {
 			if(event->x >= priv->plot.plot_area.left_edge &&
@@ -398,6 +404,8 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 			}
 		}
 		else if(event->button == 2) {
+			priv->zooming = FALSE;
+			gtk_widget_queue_draw(w);
 			if(event->x >= priv->plot.plot_area.left_edge &&
 				 event->x <= priv->plot.plot_area.right_edge &&
 				 event->y >= priv->plot.plot_area.top_edge &&
