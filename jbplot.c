@@ -150,6 +150,8 @@ struct _jbplotPrivate
 {
 	plot_t plot;
 	gboolean zooming; 
+	gboolean h_zoom; 
+	gboolean v_zoom; 
 	gboolean panning; 
 	gboolean do_show_coords;
 	gboolean do_show_cross_hair;
@@ -424,6 +426,16 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 			priv->zooming = FALSE;
 			x_now = event->x;
 			y_now = event->y;
+			if(priv->h_zoom) {
+				priv->drag_start_y = priv->plot.plot_area.top_edge;
+				y_now = priv->plot.plot_area.bottom_edge;
+				priv->h_zoom = FALSE;
+			}
+			if(priv->v_zoom) {
+				priv->drag_start_x = priv->plot.plot_area.left_edge;
+				x_now = priv->plot.plot_area.right_edge;
+				priv->v_zoom = FALSE;
+			}
 			if(x_now != priv->drag_start_x && y_now != priv->drag_start_y) {
 				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
 				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
@@ -454,6 +466,14 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	}
 	priv->last_mouse_motion = t_now;
 	if(priv->zooming) {
+		priv->h_zoom = FALSE;
+		priv->v_zoom = FALSE;
+		if(event->state & GDK_SHIFT_MASK) {
+			priv->h_zoom = TRUE;
+		}
+		else if(event->state & GDK_CONTROL_MASK) {
+			priv->v_zoom = TRUE;
+		}
 		priv->drag_end_x = event->x;
 		priv->drag_end_y = event->y;
 		gtk_widget_queue_draw(w);
@@ -570,11 +590,13 @@ static int init_plot(plot_t *plot) {
 static void jbplot_init (jbplot *plot) {
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			GDK_POINTER_MOTION_MASK);
+			GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
 	priv->zooming = FALSE;
+	priv->h_zoom = FALSE;
+	priv->v_zoom = FALSE;
 	priv->panning = FALSE;
 	priv->do_show_coords = FALSE;
 	priv->do_show_cross_hair = FALSE;
@@ -1151,27 +1173,32 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_save(cr);
 		cairo_set_source_rgba (cr, 0.423, 0.646, 0.784, 0.3);
 		cairo_set_line_width (cr, 1.0);
-		double x = priv->drag_end_x;
-		double y = priv->drag_end_y;
+		double x_e = priv->drag_end_x;
+		double y_e = priv->drag_end_y;
+		double x_s = priv->drag_start_x;
+		double y_s = priv->drag_start_y;
 		if(priv->drag_end_x < priv->plot.plot_area.left_edge) {
-			x = priv->plot.plot_area.left_edge;
+			x_e = priv->plot.plot_area.left_edge;
 		}
 		else if(priv->drag_end_x > priv->plot.plot_area.right_edge) {
-			x = priv->plot.plot_area.right_edge;
+			x_e = priv->plot.plot_area.right_edge;
 		}
 		if(priv->drag_end_y < priv->plot.plot_area.top_edge) {
-			y = priv->plot.plot_area.top_edge;
+			y_e = priv->plot.plot_area.top_edge;
 		}
 		else if(priv->drag_end_y > priv->plot.plot_area.bottom_edge) {
-			y = priv->plot.plot_area.bottom_edge;
+			y_e = priv->plot.plot_area.bottom_edge;
 		}
-		cairo_rectangle(
-			cr, 
-			priv->drag_start_x, 
-			priv->drag_start_y,
-			x - priv->drag_start_x,
-			y - priv->drag_start_y
-		);
+		if(priv->h_zoom) {
+			y_s = priv->plot.plot_area.top_edge;
+			y_e = priv->plot.plot_area.bottom_edge;
+		}
+		if(priv->v_zoom) {
+			x_s = priv->plot.plot_area.left_edge;
+			x_e = priv->plot.plot_area.right_edge;
+		}
+			
+		cairo_rectangle(cr, x_s, y_s,	x_e - x_s, y_e - y_s);
 		cairo_fill_preserve(cr);
 		cairo_set_source_rgb (cr, 0.423, 0.646, 0.784);
 		cairo_stroke(cr);	
