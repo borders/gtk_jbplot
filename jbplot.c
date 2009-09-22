@@ -1151,13 +1151,26 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_save(cr);
 		cairo_set_source_rgba (cr, 0.423, 0.646, 0.784, 0.3);
 		cairo_set_line_width (cr, 1.0);
-		//cairo_set_dash(cr, dashes, 2, 0);
+		double x = priv->drag_end_x;
+		double y = priv->drag_end_y;
+		if(priv->drag_end_x < priv->plot.plot_area.left_edge) {
+			x = priv->plot.plot_area.left_edge;
+		}
+		else if(priv->drag_end_x > priv->plot.plot_area.right_edge) {
+			x = priv->plot.plot_area.right_edge;
+		}
+		if(priv->drag_end_y < priv->plot.plot_area.top_edge) {
+			y = priv->plot.plot_area.top_edge;
+		}
+		else if(priv->drag_end_y > priv->plot.plot_area.bottom_edge) {
+			y = priv->plot.plot_area.bottom_edge;
+		}
 		cairo_rectangle(
 			cr, 
 			priv->drag_start_x, 
 			priv->drag_start_y,
-			priv->drag_end_x - priv->drag_start_x,
-			priv->drag_end_y - priv->drag_start_y
+			x - priv->drag_start_x,
+			y - priv->drag_start_y
 		);
 		cairo_fill_preserve(cr);
 		cairo_set_source_rgb (cr, 0.423, 0.646, 0.784);
