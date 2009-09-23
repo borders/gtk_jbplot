@@ -23,7 +23,6 @@ G_DEFINE_TYPE (jbplot, jbplot, GTK_TYPE_DRAWING_AREA);
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
 
-
 #define MAX_NUM_MAJOR_TICS    50
 #define MAJOR_TIC_LABEL_SIZE  100
 #define MAX_NUM_TRACES    10
@@ -464,7 +463,6 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 	return FALSE;
 }
 
-
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 	GTimeVal t_now;
@@ -596,9 +594,14 @@ static int init_plot(plot_t *plot) {
 
 
 static void jbplot_init (jbplot *plot) {
+/*
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
+*/
+	gtk_widget_add_events (GTK_WIDGET (plot),
+			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+			GDK_POINTER_MOTION_MASK);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 

@@ -27,7 +27,7 @@ static int run = 1;
 // Global pendulum state variables
 static double q1 = 1.0;
 static double q2 = 3.0;
-static double q1d = 0.0;
+static double q1d = 5.0;
 static double q2d = 4.0;
 
 
@@ -298,8 +298,8 @@ int main (int argc, char **argv) {
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_legend_props((jbplot *)plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
 
-	t1 = jbplot_create_trace(5000);
-	t2 = jbplot_create_trace(5000);
+	t1 = jbplot_create_trace(3000);
+	t2 = jbplot_create_trace(3000);
 	if(t1==NULL || t2==NULL) {
 		printf("error creating traces!\n");
 		return 0;
