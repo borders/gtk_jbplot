@@ -13,6 +13,35 @@
 #define LINE_BUFFER_CHUNK_SIZE 1000
 
 
+/* global variables */
+static char *delims;
+GtkListStore *store;
+GtkTreeIter iter;
+static trace_handle t1, t2;
+GtkWidget *plot;
+FILE *fp;
+
+
+
+
+int is_comment_line(char *line) {
+	int i;
+	int l = strlen(line);
+	char c;
+	for(i=0; i<l; i++) {
+		c = line[i];
+		if(!isspace(c)) {
+			if(c=='#') {
+				return 1;
+			}
+			else {
+				return 0;
+			}
+		}
+	}
+	return 0;
+}
+
 
 char *get_line(FILE *fp) {
 	static char *line = NULL;
@@ -46,10 +75,18 @@ char *get_line(FILE *fp) {
 }
 
 
-static trace_handle t1, t2;
-GtkWidget *plot;
-FILE *fp;
-
+int ends_with(char *str, char *pattern) {
+	int s_l, p_l;
+	s_l = strlen(str);
+	p_l = strlen(pattern);
+	if(p_l > s_l) {
+		return 0;
+	}
+	if(!strcmp(str + s_l - p_l, pattern)) {
+		return 1;
+	}
+	return 0;
+}
 
 void load_data(GtkButton *b, gpointer data) {
 	GtkWidget *dialog;
@@ -63,19 +100,46 @@ void load_data(GtkButton *b, gpointer data) {
 		char *filename;
 		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 		printf("selected file: %s\n", filename);
+		if(ends_with(filename, ".txt")) {
+			delims = " \t ";
+			printf("Assuming this is a space-delimited file...\n");
+		}
+		else if(ends_with(filename, ".tab")) {
+			delims = "\t";
+			printf("Assuming this is a tab-delimited file...\n");
+		}
+		else if(ends_with(filename, ".csv")) {
+			delims = ",";
+			printf("Assuming this is a comma-delimited file...\n");
+		}
+		else {
+			delims = ",\t ";
+			printf("Unknown type of file...\n");
+		}
 		fp = fopen(filename, "r");
 		if(fp == NULL) {
 			printf("Error opening file\n");
 		}
 		else {
 			char *line;
-			printf("got here!\n");
-			if((line=get_line(fp)) == NULL) {
-				printf("Error reading 1st line\n");
+			do {
+				line=get_line(fp);
+				if(line==NULL) {
+					break;
+				}
 			}
-			else {
-				printf("first line: %s\n", line);
+			while(is_comment_line(line));
+			printf("first line: %s\n", line);
+			int i=0;
+			char *s = line;
+			char *tok;
+			gtk_list_store_clear(store);
+			while((tok=strtok(s, delims)) != NULL) {
+				s = NULL;
+				gtk_list_store_append(store, &iter);
+				gtk_list_store_set(store, &iter, 0, tok, -1);
 			}
+		
 			fclose(fp);
 		}
 		g_free(filename);
@@ -91,6 +155,7 @@ int main (int argc, char **argv) {
 	GtkWidget *v_box;
 	GtkWidget *h_box;
 	GtkWidget *load_button;
+	GtkWidget *x_list;
 	double start_dt;
 
 	gtk_init (&argc, &argv);
@@ -111,6 +176,20 @@ int main (int argc, char **argv) {
 	load_button = gtk_button_new_with_label("Load Data...");
 	gtk_box_pack_start (GTK_BOX(v_box), load_button, FALSE, FALSE, 0);
 	g_signal_connect(load_button, "clicked", G_CALLBACK(load_data), NULL);
+
+	x_list = gtk_tree_view_new();
+	store = gtk_list_store_new(1, G_TYPE_STRING);
+	gtk_list_store_clear(store);
+	gtk_list_store_append(store, &iter);
+	gtk_list_store_set(store, &iter, 0, "hello", -1);
+	GtkCellRenderer *rend;
+	GtkTreeViewColumn *column;
+	rend = gtk_cell_renderer_text_new();
+	column = gtk_tree_view_column_new_with_attributes("Field Name", rend, "text", 0, NULL);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(x_list), GTK_TREE_MODEL(store));
+	gtk_tree_view_append_column(GTK_TREE_VIEW(x_list), column);
+	gtk_box_pack_start(GTK_BOX(v_box), x_list, FALSE, FALSE, 0);
+
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
