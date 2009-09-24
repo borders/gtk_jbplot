@@ -152,18 +152,36 @@ void load_data(GtkButton *b, gpointer data) {
 
 int main (int argc, char **argv) {
 	GtkWidget *window;
+	GtkWidget *top_level_v_box;
 	GtkWidget *v_box;
 	GtkWidget *h_box;
-	GtkWidget *load_button;
 	GtkWidget *x_list;
+	GtkWidget *y_list;
+	GtkWidget *menu_bar;
+	GtkWidget *file_menu_button;
+	GtkWidget *file_menu;
+	GtkWidget *file_load_button;
 	double start_dt;
 
 	gtk_init (&argc, &argv);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
+	top_level_v_box = gtk_vbox_new(FALSE, 2);
+	gtk_container_add (GTK_CONTAINER (window), top_level_v_box);
+
+	menu_bar = gtk_menu_bar_new();
+	gtk_box_pack_start(GTK_BOX(top_level_v_box), menu_bar, FALSE, FALSE, 0);
+	file_menu_button = gtk_menu_item_new_with_mnemonic("_File");
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu_bar), file_menu_button);
+	file_menu = gtk_menu_new();
+	file_load_button = gtk_menu_item_new_with_mnemonic("_Load data from file");
+	gtk_menu_shell_append(GTK_MENU_SHELL(file_menu), file_load_button);
+	gtk_menu_item_set_submenu((GtkMenuItem *)file_menu_button, file_menu);
+	g_signal_connect(G_OBJECT(file_load_button), "button-press-event", G_CALLBACK(load_data), NULL);
+
 	h_box = gtk_hbox_new(FALSE, 10);
-	gtk_container_add (GTK_CONTAINER (window), h_box);
+	gtk_box_pack_start(GTK_BOX(top_level_v_box), h_box, TRUE, TRUE, 0);
 
 	v_box = gtk_vbox_new(FALSE, 10);
 	gtk_box_pack_start(GTK_BOX (h_box), v_box, FALSE, FALSE, 0);
@@ -173,22 +191,21 @@ int main (int argc, char **argv) {
 	jbplot_set_antialias((jbplot *)plot, 0);
 	gtk_box_pack_start (GTK_BOX(h_box), plot, TRUE, TRUE, 0);
 
-	load_button = gtk_button_new_with_label("Load Data...");
-	gtk_box_pack_start (GTK_BOX(v_box), load_button, FALSE, FALSE, 0);
-	g_signal_connect(load_button, "clicked", G_CALLBACK(load_data), NULL);
-
 	x_list = gtk_tree_view_new();
+	y_list = gtk_tree_view_new();
 	store = gtk_list_store_new(1, G_TYPE_STRING);
 	gtk_list_store_clear(store);
-	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter, 0, "hello", -1);
 	GtkCellRenderer *rend;
-	GtkTreeViewColumn *column;
+	GtkTreeViewColumn *x_column, *y_column;
 	rend = gtk_cell_renderer_text_new();
-	column = gtk_tree_view_column_new_with_attributes("Field Name", rend, "text", 0, NULL);
+	x_column = gtk_tree_view_column_new_with_attributes("X Field", rend, "text", 0, NULL);
+	y_column = gtk_tree_view_column_new_with_attributes("Y Field", rend, "text", 0, NULL);
 	gtk_tree_view_set_model(GTK_TREE_VIEW(x_list), GTK_TREE_MODEL(store));
-	gtk_tree_view_append_column(GTK_TREE_VIEW(x_list), column);
+	gtk_tree_view_set_model(GTK_TREE_VIEW(y_list), GTK_TREE_MODEL(store));
+	gtk_tree_view_append_column(GTK_TREE_VIEW(x_list), x_column);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(y_list), y_column);
 	gtk_box_pack_start(GTK_BOX(v_box), x_list, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(v_box), y_list, FALSE, FALSE, 0);
 
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
