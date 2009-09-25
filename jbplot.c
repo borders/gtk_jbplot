@@ -1565,24 +1565,6 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
   return r;
 }
 
-trace_t *trace_create_with_external_data(float *x, float *y, int length, int capacity) {
-	trace_t *t;
-	t = malloc(sizeof(trace_t));
-	if(t==NULL) {
-		printf("Error allocating trace_t structure\n");
-		return NULL;
-	}
-	t->x_data = x;
-	t->y_data = y;
-	t->capacity = capacity;
-	t->length = length;
-	t->start_index = 0;
-	t->end_index = length - 1;
-	t->is_data_owner = 0;
-	strcpy(t->name, "trace");
-	return t;
-}
-
 /******************** Public Functions *******************************/
 int jbplot_set_antialias(jbplot *plot, gboolean state) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
@@ -1823,6 +1805,24 @@ int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rg
 		t->marker_color = *color;
 	}
 	return 0;
+}
+
+trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length) {
+	trace_t *t;
+	t = malloc(sizeof(trace_t));
+	if(t==NULL) {
+		printf("Error allocating trace_t structure\n");
+		return NULL;
+	}
+	t->x_data = x;
+	t->y_data = y;
+	t->capacity = length;
+	t->length = length;
+	t->start_index = 0;
+	t->end_index = length - 1;
+	t->is_data_owner = 0;
+	strcpy(t->name, "trace");
+	return t;
 }
 
 int jbplot_trace_add_point(trace_t *t, float x, float y) {
