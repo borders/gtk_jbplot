@@ -22,6 +22,7 @@
 G_DEFINE_TYPE (jbplot, jbplot, GTK_TYPE_DRAWING_AREA);
 
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
+static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 
 #define MAX_NUM_MAJOR_TICS    50
 #define MAJOR_TIC_LABEL_SIZE  100
@@ -163,6 +164,7 @@ struct _jbplotPrivate
 	data_range pan_start_y_range;
 	GTimeVal last_mouse_motion;
 	gboolean rt_mode;
+	gboolean needs_redraw;
 
 	/* antialias mode */
 	char antialias;
@@ -457,12 +459,14 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				jbplot_set_x_axis_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
 				jbplot_set_y_axis_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
 			}
+			priv->needs_redraw = TRUE;
 			gtk_widget_queue_draw(w);
 		}
 	}
 	else if(event->button == 2) {
 		if(priv->panning) {
 			priv->panning = FALSE;
+			priv->needs_redraw = TRUE;
 			gtk_widget_queue_draw(w);
 		}
 	}
@@ -493,6 +497,7 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	if(priv->panning) {
 		jbplot_set_x_axis_range((jbplot *)w, priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m , priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m);
 		jbplot_set_y_axis_range((jbplot *)w, priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m, priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m);
+		priv->needs_redraw = TRUE;
 		gtk_widget_queue_draw(w);
 	}
 	if(priv->do_show_coords) {
@@ -514,6 +519,7 @@ static void jbplot_class_init (jbplotClass *class) {
 
 	/* GtkWidget signals */
 	widget_class->expose_event = jbplot_expose;
+	widget_class->configure_event = jbplot_configure;
 	widget_class->button_press_event = jbplot_button_press;
 	widget_class->button_release_event = jbplot_button_release;
 	widget_class->motion_notify_event = jbplot_motion_notify;
@@ -609,6 +615,9 @@ static void jbplot_init (jbplot *plot) {
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK);
 
+	// disable double buffering (since we're doing it manually)
+	//GTK_WIDGET_UNSET_FLAGS (GTK_WIDGET(plot), GTK_DOUBLE_BUFFERED);
+
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
 	priv->zooming = FALSE;
@@ -620,6 +629,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->do_snap_to_data = FALSE;
 	priv->antialias = 0;
 	priv->rt_mode = TRUE;
+	priv->needs_redraw = TRUE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -639,6 +649,9 @@ static void jbplot_init (jbplot *plot) {
 	cairo_set_source_rgb(priv->legend_context, 1.0, 0.0, 0.0);
 	cairo_rectangle(priv->legend_context, 20, 20, 20, 20);
 	cairo_fill(priv->legend_context);
+
+	priv->plot_context = NULL;
+	priv->plot_buffer = NULL;
 	
 }
 
@@ -817,6 +830,11 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	axis_t *y_axis = &(p->y_axis);
 	plot_area_t *pa = &(p->plot_area);
 	legend_t *l = &(p->legend);
+
+	if(!priv->needs_redraw) {
+		return FALSE;
+	}
+	priv->needs_redraw = FALSE;
 
 	// set some default values in cairo context
 	cairo_set_line_width(cr, 1.0);
@@ -1185,6 +1203,93 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_stroke(cr);	
 	}
 
+/*
+	// DEBUG!!!!!
+	// Draw the legend image
+	cairo_save(cr);
+	cairo_set_source_surface(cr, legend_buffer, 50, 50);
+	cairo_rectangle(cr, 50, 50, 30, 100);
+	cairo_clip(cr);
+	cairo_paint(cr);
+	cairo_restore(cr);
+*/
+		
+	return FALSE;
+}
+
+/* This get's called by GtkMain when the widget is resized. 
+ * We'll use it to resize (reallocate) our plot image buffer
+ */
+static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+
+	double width = plot->allocation.width;
+	double height = plot->allocation.height;
+
+	if(priv->plot_context != NULL) {
+		cairo_destroy(priv->plot_context);
+	}
+	if(priv->plot_buffer != NULL) {
+		cairo_surface_destroy(priv->plot_buffer);
+	}
+	priv->plot_buffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+	cairo_status_t stat = cairo_surface_status(priv->plot_buffer);
+	if(stat != CAIRO_STATUS_SUCCESS) {
+		printf("Error creating cairo image surface: %s\n", cairo_status_to_string(stat));
+	}
+	priv->plot_context = cairo_create(priv->plot_buffer);
+	cairo_status_t cr_stat = cairo_status(priv->plot_context);
+	if(cr_stat != CAIRO_STATUS_SUCCESS) {
+		printf("Error creating cairo image context: %s\n", cairo_status_to_string(cr_stat));
+		return FALSE;
+	}
+	priv->needs_redraw = TRUE;
+	return FALSE;
+}
+
+static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+
+	plot_t *p = &(priv->plot);
+	axis_t *x_axis = &(p->x_axis);
+	axis_t *y_axis = &(p->y_axis);
+	plot_area_t *pa = &(p->plot_area);
+	legend_t *l = &(p->legend);
+	
+	double x_m = priv->x_m;	
+	double y_m = priv->y_m;	
+	double x_b = priv->x_b;	
+	double y_b = priv->y_b;	
+
+	cairo_t *cr = gdk_cairo_create(plot->window);
+	if(priv->antialias) {
+		cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
+	}
+	else {
+		cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
+	}
+
+	// make sure the plot_context is valid (no latched errors)
+	// If invalid, create a new one...
+	cairo_status_t cr_stat = cairo_status(priv->plot_context);
+	if(cr_stat != CAIRO_STATUS_SUCCESS) {
+		//printf("Invalid cairo context: %s\n", cairo_status_to_string(cr_stat));
+		cairo_destroy(priv->plot_context);
+		priv->plot_context = cairo_create(priv->plot_buffer);
+	}
+
+	/* Draw the plot to the plot image buffer */
+	draw_plot(plot, priv->plot_context, plot->allocation.width, plot->allocation.height);
+
+	/* Then paint the plot image buffer on the widget itself */
+	cairo_save(cr);
+	cairo_set_source_surface(cr, priv->plot_buffer, 0, 0);
+	cairo_rectangle(cr, 0, 0, plot->allocation.width, plot->allocation.height);
+	cairo_clip(cr);
+	cairo_paint(cr);
+	cairo_restore(cr);
+	
+
 	/************* draw the zoom box if zooming is active *****************/
 	if(priv->zooming) {
 		double dashes[] = {8.0,4.0};
@@ -1340,36 +1445,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		}
 			
 	}
-
-/*
-	// DEBUG!!!!!
-	// Draw the legend image
-	cairo_save(cr);
-	cairo_set_source_surface(cr, legend_buffer, 50, 50);
-	cairo_rectangle(cr, 50, 50, 30, 100);
-	cairo_clip(cr);
-	cairo_paint(cr);
-	cairo_restore(cr);
-*/
-		
-	return FALSE;
-}
-
-
-static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
-	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	cairo_t *cr = gdk_cairo_create(plot->window);
-	if(priv->antialias) {
-		cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
-	}
-	else {
-		cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
-	}
-	draw_plot(plot, cr, plot->allocation.width, plot->allocation.height);
-
-
-
-
 
 	cairo_destroy(cr);
 	return FALSE;
@@ -1569,6 +1644,7 @@ int jbplot_set_antialias(jbplot *plot, gboolean state) {
 	else {
 		priv->antialias = 0;
 	}
+	priv->needs_redraw = TRUE;
 	return 0;
 }
 
@@ -1580,17 +1656,31 @@ GtkWidget *jbplot_new (void) {
 
 void jbplot_destroy(jbplot *plot) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	cairo_destroy(priv->legend_context);
-	cairo_surface_destroy(priv->legend_buffer);
+	
+	if(priv->legend_context != NULL) {
+		cairo_destroy(priv->legend_context);
+	}
+	if(priv->legend_buffer != NULL) {
+		cairo_surface_destroy(priv->legend_buffer);
+	}
+
+	if(priv->plot_context != NULL) {
+		cairo_destroy(priv->plot_context);
+	}
+	if(priv->plot_buffer != NULL) {
+		cairo_surface_destroy(priv->plot_buffer);
+	}
 }
 
 
 int jbplot_capture_svg(jbplot *plot, char *filename) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	cairo_surface_t *svg_surf;
-	svg_surf = (cairo_surface_t *)cairo_svg_surface_create((const char *)filename, 400., 400.);
+	svg_surf = (cairo_surface_t *)cairo_svg_surface_create((const char *)filename, 600., 400.);
 
 	cairo_t *cr = cairo_create(svg_surf);
-	draw_plot((GtkWidget *)plot, cr, 400, 400);
+	priv->needs_redraw = TRUE;
+	draw_plot((GtkWidget *)plot, cr, 600, 400);
 	cairo_show_page(cr);
 	cairo_destroy(cr);
 
@@ -1601,10 +1691,12 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 
 
 int jbplot_capture_png(jbplot *plot, char *filename) {
-	cairo_t *cr;
-	cr = gdk_cairo_create(((GtkWidget *)plot)->window);
-	cairo_surface_write_to_png(cairo_get_target(cr), filename);
-	cairo_destroy(cr);
+	//cairo_t *cr;
+	//cr = gdk_cairo_create(((GtkWidget *)plot)->window);
+	//cairo_surface_write_to_png(cairo_get_target(cr), filename);
+	//cairo_destroy(cr);
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	cairo_surface_write_to_png(priv->plot_buffer, filename);
 	return 0;
 }
 
@@ -1634,6 +1726,7 @@ int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_co
 	if(border_color != NULL) {
 		priv->plot.legend.border_color = *border_color;
 	}
+	priv->needs_redraw = TRUE;
 	return 0;	
 }
 
@@ -1645,6 +1738,7 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	else {
 		priv->plot.x_axis.do_show_major_gridlines = 0;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1657,6 +1751,7 @@ int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	else {
 		priv->plot.y_axis.do_show_major_gridlines = 0;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1668,6 +1763,7 @@ int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width
 		priv->plot.x_axis.major_gridline_color = *color;	
 	}
 	priv->plot.x_axis.major_gridline_type = type;
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1679,6 +1775,7 @@ int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width
 		priv->plot.y_axis.major_gridline_color = *color;	
 	}
 	priv->plot.y_axis.major_gridline_type = type;
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1688,6 +1785,7 @@ int jbplot_set_bg_color(jbplot *plot, rgb_color_t *color) {
 	if(color != NULL) {
 		priv->plot.bg_color = *color;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1697,6 +1795,7 @@ int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color) {
 	if(color != NULL) {
 		priv->plot.plot_area.bg_color = *color;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1713,6 +1812,7 @@ int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t *color) {
 	else {
 		priv->plot.plot_area.do_show_bounding_box = 0;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1737,6 +1837,7 @@ int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 		priv->plot.x_axis.do_autoscale = 0;
 		priv->plot.x_axis.do_loose_fit = 0;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1755,6 +1856,7 @@ int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 		priv->plot.y_axis.do_autoscale = 0;
 		priv->plot.y_axis.do_loose_fit = 0;
 	}
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1765,6 +1867,7 @@ int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
 	priv->plot.x_axis.min_val = min;
 	priv->plot.x_axis.max_val = max;
 	//printf("Setting x-axis range to (%g , %g)\n", min, max);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
@@ -1775,11 +1878,14 @@ int jbplot_set_y_axis_range(jbplot *plot, float min, float max) {
 	priv->plot.y_axis.min_val = min;
 	priv->plot.y_axis.max_val = max;
 	//printf("Setting y-axis range to (%g , %g)\n", min, max);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 	
 void jbplot_refresh(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return;
 }
@@ -1902,6 +2008,7 @@ int jbplot_add_trace(jbplot *plot, trace_t *t) {
 	}
 	p->traces[p->num_traces] = t;
 	(p->num_traces)++;
+	jbplot_refresh(plot);
 	return (p->num_traces)-1;
 }
 
@@ -1927,6 +2034,7 @@ int jbplot_set_plot_title(jbplot *plot, char *title, int copy) {
 	}
 	priv->plot.do_show_plot_title = 1;
 
+	jbplot_refresh(plot);
 	return 0;
 }
 
@@ -1938,7 +2046,7 @@ int jbplot_set_plot_title_visible(jbplot *plot, gboolean visible) {
 	else {
 		priv->plot.do_show_plot_title = 0;
 	}
-	gtk_widget_queue_draw((GtkWidget *)plot);
+	jbplot_refresh(plot);
 	return 0;
 }
 	
@@ -1961,6 +2069,7 @@ int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy) {
 		priv->plot.x_axis.axis_label = title;
 		priv->plot.x_axis.is_axis_label_owner = 0;
 	}
+	jbplot_refresh(plot);
 	return 0;
 }
 
@@ -1972,7 +2081,7 @@ int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible) {
 	else {
 		priv->plot.x_axis.do_show_axis_label = 0;
 	}
-	gtk_widget_queue_draw((GtkWidget *)plot);
+	jbplot_refresh(plot);
 	return 0;
 }
 	
@@ -1994,6 +2103,7 @@ int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy) {
 		priv->plot.y_axis.axis_label = title;
 		priv->plot.y_axis.is_axis_label_owner = 0;
 	}
+	jbplot_refresh(plot);
 	return 0;
 }
 
@@ -2005,7 +2115,7 @@ int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible) {
 	else {
 		priv->plot.y_axis.do_show_axis_label = 0;
 	}
-	gtk_widget_queue_draw((GtkWidget *)plot);
+	jbplot_refresh(plot);
 	return 0;
 }
 	

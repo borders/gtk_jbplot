@@ -22,7 +22,7 @@ GtkWidget *plot;
 GtkWidget *canvas;
 GtkWidget *dt_scale;
 static int run = 1;
-
+static int name_changed = 0;
 
 // Global pendulum state variables
 static double q1 = 1.0;
@@ -110,7 +110,15 @@ gboolean update_data(gpointer data) {
 	t += 20;
 	jbplot_trace_add_point(t1, t, q1); 
 	jbplot_trace_add_point(t2, t, q2); 
-	gtk_widget_queue_draw(plot);	
+
+	if(t > 2000 && !name_changed) {
+		name_changed = 1;
+		jbplot_set_plot_title((jbplot *)plot, "DP", 1);
+		jbplot_set_plot_title_visible((jbplot *)plot, 1);
+	}
+
+
+	jbplot_refresh((jbplot *)plot);
 	gtk_widget_queue_draw(canvas);	
 	return TRUE;
 }

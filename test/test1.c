@@ -37,7 +37,8 @@ gboolean update_data(gpointer data) {
 		jbplot_trace_add_point(t2, t+i, 2*sin(0.11*(t+i))+4*sin(0.09*(t+i))); 
 	}
 	t += 15;
-	gtk_widget_queue_draw(plot);	
+	//gtk_widget_queue_draw(plot);	
+	jbplot_refresh((jbplot *)plot);
 	return TRUE;
 }
 
