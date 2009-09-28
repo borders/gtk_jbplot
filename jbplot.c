@@ -28,8 +28,6 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
 #define MAX_NUM_TRACES    10
 
 
-cairo_surface_t *legend_buffer;
-cairo_t *legend_context;
 
 double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
@@ -164,6 +162,7 @@ struct _jbplotPrivate
 	data_range pan_start_x_range;
 	data_range pan_start_y_range;
 	GTimeVal last_mouse_motion;
+	gboolean rt_mode;
 
 	/* antialias mode */
 	char antialias;
@@ -173,6 +172,13 @@ struct _jbplotPrivate
 	double x_b;
 	double y_m;
 	double y_b;
+
+	/* image buffers used for non real-time mode */
+	cairo_surface_t *legend_buffer;
+	cairo_t *legend_context;
+	cairo_surface_t *plot_buffer;
+	cairo_t *plot_context;
+	
 };
 
 enum
@@ -613,6 +619,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->do_show_cross_hair = FALSE;
 	priv->do_snap_to_data = FALSE;
 	priv->antialias = 0;
+	priv->rt_mode = TRUE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -623,15 +630,15 @@ static void jbplot_init (jbplot *plot) {
 
 	g_get_current_time(&priv->last_mouse_motion);
 
-	legend_buffer	= cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
-	legend_context = cairo_create(legend_buffer);
-	if(legend_buffer ==NULL || legend_context==NULL) {
+	priv->legend_buffer	= cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
+	priv->legend_context = cairo_create(priv->legend_buffer);
+	if(priv->legend_buffer ==NULL || priv->legend_context==NULL) {
 		printf("Error creating legend buffer\n");
 		return;
 	}
-	cairo_set_source_rgb(legend_context, 1.0, 0.0, 0.0);
-	cairo_rectangle(legend_context, 20, 20, 20, 20);
-	cairo_fill(legend_context);
+	cairo_set_source_rgb(priv->legend_context, 1.0, 0.0, 0.0);
+	cairo_rectangle(priv->legend_context, 20, 20, 20, 20);
+	cairo_fill(priv->legend_context);
 	
 }
 
@@ -1584,9 +1591,9 @@ GtkWidget *jbplot_new (void) {
 
 
 void jbplot_destroy(jbplot *plot) {
-	
-	cairo_destroy(legend_context);
-	cairo_surface_destroy(legend_buffer);
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	cairo_destroy(priv->legend_context);
+	cairo_surface_destroy(priv->legend_buffer);
 }
 
 
