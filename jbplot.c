@@ -790,7 +790,12 @@ static int draw_horiz_text_at_point(GtkWidget *plot, void *cr, char *text, doubl
 void draw_marker(cairo_t *cr, int type, float size) {
 	double x, y;
 	cairo_get_current_point(cr, &x, &y);
-	if(type == MARKER_CIRCLE) {
+	if(type == MARKER_POINT) {
+		cairo_move_to(cr, x, y);
+		cairo_close_path(cr);
+		cairo_stroke(cr);
+	}
+	else if(type == MARKER_CIRCLE) {
 		cairo_arc(cr, x, y, size/2.0, 0, 2*M_PI);
 		cairo_fill(cr);
 	}
@@ -1160,14 +1165,19 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		}
 		cairo_stroke(cr);
 	}
+	cairo_restore(cr);
 
 	// now draw the trace markers (if requested)
 	for(i = 0; i < p->num_traces; i++) {
+		cairo_save(cr);
 		trace_t *t = p->traces[i];
 		if(t->marker_type == MARKER_NONE) {
 			continue;
 		}
 		cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
+		if(t->marker_type == MARKER_POINT) {
+			cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+		}
 		if(t->length <= 0) continue;
 		for(j = 0; j < t->length; j++) {
 			int n;
@@ -1185,9 +1195,8 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 			cairo_move_to(cr, x_m * t->x_data[n] + x_b,	y_m * t->y_data[n] + y_b);
 			draw_marker(cr, t->marker_type, t->marker_size);
 		}
-		cairo_stroke(cr);
+		cairo_restore(cr);
 	}
-	cairo_restore(cr);
 
 	/*********** draw the plot area border ******************/
 	if(pa->do_show_bounding_box) {

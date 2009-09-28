@@ -43,7 +43,8 @@ typedef enum {
 	MARKER_NONE,
 	MARKER_CIRCLE,
 	MARKER_SQUARE,
-	MARKER_X
+	MARKER_X,
+	MARKER_POINT
 } marker_type_t;
 
 

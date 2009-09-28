@@ -9,9 +9,9 @@
 #include "../jbplot.h"
 
 #define NUM_PTS_PER_STEP 500
-#define MIN_R 2.2
-#define MAX_R 7.9
-#define DR 0.01
+#define MIN_R 3.4
+#define MAX_R 4
+#define DR 0.001
 
 static trace_handle t1;
 GtkWidget *plot;
@@ -22,12 +22,12 @@ void init_trace_with_data(trace_handle th) {
 	for(r=MIN_R; r<MAX_R; r+=DR) {
 		double y = 0.5;
 		for(i=0; i < 300; i++) {
-			//y = r*y*(1-y);
-			y = r*sin(y);
+			y = r*y*(1-y);
+			//y = r*sin(y);
 		}
-		for(i=0; i < 200; i++) {
-			//y = r*y*(1-y);
-			y = r*sin(y);
+		for(i=0; i < NUM_PTS_PER_STEP; i++) {
+			y = r*y*(1-y);
+			//y = r*sin(y);
 			jbplot_trace_add_point(th, r, y);
 		}
 	}
@@ -75,7 +75,8 @@ int main (int argc, char **argv) {
 	rgb_color_t color = {0.0, 1.0, 0.0};
 	jbplot_trace_set_line_props(t1, LINETYPE_NONE, 1.0, &color);
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-	jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+	//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+	jbplot_trace_set_marker_props(t1, MARKER_POINT, 2.0, &color);
 	init_trace_with_data(t1);
 	jbplot_add_trace((jbplot *)plot, t1);
 
