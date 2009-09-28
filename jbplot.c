@@ -1366,25 +1366,13 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		cairo_set_antialias(cr, CAIRO_ANTIALIAS_NONE);
 	}
 	draw_plot(plot, cr, plot->allocation.width, plot->allocation.height);
+
+
+
+
+
 	cairo_destroy(cr);
 	return FALSE;
-}
-
-
-static void jbplot_redraw_canvas (jbplot *plot) {
-	GtkWidget *widget;
-	GdkRegion *region;
-	
-	widget = GTK_WIDGET (plot);
-
-	if (!widget->window) return;
-
-	region = gdk_drawable_get_clip_region (widget->window);
-	/* redraw the cairo canvas completely by exposing it */
-	gdk_window_invalidate_region (widget->window, region, TRUE);
-	gdk_window_process_updates (widget->window, TRUE);
-
-	gdk_region_destroy (region);
 }
 
 
