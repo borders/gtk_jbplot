@@ -1911,6 +1911,13 @@ int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 	return 0;
 }
 
+int jbplot_get_x_axis_range(jbplot *plot, float *min, float *max) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	*min = priv->plot.x_axis.min_val;
+	*max = priv->plot.x_axis.max_val;
+	return 0;
+}
+
 int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.do_autoscale = 0;
@@ -1922,6 +1929,14 @@ int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
 	return 0;
 }
 	
+int jbplot_get_y_axis_range(jbplot *plot, float *min, float *max) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	*min = priv->plot.y_axis.min_val;
+	*max = priv->plot.y_axis.max_val;
+	return 0;
+}
+
+
 int jbplot_set_y_axis_range(jbplot *plot, float min, float max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.y_axis.do_autoscale = 0;

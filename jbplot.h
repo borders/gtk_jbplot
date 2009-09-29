@@ -151,6 +151,9 @@ int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
  */
 int jbplot_set_x_axis_range(jbplot *plot, float min, float max);
 
+int jbplot_get_x_axis_range(jbplot *plot, float *min, float *max);
+
+
 int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode);
 int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color);
 int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
@@ -161,6 +164,7 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
 int jbplot_set_y_axis_range(jbplot *plot, float min, float max);
+int jbplot_get_y_axis_range(jbplot *plot, float *min, float *max);
 int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode);
 int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color);
 int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible);
