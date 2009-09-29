@@ -9,7 +9,7 @@
 #include "../jbplot.h"
 
 #define NUM_PTS_PER_STEP 500
-#define MIN_R 3.4
+#define MIN_R 2
 #define MAX_R 4
 #define NUM_STEPS 300
 
@@ -19,22 +19,49 @@ GtkWidget *plot;
 double r_min = MIN_R;
 double r_max = MAX_R;
 double y_0 = 0.5;
+int zoom_all = 1;
 
 void init_trace_with_data(trace_handle th) {
-	int i;
+	int i, j;
 	double r;
+	float y_min, y_max;
+	jbplot_get_y_axis_range((jbplot *)plot, &y_min, &y_max);
+	printf("y_min = %g, max = %g\n", y_min, y_max);
 	for(r=r_min; r<r_max; r+=(r_max-r_min)/NUM_STEPS) {
 		double y = 0.5;
 		for(i=0; i < 300; i++) {
 			y = r*y*(1-y);
 			//y = r*sin(y);
 		}
-		for(i=0; i < NUM_PTS_PER_STEP; i++) {
+		i = 0;
+		j = 0;
+		while(i < NUM_PTS_PER_STEP) {
 			y = r*y*(1-y);
-			//y = r*sin(y);
-			jbplot_trace_add_point(th, r, y);
+			if(zoom_all) {
+				jbplot_trace_add_point(th, r, y);
+				i++;
+			}
+			else {
+				if(y <= y_max && y >= y_min) {
+					i++;
+					jbplot_trace_add_point(th, r, y);
+					j = 0;
+				}
+				else {
+					j++;
+				}
+				if(j>500) {
+					break;
+				}
+			}
+
 		}
+
 	}
+	if(zoom_all) {
+		zoom_all = 0;
+	}
+	printf("done updating...\n");
 	return;
 }
 
@@ -53,6 +80,7 @@ void zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax
 
 void zoom_all_cb(jbplot *plot, gpointer data) {
 	printf("Zoom All!\n");
+	zoom_all = 1;
 	jbplot_trace_clear_data(t1);
 	r_min = MIN_R;
 	r_max = MAX_R;
@@ -87,9 +115,9 @@ int main (int argc, char **argv) {
 
 	jbplot_set_plot_title((jbplot *)plot, "Hello World", 1);
 	jbplot_set_plot_title_visible((jbplot *)plot, 1);
-	jbplot_set_x_axis_label((jbplot *)plot, "Time (sec)", 1);
+	jbplot_set_x_axis_label((jbplot *)plot, "r", 1);
 	jbplot_set_x_axis_label_visible((jbplot *)plot, 1);
-	jbplot_set_y_axis_label((jbplot *)plot, "Amplitude", 1);
+	jbplot_set_y_axis_label((jbplot *)plot, "f(x) = r x (1-x)", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
 
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
