@@ -185,7 +185,8 @@ struct _jbplotPrivate
 
 enum
 {
-	TIME_CHANGED,
+	ZOOM_IN,
+	ZOOM_ALL,
 	LAST_SIGNAL
 };
 
@@ -224,6 +225,7 @@ static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer d
 static gboolean popup_callback_zoom_all(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplot_set_x_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
 	jbplot_set_y_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
+	g_signal_emit_by_name((gpointer *)data, "zoom-all");
 	return FALSE;
 }
 
@@ -386,6 +388,7 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	if(event->type == GDK_2BUTTON_PRESS) { // double click
 		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
 		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
+		g_signal_emit_by_name((gpointer *)w, "zoom-all");
 	}
 	else {
 		if(event->button == 3) {
@@ -456,10 +459,15 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
 				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
 				y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
-				jbplot_set_x_axis_range((jbplot *)w, (x_min - priv->x_b)/priv->x_m, (x_max - priv->x_b)/priv->x_m);
-				jbplot_set_y_axis_range((jbplot *)w, (y_max - priv->y_b)/priv->y_m, (y_min - priv->y_b)/priv->y_m);
+				double xmin = (x_min - priv->x_b)/priv->x_m;
+				double xmax = (x_max - priv->x_b)/priv->x_m;
+				double ymin = (y_max - priv->y_b)/priv->y_m;
+				double ymax = (y_min - priv->y_b)/priv->y_m;
+				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
+				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
+				priv->needs_redraw = TRUE;
+				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
-			priv->needs_redraw = TRUE;
 			gtk_widget_queue_draw(w);
 		}
 	}
@@ -510,6 +518,19 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 }
 
 
+static void zoom_in (jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	printf("got zoom_in event\n");
+	printf("xmin = %g, xmax = %g\n", xmin, xmax);
+	printf("ymin = %g, ymax = %g\n", ymin, ymax);
+}
+
+static void zoom_all (jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	printf("got zoom_all event\n");
+}
+
+
 static void jbplot_class_init (jbplotClass *class) {
 	GObjectClass *obj_class;
 	GtkWidgetClass *widget_class;
@@ -523,6 +544,31 @@ static void jbplot_class_init (jbplotClass *class) {
 	widget_class->button_press_event = jbplot_button_press;
 	widget_class->button_release_event = jbplot_button_release;
 	widget_class->motion_notify_event = jbplot_motion_notify;
+
+	/* jbplot signals */
+	jbplot_signals[ZOOM_IN] = g_signal_new (
+		"zoom-in",
+		G_OBJECT_CLASS_TYPE(obj_class),
+		G_SIGNAL_RUN_FIRST,
+		G_STRUCT_OFFSET(jbplotClass, zoom_in),
+		NULL, NULL,
+		_plot_marshal_VOID__FLOAT_FLOAT_FLOAT_FLOAT,
+		G_TYPE_NONE, 4,
+		G_TYPE_FLOAT, G_TYPE_FLOAT,
+		G_TYPE_FLOAT, G_TYPE_FLOAT);
+
+	jbplot_signals[ZOOM_ALL] = g_signal_new (
+		"zoom-all",
+		G_OBJECT_CLASS_TYPE(obj_class),
+		G_SIGNAL_RUN_FIRST,
+		G_STRUCT_OFFSET(jbplotClass, zoom_all),
+		NULL, NULL,
+		g_cclosure_marshal_VOID__VOID,
+		G_TYPE_NONE, 0);
+
+	/* default handlers for signals */
+	//class->zoom_in = zoom_in;
+	//class->zoom_all = zoom_all;
 
 	g_type_class_add_private (obj_class, sizeof (jbplotPrivate));
 }
@@ -1713,6 +1759,13 @@ int jbplot_capture_png(jbplot *plot, char *filename) {
 int jbplot_trace_set_name(trace_t *t, char *name) {
 	t->name[0] = '\0';
 	strncat(t->name, name, MAX_TRACE_NAME_LENGTH);
+	return 0;
+}
+
+int jbplot_trace_clear_data(trace_t *t) {
+	t->length = 0;
+	t->start_index = 0;
+	t->end_index = 0;
 	return 0;
 }
 

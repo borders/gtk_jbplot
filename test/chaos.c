@@ -11,15 +11,19 @@
 #define NUM_PTS_PER_STEP 500
 #define MIN_R 3.4
 #define MAX_R 4
-#define DR 0.001
+#define NUM_STEPS 300
 
 static trace_handle t1;
 GtkWidget *plot;
 
+double r_min = MIN_R;
+double r_max = MAX_R;
+double y_0 = 0.5;
+
 void init_trace_with_data(trace_handle th) {
 	int i;
 	double r;
-	for(r=MIN_R; r<MAX_R; r+=DR) {
+	for(r=r_min; r<r_max; r+=(r_max-r_min)/NUM_STEPS) {
 		double y = 0.5;
 		for(i=0; i < 300; i++) {
 			y = r*y*(1-y);
@@ -31,6 +35,30 @@ void init_trace_with_data(trace_handle th) {
 			jbplot_trace_add_point(th, r, y);
 		}
 	}
+	return;
+}
+
+void zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax, gpointer data) {
+	printf("Zoomed In!\n");
+	printf("x-range: (%g, %g)\n", xmin, xmax);
+	printf("y-range: (%g, %g)\n", ymin, ymax);
+	jbplot_trace_clear_data(t1);
+	r_min = xmin;
+	r_max = xmax;
+	y_0 = 0.5*(ymin+ymax);
+	init_trace_with_data(t1);
+	jbplot_refresh(plot);
+	return;
+}
+
+void zoom_all_cb(jbplot *plot, gpointer data) {
+	printf("Zoom All!\n");
+	jbplot_trace_clear_data(t1);
+	r_min = MIN_R;
+	r_max = MAX_R;
+	y_0 = 0.5;
+	init_trace_with_data(t1);
+	jbplot_refresh(plot);
 	return;
 }
 
@@ -47,6 +75,8 @@ int main (int argc, char **argv) {
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 	
 	plot = jbplot_new ();
+	g_signal_connect(plot, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
+	g_signal_connect(plot, "zoom-all", G_CALLBACK (zoom_all_cb), NULL);
 	gtk_widget_set_size_request(plot, 700, 700);
 	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
 
@@ -66,8 +96,8 @@ int main (int argc, char **argv) {
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 
-	t1 = jbplot_create_trace((int)((MAX_R-MIN_R)/DR*NUM_PTS_PER_STEP));
-	printf("trace capacity: %d\n", (int)((MAX_R-MIN_R)/DR*NUM_PTS_PER_STEP));
+	t1 = jbplot_create_trace((int)(NUM_STEPS*NUM_PTS_PER_STEP));
+	printf("trace capacity: %d\n", (int)(NUM_STEPS*NUM_PTS_PER_STEP));
 	if(t1==NULL) {
 		printf("error creating trace!\n");
 		return 0;

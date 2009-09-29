@@ -82,6 +82,8 @@ struct _jbplotClass
 {
 	GtkDrawingAreaClass parent_class;
 
+	void (* zoom_in) (jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax);
+	void (* zoom_all) (jbplot *plot);
 };
 
 
@@ -180,6 +182,7 @@ int jbplot_trace_add_point(trace_handle th, float x, float y);
 int jbplot_trace_set_line_props(trace_handle th, line_type_t type, float width, rgb_color_t *color);
 int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float size, rgb_color_t *color);
 int jbplot_trace_set_name(trace_handle th, char *name);
+int jbplot_trace_clear_data(trace_handle th);
 
 
 int jbplot_capture_png(jbplot *plot, char *filename);
