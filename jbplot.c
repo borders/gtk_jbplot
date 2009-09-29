@@ -652,17 +652,9 @@ static int init_plot(plot_t *plot) {
 
 
 static void jbplot_init (jbplot *plot) {
-/*
-	gtk_widget_add_events (GTK_WIDGET (plot),
-			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			GDK_POINTER_MOTION_MASK | GDK_KEY_PRESS_MASK);
-*/
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK);
-
-	// disable double buffering (since we're doing it manually)
-	//GTK_WIDGET_UNSET_FLAGS (GTK_WIDGET(plot), GTK_DOUBLE_BUFFERED);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
@@ -1746,10 +1738,6 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 
 
 int jbplot_capture_png(jbplot *plot, char *filename) {
-	//cairo_t *cr;
-	//cr = gdk_cairo_create(((GtkWidget *)plot)->window);
-	//cairo_surface_write_to_png(cairo_get_target(cr), filename);
-	//cairo_destroy(cr);
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	cairo_surface_write_to_png(priv->plot_buffer, filename);
 	return 0;
