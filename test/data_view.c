@@ -19,9 +19,11 @@ GtkListStore *store;
 GtkTreeIter iter;
 static trace_handle t1, t2;
 GtkWidget *plot;
-FILE *fp;
-
-
+GtkWidget *x_list;
+GtkWidget *y_list;
+char *filename;
+long file_size;
+int has_header_row;
 
 
 int is_comment_line(char *line) {
@@ -90,6 +92,7 @@ int ends_with(char *str, char *pattern) {
 
 void load_data(GtkButton *b, gpointer data) {
 	GtkWidget *dialog;
+	FILE *fp;
 	dialog = gtk_file_chooser_dialog_new("Save file to...",
 	                                     (GtkWindow *)plot,
 	                                     GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -127,19 +130,38 @@ void load_data(GtkButton *b, gpointer data) {
 				if(line==NULL) {
 					break;
 				}
-			}
-			while(is_comment_line(line));
+			}	while(is_comment_line(line));
 			printf("first line: %s\n", line);
 			int i=0;
 			char *s = line;
 			char *tok;
 			gtk_list_store_clear(store);
+			int col_count = 0;
 			while((tok=strtok(s, delims)) != NULL) {
 				s = NULL;
+				if(col_count == 0) {
+					if(isdigit(tok[0]) || tok[0] == '-' || tok[0] == '+') {
+						has_header_row = 0;
+					}
+					else {
+						has_header_row = 1;
+					}
+				}
+				col_count++;
 				gtk_list_store_append(store, &iter);
-				gtk_list_store_set(store, &iter, 0, tok, -1);
+				if(has_header_row) {
+					gtk_list_store_set(store, &iter, 0, tok, -1);
+				}
+				else {
+					char s[20];
+					sprintf(s, "Column_%d", col_count);
+					gtk_list_store_set(store, &iter, 0, s, -1);
+				}
 			}
-		
+			fseek(fp, 0, SEEK_END);
+			file_size = ftell(fp);
+			printf("File Size: %ld bytes\n", file_size);
+			
 			fclose(fp);
 		}
 		g_free(filename);
@@ -148,6 +170,19 @@ void load_data(GtkButton *b, gpointer data) {
 	return;
 }
 
+void add_trace_cb(GtkWidget *w, gpointer user_data) {
+	//printf("clicked me\n");
+	GtkTreeSelection *x_s = gtk_tree_view_get_selection(GTK_TREE_VIEW(x_list));
+	int num_x =	gtk_tree_selection_count_selected_rows(x_s);
+	GtkTreeSelection *y_s = gtk_tree_view_get_selection(GTK_TREE_VIEW(y_list));
+	int num_y =	gtk_tree_selection_count_selected_rows(y_s);
+	//printf("x:%d, y:%d\n", num_x, num_y);
+	if(num_x != 1 || num_y < 1) {
+		return;
+	}
+	
+	return;
+}
 
 
 int main (int argc, char **argv) {
@@ -155,12 +190,11 @@ int main (int argc, char **argv) {
 	GtkWidget *top_level_v_box;
 	GtkWidget *v_box;
 	GtkWidget *h_box;
-	GtkWidget *x_list;
-	GtkWidget *y_list;
 	GtkWidget *menu_bar;
 	GtkWidget *file_menu_button;
 	GtkWidget *file_menu;
 	GtkWidget *file_load_button;
+	GtkWidget *add_trace_button;
 	double start_dt;
 
 	gtk_init (&argc, &argv);
@@ -193,6 +227,8 @@ int main (int argc, char **argv) {
 
 	x_list = gtk_tree_view_new();
 	y_list = gtk_tree_view_new();
+	GtkTreeSelection *y_s = gtk_tree_view_get_selection(GTK_TREE_VIEW(y_list));
+	gtk_tree_selection_set_mode(y_s, GTK_SELECTION_MULTIPLE);
 	store = gtk_list_store_new(1, G_TYPE_STRING);
 	gtk_list_store_clear(store);
 	GtkCellRenderer *rend;
@@ -206,6 +242,10 @@ int main (int argc, char **argv) {
 	gtk_tree_view_append_column(GTK_TREE_VIEW(y_list), y_column);
 	gtk_box_pack_start(GTK_BOX(v_box), x_list, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(v_box), y_list, FALSE, FALSE, 0);
+
+	add_trace_button = gtk_button_new_with_label("Add Trace");
+	gtk_box_pack_start(GTK_BOX(v_box), add_trace_button, FALSE, FALSE, 0);
+	g_signal_connect(add_trace_button, "clicked", G_CALLBACK(add_trace_cb), NULL);
 
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
