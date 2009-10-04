@@ -115,6 +115,8 @@ gboolean update_data(gpointer data) {
 		name_changed = 1;
 		jbplot_set_plot_title((jbplot *)plot, "DP", 1);
 		jbplot_set_plot_title_visible((jbplot *)plot, 1);
+		jbplot_trace_set_name(t1, "Hello There!");
+		jbplot_legend_refresh((jbplot *)plot);
 	}
 
 

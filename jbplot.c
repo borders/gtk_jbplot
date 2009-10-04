@@ -89,6 +89,8 @@ typedef struct legend_t {
 	rgb_color_t border_color;
 	legend_pos_t position;
 	double font_size;
+	char needs_redraw;
+	box_size_t size;
 } legend_t;
 
 #define MAX_TRACE_NAME_LENGTH 255
@@ -139,7 +141,6 @@ static double round_up_to_nearest(double num, double nearest);
 static double round_down_to_nearest(double num, double nearest);
 static data_range get_y_range(trace_t **traces, int num_traces);
 static data_range get_x_range(trace_t **traces, int num_traces);
-
 
 
 typedef struct _jbplotPrivate jbplotPrivate;
@@ -623,6 +624,7 @@ static int init_legend(legend_t *legend) {
 	legend->bg_color = color;
 	legend->position = LEGEND_POS_RIGHT;
 	legend->font_size = 10.;
+	legend->needs_redraw = 1;
 	return 0;
 }
 
@@ -678,16 +680,8 @@ static void jbplot_init (jbplot *plot) {
 
 	g_get_current_time(&priv->last_mouse_motion);
 
-	priv->legend_buffer	= cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 100, 100);
-	priv->legend_context = cairo_create(priv->legend_buffer);
-	if(priv->legend_buffer ==NULL || priv->legend_context==NULL) {
-		printf("Error creating legend buffer\n");
-		return;
-	}
-	cairo_set_source_rgb(priv->legend_context, 1.0, 0.0, 0.0);
-	cairo_rectangle(priv->legend_context, 20, 20, 20, 20);
-	cairo_fill(priv->legend_context);
-
+	priv->legend_context = NULL;
+	priv->legend_buffer = NULL;
 	priv->plot_context = NULL;
 	priv->plot_buffer = NULL;
 	
@@ -767,7 +761,7 @@ static int draw_vert_text_at_point(GtkWidget *plot, void *cr, char *text, double
 }
 
 
-static int draw_horiz_text_at_point(GtkWidget *plot, void *cr, char *text, double x, double y, anchor_t anchor) {
+static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, anchor_t anchor) {
 	double x_left, y_bottom;
 	cairo_text_extents_t te;
 	double w, h;
@@ -865,6 +859,182 @@ int calc_legend_dims(plot_t *plot, cairo_t *cr, double *width, double *height, d
 }
 
 
+static int draw_legend(jbplot *plot) {
+	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
+	plot_t *p = &(priv->plot);
+	legend_t *l = &(p->legend);
+	double border_margin = 3.;
+	double line_length = 15;
+	double text_to_line_gap = 5;
+
+	if(!l->needs_redraw) {
+		return 0;
+	}
+	l->needs_redraw = 0;
+
+	if(priv->legend_context != NULL) {
+		cairo_destroy(priv->legend_context);
+	}
+	if(priv->legend_buffer != NULL) {
+		cairo_surface_destroy(priv->legend_buffer);
+	}
+	priv->legend_buffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ((GtkWidget *)plot)->allocation.width, ((GtkWidget *)plot)->allocation.height);
+	cairo_status_t stat = cairo_surface_status(priv->legend_buffer);
+	if(stat != CAIRO_STATUS_SUCCESS) {
+		printf("Error creating cairo image surface: %s\n", cairo_status_to_string(stat));
+	}
+	priv->legend_context = cairo_create(priv->legend_buffer);
+	cairo_status_t cr_stat = cairo_status(priv->legend_context);
+	if(cr_stat != CAIRO_STATUS_SUCCESS) {
+		printf("Error creating cairo image context: %s\n", cairo_status_to_string(cr_stat));
+		return FALSE;
+	}
+	cairo_t *cr = priv->legend_context;
+
+
+	if(l->position == LEGEND_POS_RIGHT) {
+		// first calculate the widest trace name
+		double max_width = 10.;
+		int i;
+		double w;
+		for(i=0; i < p->num_traces; i++) {
+			w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
+			if(w > max_width) {
+				max_width = w;
+			}
+		}
+
+		double x_start = border_margin + max_width + text_to_line_gap;
+		cairo_set_font_size(cr, p->legend.font_size);
+		double entry_spacing = 1.5 * get_text_height(cr, "Test", p->legend.font_size);
+		for(i=0; i < p->num_traces; i++) {
+			cairo_set_source_rgb (cr, 0., 0., 0.);
+			draw_horiz_text_at_point(	cr, 
+			                          p->traces[i]->name, 
+																border_margin, 
+																border_margin + entry_spacing*i, 
+																ANCHOR_TOP_LEFT
+															);
+			if(p->traces[i]->line_type != LINETYPE_NONE) {
+				cairo_set_source_rgb(cr, 
+				                     p->traces[i]->line_color.red,
+				                     p->traces[i]->line_color.green,
+				                     p->traces[i]->line_color.blue
+				);
+				cairo_set_line_width(cr, p->traces[i]->line_width);
+				double h = border_margin + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+				cairo_move_to(cr, x_start, h);
+				cairo_line_to(cr, x_start + line_length, h);
+				cairo_stroke(cr);
+			}
+			if(p->traces[i]->marker_type != MARKER_NONE) {
+				cairo_set_source_rgb(cr, 
+				                     p->traces[i]->marker_color.red,
+				                     p->traces[i]->marker_color.green,
+				                     p->traces[i]->marker_color.blue
+				);
+				cairo_set_line_width(cr, p->traces[i]->line_width);
+				double h = border_margin + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+				cairo_move_to(cr, x_start + line_length/2., h);
+				draw_marker(cr, p->traces[i]->marker_type, p->traces[i]->marker_size);
+			}
+		}
+		l->size.width = x_start + line_length + border_margin;
+		l->size.height = border_margin + p->num_traces * entry_spacing + border_margin;
+		if(l->do_show_bounding_box) {
+			cairo_set_source_rgb(cr, l->border_color.red, l->border_color.green, l->border_color.blue);
+			cairo_set_line_width(cr, l->bounding_box_width);
+			cairo_move_to(cr, 0, 0);
+			cairo_line_to(cr, l->size.width, 0);
+			cairo_line_to(cr, l->size.width, l->size.height);
+			cairo_line_to(cr, 0, l->size.height);
+			cairo_line_to(cr, 0, 0);
+			cairo_stroke(cr);
+		}
+	}
+	else if(l->position == LEGEND_POS_TOP) {
+		int i;
+		double h_space = 10;
+
+		// first calculate the cumulative width of the legend entries
+		double total_width = 0.;
+		double w;
+		for(i=0; i < p->num_traces; i++) {
+			w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
+			total_width += w + text_to_line_gap + line_length + h_space;
+		}
+		if(total_width > ((GtkWidget *)plot)->allocation.width) {
+			// the legend entries must span more than one line.  In this case,
+			// we'll allocate an equal width of space for each legend entry
+
+			// first calculate the widest trace name
+			double max_width = 10.;
+			double w;
+			for(i=0; i < p->num_traces; i++) {
+				w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
+				if(w > max_width) {
+					max_width = w;
+				}
+			}
+			double entry_width = max_width + text_to_line_gap + line_length + h_space;
+		}
+		else {
+			// all the legend entries will fit on a single line
+			double x = border_margin;
+			cairo_set_font_size(cr, p->legend.font_size);
+			for(i=0; i < p->num_traces; i++) {
+				cairo_set_source_rgb (cr, 0., 0., 0.);
+				draw_horiz_text_at_point(	cr, 
+																	p->traces[i]->name, 
+																	x, 
+																	border_margin, 
+																	ANCHOR_TOP_LEFT
+																);
+				x += get_text_width(cr, p->traces[i]->name, p->legend.font_size) + text_to_line_gap;
+				if(p->traces[i]->line_type != LINETYPE_NONE) {
+					cairo_set_source_rgb(cr, 
+															 p->traces[i]->line_color.red,
+															 p->traces[i]->line_color.green,
+															 p->traces[i]->line_color.blue
+					);
+					cairo_set_line_width(cr, p->traces[i]->line_width);
+					double h = border_margin + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+					cairo_move_to(cr, x, h);
+					cairo_line_to(cr, x + line_length, h);
+					cairo_stroke(cr);
+				}
+				if(p->traces[i]->marker_type != MARKER_NONE) {
+					cairo_set_source_rgb(cr, 
+															 p->traces[i]->marker_color.red,
+															 p->traces[i]->marker_color.green,
+															 p->traces[i]->marker_color.blue
+					);
+					cairo_set_line_width(cr, p->traces[i]->line_width);
+					double h = border_margin + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+					cairo_move_to(cr, x + line_length/2., h);
+					draw_marker(cr, p->traces[i]->marker_type, p->traces[i]->marker_size);
+				}
+				x += line_length + h_space;
+			}
+			l->size.width = border_margin + total_width + border_margin;
+			l->size.height = border_margin + get_text_height(cr, "Test", p->legend.font_size) + border_margin;
+			if(l->do_show_bounding_box) {
+				cairo_set_source_rgb(cr, l->border_color.red, l->border_color.green, l->border_color.blue);
+				cairo_set_line_width(cr, l->bounding_box_width);
+				cairo_move_to(cr, 0, 0);
+				cairo_line_to(cr, l->size.width, 0);
+				cairo_line_to(cr, l->size.width, l->size.height);
+				cairo_line_to(cr, 0, l->size.height);
+				cairo_line_to(cr, 0, 0);
+				cairo_stroke(cr);
+			}
+		}
+
+	}
+	return 0;
+}
+
+
 static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double height) {
 	int i, j;
 	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
@@ -889,7 +1059,13 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 
 	// now do the layout calcs
   double title_top_edge = 0.01 * height;
-  double title_bottom_edge = title_top_edge + get_text_height(cr, p->plot_title, p->plot_title_font_size);
+	double title_bottom_edge;
+	if(p->do_show_plot_title) {
+	  title_bottom_edge = title_top_edge + get_text_height(cr, p->plot_title, p->plot_title_font_size);
+	}
+	else {
+		title_bottom_edge = title_top_edge;
+	}
   double y_label_left_edge = 0.01 * width;
   double y_label_right_edge = y_label_left_edge + 
                               get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
@@ -902,46 +1078,38 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
   if(p->do_show_plot_title) {
 		cairo_save(cr);
 		cairo_set_font_size(cr, p->plot_title_font_size);
-		draw_horiz_text_at_point(plot, cr, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
+		draw_horiz_text_at_point(cr, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
 		cairo_restore(cr);
   }
 
 	/********** Draw the legend ***********************/
-	double legend_width, legend_height, entry_spacing;
-	double legend_right_edge, legend_left_edge, legend_top_edge;
-	legend_top_edge = 50.;
-	if(l->position == LEGEND_POS_RIGHT) {
-		calc_legend_dims(p, cr, &legend_width, &legend_height, &entry_spacing);
-		int i;
-		legend_left_edge = width - 10 - legend_width;
-		cairo_set_font_size(cr, p->legend.font_size);
-		for(i=0; i < p->num_traces; i++) {
-			cairo_set_source_rgb (cr, 0., 0., 0.);
-			draw_horiz_text_at_point(	plot,
-																cr, 
-			                          p->traces[i]->name, 
-																legend_left_edge, 
-																legend_top_edge + entry_spacing*i, 
-																ANCHOR_TOP_LEFT
-															);
-			if(p->traces[i]->line_type != LINETYPE_NONE) {
-				cairo_set_source_rgb(cr, 
-				                     p->traces[i]->line_color.red,
-				                     p->traces[i]->line_color.green,
-				                     p->traces[i]->line_color.blue
-				);
-				cairo_set_line_width(cr, p->traces[i]->line_width);
-				double h = legend_top_edge + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
-				cairo_move_to(cr, 
-				              legend_left_edge + get_text_width(cr, p->traces[i]->name, p->legend.font_size) + 2, 
-				              h
-				);
-				cairo_line_to(cr, legend_left_edge + legend_width, h);
-				cairo_stroke(cr);
-			}
-		}	
-	}
+	/* Draw the legend to the legend image buffer */
+	draw_legend((jbplot *)plot);
 
+	double legend_width, legend_height;
+	double legend_top_edge, legend_left_edge;
+	legend_width = l->size.width;
+	legend_height = l->size.height;
+
+	/* Then paint the legend image buffer to the plot surface */
+	if(l->position != LEGEND_POS_NONE) {
+		if(l->position == LEGEND_POS_RIGHT) {
+			legend_left_edge = width - legend_width - 10;
+			legend_top_edge = 50;
+		}
+		else if(l->position == LEGEND_POS_TOP) {
+			legend_left_edge = (width - legend_width)/2.;
+			legend_top_edge = title_bottom_edge + 10;
+		}
+		
+		cairo_save(cr);
+		cairo_set_source_surface(cr, priv->legend_buffer, legend_left_edge, legend_top_edge);
+		cairo_rectangle(cr, legend_left_edge, legend_top_edge, l->size.width, l->size.height);
+		cairo_clip(cr);
+		cairo_paint(cr);
+		cairo_restore(cr);
+	}
+	
 	// calculate data ranges and tic labels
   data_range x_range, y_range;
 	if(x_axis->do_autoscale) {
@@ -977,7 +1145,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 
   double plot_area_right_edge;
 	if(l->position == LEGEND_POS_RIGHT) {
-		plot_area_right_edge = width - 10 - legend_width - 10;
+		plot_area_right_edge = legend_left_edge - 10;
 	}
 	else {
 	  plot_area_right_edge = width - 0.06 * width;
@@ -993,11 +1161,11 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 
 	priv->plot.plot_area.right_edge = plot_area_right_edge;
 	double plot_area_top_edge;
-	if(p->do_show_plot_title) {
-	  plot_area_top_edge = title_bottom_edge + 0.02 * height;
+	if(l->position == LEGEND_POS_TOP) {
+		plot_area_top_edge = legend_top_edge + legend_height + 0.02 * height;
 	}
 	else {
-	  plot_area_top_edge = 0.02 * height;
+		plot_area_top_edge = title_bottom_edge + 0.02 * height;
 	}
 	priv->plot.plot_area.top_edge = plot_area_top_edge;
   double x_tic_labels_bottom_edge;
@@ -1045,8 +1213,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	cairo_save(cr);
 	cairo_set_font_size(cr, y_axis->tic_label_font_size);
 	for(i=0; i<y_axis->num_actual_major_tics; i++) {
-		draw_horiz_text_at_point(	plot,
-															cr, 
+		draw_horiz_text_at_point(	cr, 
 															y_axis->major_tic_labels[i], 
 															y_tic_labels_right_edge, 
 															y_m * y_axis->major_tic_values[i] + y_b, 
@@ -1087,8 +1254,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	cairo_save(cr);
 	cairo_set_font_size(cr, x_axis->tic_label_font_size);
 	for(i=0; i<x_axis->num_actual_major_tics; i++) {
-		draw_horiz_text_at_point(	plot,
-															cr, 
+		draw_horiz_text_at_point(	cr, 
 															x_axis->major_tic_labels[i], 
 															x_m * x_axis->major_tic_values[i] + x_b, 
 															x_tic_labels_top_edge, 
@@ -1139,8 +1305,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	// draw the x-axis label if desired
 	cairo_set_source_rgb (cr, 0, 0, 0);
 	if(x_axis->do_show_axis_label) {
-		draw_horiz_text_at_point(	plot,
-															cr, 
+		draw_horiz_text_at_point(	cr, 
 															x_axis->axis_label, 
 															x_label_middle_x, 
 															x_label_top_edge, 
@@ -1291,6 +1456,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 		return FALSE;
 	}
 	priv->needs_redraw = TRUE;
+	priv->plot.legend.needs_redraw = 1;
 	return FALSE;
 }
 
@@ -1486,8 +1652,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 			// draw coordinates...
 			cairo_set_source_rgb (cr, 0, 0, 0);
-			draw_horiz_text_at_point(plot, cr, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
-			draw_horiz_text_at_point(plot, cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+			draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+			draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
 			cairo_restore(cr);
 		}
 			
@@ -1683,6 +1849,7 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
 }
 
 /******************** Public Functions *******************************/
+
 int jbplot_set_antialias(jbplot *plot, gboolean state) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	if(state) {
@@ -1727,6 +1894,7 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 
 	cairo_t *cr = cairo_create(svg_surf);
 	priv->needs_redraw = TRUE;
+	priv->plot.legend.needs_redraw = 1;
 	draw_plot((GtkWidget *)plot, cr, 600, 400);
 	cairo_show_page(cr);
 	cairo_destroy(cr);
@@ -1757,6 +1925,16 @@ int jbplot_trace_clear_data(trace_t *t) {
 	return 0;
 }
 
+
+int jbplot_legend_refresh(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.legend.needs_redraw = 1;
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+	
+
 int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.legend.position = position;
@@ -1777,6 +1955,7 @@ int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_co
 		priv->plot.legend.border_color = *border_color;
 	}
 	priv->needs_redraw = TRUE;
+	priv->plot.legend.needs_redraw = 1;
 	return 0;	
 }
 
