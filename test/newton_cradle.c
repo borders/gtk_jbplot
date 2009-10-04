@@ -174,7 +174,7 @@ gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data)
   double w, h, max_dim, min_dim;
   w = widget->allocation.width;
   h = widget->allocation.height;
-	double margin = 0.2 * w;
+	double margin = 0.3 * w;
 	double mass_spacing = (w - 2*margin)/(n-1);
 	double fudge = 2000;
 	if(w > h) {
