@@ -6,6 +6,7 @@
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
+#include <gsl/gsl_odeiv.h>
 
 #include "../jbplot.h"
 
@@ -16,7 +17,8 @@
 #define g 9.81
 #define DT 0.002
 
-static int t = 0;
+static double t = 0.0;
+static double h = 1e-3;
 static trace_handle t1, t2;
 GtkWidget *plot;
 GtkWidget *canvas;
@@ -24,11 +26,21 @@ GtkWidget *dt_scale;
 static int run = 1;
 static int name_changed = 0;
 
+
+int state_func(double t, const double *x, double *xd, void *params);
+
+
 // Global pendulum state variables
 static double q1 = 1.0;
 static double q2 = 3.0;
 static double q1d = 5.0;
 static double q2d = 4.0;
+static double x[4];
+gsl_odeiv_system sys = {state_func, NULL, 4, NULL};
+gsl_odeiv_step_type *step_type;
+gsl_odeiv_step *step;
+gsl_odeiv_control *control;
+gsl_odeiv_evolve *evolve;
 
 
 
@@ -59,6 +71,19 @@ q2dd = (cos(q1)*sin(q1)*L2*q2d*q2d*m2*cq2_2+cos(q2)*cos(q1)*m2*sin(q1)*g+cos(q2)
 return;
 }
 
+int state_func(double t, const double *x, double *xd, void *params) {
+	double q1_old = x[0];
+	double q1d_old = x[1];
+	double q2_old = x[2];
+	double q2d_old = x[3];
+	double q1dd, q2dd;
+	calc_accels(q1_old, q2_old, q1d_old, q2d_old, &q1dd, &q2dd);
+	xd[0] = x[1];
+	xd[1] = q1dd;
+	xd[2] = x[3];
+	xd[3] = q2dd;
+	return 0;
+}
 
 void time_step(double q1_old, 
              double q2_old, 
@@ -102,12 +127,25 @@ gboolean update_data(gpointer data) {
 		return TRUE;
 	}
 
-	gdouble v = gtk_range_get_value((GtkRange *)dt_scale);
+	gdouble v = gtk_range_get_value(GTK_RANGE(dt_scale));
+/*
 	for(i=1; i <= 20; i++) {
-		//time_step(q1, q2, q1d, q2d, DT, &q1, &q2, &q1d, &q2d);
-		time_step(q1, q2, q1d, q2d, v, &q1, &q2, &q1d, &q2d);
+		//time_step(q1, q2, q1d, q2d, v, &q1, &q2, &q1d, &q2d);
+		//t += v;
+
 	}
 	t += 20;
+*/
+
+	double t_next = t + v;
+	while(t < t_next) {	
+		gsl_odeiv_evolve_apply(evolve, control, step, &sys, &t, t+v, &h, x);
+	}
+	q1 = x[0];
+	q1d = x[1];
+	q2 = x[2];
+	q2d = x[3];
+
 	jbplot_trace_add_point(t1, t, q1); 
 	jbplot_trace_add_point(t2, t, q2); 
 
@@ -245,6 +283,15 @@ int main (int argc, char **argv) {
 	GtkWidget *save_button_2;
 	double start_dt;
 
+	step_type = (gsl_odeiv_step_type *)gsl_odeiv_step_rkf45;
+	step = gsl_odeiv_step_alloc(step_type, 4);
+	control = gsl_odeiv_control_y_new(1.e-6, 0.0);
+	evolve = gsl_odeiv_evolve_alloc(4);
+	x[0] = q1;
+	x[1] = q1d;
+	x[2] = q2;
+	x[3] = q2d;
+
 	gtk_init (&argc, &argv);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
@@ -269,7 +316,7 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), save_button_2, FALSE, FALSE, 0);
 	g_signal_connect(save_button_2, "clicked", G_CALLBACK(save_button_activate_2), NULL);
 
-	dt_scale = gtk_hscale_new_with_range(0.00025, 0.002, 0.00025);
+	dt_scale = gtk_hscale_new_with_range(0.00025, 0.05, 0.00025);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
 
@@ -327,3 +374,4 @@ int main (int argc, char **argv) {
 
 	return 0;
 }
+

@@ -10,7 +10,7 @@ test/chaos: jbplot.c jbplot.h test/chaos.c jbplot-marshallers.c jbplot-marshalle
 
 test/dp: jbplot.c jbplot.h test/dp.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/dp jbplot.c test/dp.c jbplot-marshallers.c \
-		`pkg-config --libs --cflags gtk+-2.0`
+		`pkg-config --libs --cflags gtk+-2.0` -lgsl -lgslcblas
 
 test/data_view: jbplot.c jbplot.h test/data_view.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/data_view jbplot.c test/data_view.c jbplot-marshallers.c \
