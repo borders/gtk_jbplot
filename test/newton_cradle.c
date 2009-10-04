@@ -19,8 +19,10 @@
 
 static double t = 0.0;
 static double h = 1e-3;
-static trace_handle traces[3*NUM_MASSES_PER_BALL];
-GtkWidget *plot;
+static trace_handle pos_traces[3*NUM_MASSES_PER_BALL];
+static trace_handle vel_traces[3*NUM_MASSES_PER_BALL];
+GtkWidget *pos_plot;
+GtkWidget *vel_plot;
 GtkWidget *canvas;
 GtkWidget *dt_scale;
 static int run = 1;
@@ -106,12 +108,13 @@ gboolean update_data(gpointer data) {
 
 
 	for(i=0; i<n; i++) {
-		//jbplot_trace_add_point(traces[i], t, POS(x,i)); 
-		jbplot_trace_add_point(traces[i], t, VEL(x,i)); 
+		jbplot_trace_add_point(pos_traces[i], t, POS(x,i)); 
+		jbplot_trace_add_point(vel_traces[i], t, VEL(x,i)); 
 	}
 
 
-	jbplot_refresh((jbplot *)plot);
+	jbplot_refresh((jbplot *)pos_plot);
+	jbplot_refresh((jbplot *)vel_plot);
 	gtk_widget_queue_draw(canvas);	
 	return TRUE;
 }
@@ -129,7 +132,8 @@ void button_activate(GtkButton *b, gpointer data) {
 }
 
 void save_button_activate(GtkButton *b, gpointer data) {
-	jbplot_capture_png((jbplot *)plot, "capture.png");
+	jbplot_capture_png((jbplot *)pos_plot, "capture.png");
+	GtkWidget *tab1_label = gtk_label_new("Position");
 	//printf("save button activated!\n");
 	return;
 }
@@ -138,7 +142,7 @@ void save_button_activate(GtkButton *b, gpointer data) {
 void save_button_activate_2(GtkButton *b, gpointer data) {
 	GtkWidget *dialog;
 	dialog = gtk_file_chooser_dialog_new("Save file to...",
-	                                     (GtkWindow *)plot,
+	                                     (GtkWindow *)pos_plot,
 	                                     GTK_FILE_CHOOSER_ACTION_SAVE,
 	                                     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 	                                     GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
@@ -159,7 +163,7 @@ void save_button_activate_2(GtkButton *b, gpointer data) {
 			printf("Adding SVG extension\n");
 			strncat(fname, ".svg", 999-strlen(fname));
 		}
-		jbplot_capture_svg((jbplot *)plot, fname);
+		jbplot_capture_svg((jbplot *)pos_plot, fname);
 		g_free(filename);
 	}
 	gtk_widget_destroy(dialog);
@@ -214,6 +218,7 @@ int main (int argc, char **argv) {
 	GtkWidget *window;
 	GtkWidget *v_box;
 	GtkWidget *button;
+	GtkWidget *plot_notebook;
 	GtkWidget *save_button;
 	GtkWidget *save_button_2;
 	double start_dt;
@@ -237,11 +242,22 @@ int main (int argc, char **argv) {
 
 	v_box = gtk_vbox_new(FALSE, 10);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
+
+	plot_notebook = gtk_notebook_new();
+	GtkWidget *tab1_label = gtk_label_new("Position");
+	GtkWidget *tab2_label = gtk_label_new("Velocity");
 	
-	plot = jbplot_new ();
-	gtk_widget_set_size_request(plot, 700, 400);
-	jbplot_set_antialias((jbplot *)plot, 0);
-	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
+	pos_plot = jbplot_new ();
+	gtk_widget_set_size_request(pos_plot, 700, 400);
+	jbplot_set_antialias((jbplot *)pos_plot, 0);
+	gtk_notebook_append_page(GTK_NOTEBOOK(plot_notebook),pos_plot, tab1_label);
+
+	vel_plot = jbplot_new ();
+	gtk_widget_set_size_request(vel_plot, 700, 400);
+	jbplot_set_antialias((jbplot *)vel_plot, 0);
+	gtk_notebook_append_page(GTK_NOTEBOOK(plot_notebook),vel_plot, tab2_label);
+
+	gtk_box_pack_start (GTK_BOX(v_box), plot_notebook, TRUE, TRUE, 0);
 
 	button = gtk_button_new_with_label("Pause");
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
@@ -281,23 +297,34 @@ int main (int argc, char **argv) {
 
 	g_timeout_add(30, update_data, NULL);
 
-	jbplot_set_plot_title((jbplot *)plot, "Double Pendulum", 1);
-	jbplot_set_plot_title_visible((jbplot *)plot, 1);
-	jbplot_set_x_axis_label((jbplot *)plot, "Time (sec)", 1);
-	jbplot_set_x_axis_label_visible((jbplot *)plot, 1);
-	jbplot_set_y_axis_label((jbplot *)plot, "Amplitude", 1);
-	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
+	jbplot_set_plot_title((jbplot *)pos_plot, "Position Plot", 1);
+	jbplot_set_plot_title_visible((jbplot *)pos_plot, 1);
+	jbplot_set_x_axis_label((jbplot *)pos_plot, "Time (sec)", 1);
+	jbplot_set_x_axis_label_visible((jbplot *)pos_plot, 1);
+	jbplot_set_y_axis_label((jbplot *)pos_plot, "Amplitude", 1);
+	jbplot_set_y_axis_label_visible((jbplot *)pos_plot, 1);
 
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
-	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
-	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
-	jbplot_set_legend_props((jbplot *)plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
+	jbplot_set_x_axis_gridline_props((jbplot *)pos_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)pos_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_legend_props((jbplot *)pos_plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
 
-	rgb_color_t color = {0.0, 1.0, 0.0};
+	jbplot_set_plot_title((jbplot *)vel_plot, "Velocity Plot", 1);
+	jbplot_set_plot_title_visible((jbplot *)vel_plot, 1);
+	jbplot_set_x_axis_label((jbplot *)vel_plot, "Time (sec)", 1);
+	jbplot_set_x_axis_label_visible((jbplot *)vel_plot, 1);
+	jbplot_set_y_axis_label((jbplot *)vel_plot, "Amplitude", 1);
+	jbplot_set_y_axis_label_visible((jbplot *)vel_plot, 1);
+
+	jbplot_set_x_axis_gridline_props((jbplot *)vel_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)vel_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_legend_props((jbplot *)vel_plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
+
+	rgb_color_t color;
 	for(i=0; i<n; i++) {
 		char trace_name[100];
-		traces[i] = jbplot_create_trace(3000);
-		if(traces[i] == NULL) {
+		pos_traces[i] = jbplot_create_trace(3000);
+		if(pos_traces[i] == NULL) {
 			printf("error creating trace!\n");
 			return 0;
 		}
@@ -310,13 +337,34 @@ int main (int argc, char **argv) {
 		else {
 			color.red = 0.0; color.green = 0.0; color.blue = 1.0;
 		}
-		jbplot_trace_set_line_props(traces[i], LINETYPE_SOLID, 2.0, &color);
+		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 2.0, &color);
 		sprintf(trace_name, "mass_%d", i);
-		jbplot_trace_set_name(traces[i], trace_name);
-		jbplot_add_trace((jbplot *)plot, traces[i]);
+		jbplot_trace_set_name(pos_traces[i], trace_name);
+		jbplot_add_trace((jbplot *)pos_plot, pos_traces[i]);
 	}
 
-	printf("got here!\n");
+	for(i=0; i<n; i++) {
+		char trace_name[100];
+		vel_traces[i] = jbplot_create_trace(3000);
+		if(vel_traces[i] == NULL) {
+			printf("error creating trace!\n");
+			return 0;
+		}
+		if(i < NUM_MASSES_PER_BALL) {
+			color.red = 1.0; color.green = 0.0; color.blue = 0.0;
+		}
+		else if(i < 2*NUM_MASSES_PER_BALL) {
+			color.red = 0.0; color.green = 1.0; color.blue = 0.0;
+		}
+		else {
+			color.red = 0.0; color.green = 0.0; color.blue = 1.0;
+		}
+		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 2.0, &color);
+		sprintf(trace_name, "mass_%d", i);
+		jbplot_trace_set_name(vel_traces[i], trace_name);
+		jbplot_add_trace((jbplot *)vel_plot, vel_traces[i]);
+	}
+
 
 	gtk_main ();
 
