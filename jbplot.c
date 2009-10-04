@@ -26,7 +26,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 
 #define MAX_NUM_MAJOR_TICS    50
 #define MAJOR_TIC_LABEL_SIZE  100
-#define MAX_NUM_TRACES    10
+#define MAX_NUM_TRACES    40
 
 
 
