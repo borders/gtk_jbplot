@@ -1095,7 +1095,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	if(l->position != LEGEND_POS_NONE) {
 		if(l->position == LEGEND_POS_RIGHT) {
 			legend_left_edge = width - legend_width - 10;
-			legend_top_edge = 50;
+			legend_top_edge = title_bottom_edge + 0.01 * height;
 		}
 		else if(l->position == LEGEND_POS_TOP) {
 			legend_left_edge = (width - legend_width)/2.;
