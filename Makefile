@@ -1,4 +1,4 @@
-all: test/test1 test/dp test/data_view test/chaos
+all: test/test1 test/dp test/data_view test/chaos test/newton_cradle
 
 test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/test1 jbplot.c test/test1.c jbplot-marshallers.c \
@@ -7,6 +7,10 @@ test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshalle
 test/chaos: jbplot.c jbplot.h test/chaos.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/chaos jbplot.c test/chaos.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
+
+test/newton_cradle: jbplot.c jbplot.h test/newton_cradle.c jbplot-marshallers.c jbplot-marshallers.h
+	gcc -g -o test/newton_cradle jbplot.c test/newton_cradle.c jbplot-marshallers.c \
+		`pkg-config --libs --cflags gtk+-2.0` -lgsl -lgslcblas
 
 test/dp: jbplot.c jbplot.h test/dp.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/dp jbplot.c test/dp.c jbplot-marshallers.c \
