@@ -6,6 +6,8 @@
 
 #include "../jbplot.h"
 
+#define DEBUG 0
+
 #define BALL_MASS 1.0
 #define ALPHA 100000.
 
@@ -115,6 +117,13 @@ gboolean update_data(gpointer data) {
 		gsl_odeiv_evolve_apply(evolve, control, step, &sys, &t, t+v, &h, x);
 	}
 
+#if DEBUG
+	for(i=0; i<n; i++) {
+		printf("x[%d]=%g, ", i, POS(x,i));
+	}
+	printf("\n");
+#endif
+
 	for(i=0; i<n; i++) {
 		jbplot_trace_add_point(pos_traces[i], t, POS(x,i)); 
 		jbplot_trace_add_point(vel_traces[i], t, VEL(x,i)); 
@@ -148,7 +157,7 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	double mass_spacing = (w - 2*margin)/(n-1);
 	double ball_diam = mass_spacing * num_masses_per_ball;
 	double fudge = 2000;
-	fudge = mass_spacing / (sqrt(BALL_MASS / ALPHA) * BALL_1_INIT_VEL); 
+	fudge = 0.5* ball_diam / (sqrt(BALL_MASS / ALPHA) * BALL_1_INIT_VEL); 
 	if(w > h) {
 		max_dim = w;
 		min_dim = h;
@@ -211,7 +220,7 @@ int main (int argc, char **argv) {
 	control = gsl_odeiv_control_y_new(1.e-6, 0.0);
 	evolve = gsl_odeiv_evolve_alloc(2*n);
 	int i;
-	for(i=0; i<n; i++) {
+	for(i=0; i<2*n; i++) {
 		x[i] = 0.0;
 	}
 	for(i=0; i<num_masses_per_ball*num_balls_moving; i++) {
@@ -246,7 +255,7 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	dt_scale = gtk_hscale_new_with_range(0.00003, 0.0002, 0.00003);
+	dt_scale = gtk_hscale_new_with_range(0.00001, 0.0002, 0.00001);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
 
