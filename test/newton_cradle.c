@@ -1,7 +1,3 @@
-/**
- * main.c
- */
-
 #include <gtk/gtk.h>
 #include <math.h>
 #include <stdio.h>
@@ -10,32 +6,29 @@
 
 #include "../jbplot.h"
 
-#define NUM_MASSES_PER_BALL 10
 #define BALL_MASS 1.0
 #define ALPHA 100000.
 
 #define BALL_1_INIT_POS -0.1
 #define BALL_1_INIT_VEL 10.0
 
+int state_func(double t, const double *x, double *xd, void *params);
+
+
 static double t = 0.0;
 static double h = 1e-3;
-static trace_handle pos_traces[3*NUM_MASSES_PER_BALL];
-static trace_handle vel_traces[3*NUM_MASSES_PER_BALL];
+static trace_handle *pos_traces;
+static trace_handle *vel_traces;
 GtkWidget *pos_plot;
 GtkWidget *vel_plot;
 GtkWidget *canvas;
 GtkWidget *dt_scale;
 static int run = 1;
 static int name_changed = 0;
-int n = 3 * NUM_MASSES_PER_BALL;
-
-
-int state_func(double t, const double *x, double *xd, void *params);
-
-
-// Global pendulum state variables
-static double x[2*NUM_MASSES_PER_BALL*3];
-static double k[2*NUM_MASSES_PER_BALL*3];
+int n;
+int num_masses_per_ball;
+static double *x;
+static double *k;
 gsl_odeiv_system sys = {state_func, NULL, 4, NULL};
 gsl_odeiv_step_type *step_type;
 gsl_odeiv_step *step;
@@ -80,29 +73,29 @@ int state_func(double t, const double *x, double *xd, void *params) {
 	int i;
 	// calc spring constants
 	for(i=0; i<n-1; i++) {
-		if(i==(NUM_MASSES_PER_BALL-1) || i==(2*NUM_MASSES_PER_BALL-1)) {
+		if(i==(num_masses_per_ball-1) || i==(2*num_masses_per_ball-1)) {
 			if(x[2*(i+1)] < x[2*i]) {
-				k[i] = ALPHA * NUM_MASSES_PER_BALL;
+				k[i] = ALPHA * num_masses_per_ball;
 			}
 			else {
 				k[i] = 0;
 			}
 		}
 		else {
-			k[i] = ALPHA * NUM_MASSES_PER_BALL;
+			k[i] = ALPHA * num_masses_per_ball;
 		}
 		//printf("k[%d] = %g, ", i, k[i]);
 	}
 	//printf("\n");
 
 	xd[0] = VEL(x,0);
-	xd[1] = 1./(BALL_MASS/NUM_MASSES_PER_BALL) * k[0] * (POS(x,1)-POS(x,0));
+	xd[1] = 1./(BALL_MASS/num_masses_per_ball) * k[0] * (POS(x,1)-POS(x,0));
 	for(i=1; i<n-1; i++) {
 		xd[2*i] = VEL(x,i);
-		xd[2*i+1] = 1./(BALL_MASS/NUM_MASSES_PER_BALL) * (k[i-1] * (POS(x,i-1)-POS(x,i)) + k[i] * (POS(x,i+1)-POS(x,i)));
+		xd[2*i+1] = 1./(BALL_MASS/num_masses_per_ball) * (k[i-1] * (POS(x,i-1)-POS(x,i)) + k[i] * (POS(x,i+1)-POS(x,i)));
 	}
 	xd[2*n-2] = VEL(x,n-1);
-	xd[2*n-1] = 1./(BALL_MASS/NUM_MASSES_PER_BALL) * -k[n-2] * (POS(x,n-1)-POS(x,n-2));
+	xd[2*n-1] = 1./(BALL_MASS/num_masses_per_ball) * -k[n-2] * (POS(x,n-1)-POS(x,n-2));
 	return 0;
 }
 
@@ -210,7 +203,7 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   h = widget->allocation.height;
 	double margin = 0.3 * w;
 	double mass_spacing = (w - 2*margin)/(n-1);
-	double ball_diam = mass_spacing * NUM_MASSES_PER_BALL;
+	double ball_diam = mass_spacing * num_masses_per_ball;
 	double fudge = 2000;
 	if(w > h) {
 		max_dim = w;
@@ -232,8 +225,8 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	cairo_set_line_width(cr, mass_spacing/2);
 	for(i=0; i<n; i++) {
 		rgb_color_t color;
-		if(i<NUM_MASSES_PER_BALL) {
-			color = rgb_scale(0.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * i);
+		if(i<num_masses_per_ball) {
+			color = rgb_scale(0.0, -0.6 + 1.2/num_masses_per_ball * i);
 			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
 			double H = margin + i * mass_spacing + fudge*POS(x,i);
 			double V = sqrt(pow(ball_diam/2,2) - pow((i+0.5)*mass_spacing - ball_diam/2,2));
@@ -241,20 +234,20 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 			cairo_line_to(cr, H, h/2 + V);
 			cairo_stroke(cr);
 		}
-		else if(i<2*NUM_MASSES_PER_BALL) {
-			color = rgb_scale(0.5, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-NUM_MASSES_PER_BALL));
+		else if(i<2*num_masses_per_ball) {
+			color = rgb_scale(0.5, -0.6 + 1.2/num_masses_per_ball * (i-num_masses_per_ball));
 			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
 			double H = margin + i * mass_spacing + fudge*POS(x,i);
-			double V = sqrt(pow(ball_diam/2,2) - pow((i-NUM_MASSES_PER_BALL+0.5)*mass_spacing - ball_diam/2,2));
+			double V = sqrt(pow(ball_diam/2,2) - pow((i-num_masses_per_ball+0.5)*mass_spacing - ball_diam/2,2));
 			cairo_move_to(cr, H, h/2 - V);
 			cairo_line_to(cr, H, h/2 + V);
 			cairo_stroke(cr);
 		}
 		else {
-			color = rgb_scale(1.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-2*NUM_MASSES_PER_BALL));
+			color = rgb_scale(1.0, -0.6 + 1.2/num_masses_per_ball * (i-2*num_masses_per_ball));
 			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
 			double H = margin + i * mass_spacing + fudge*POS(x,i);
-			double V = sqrt(pow(ball_diam/2,2) - pow((i-2*NUM_MASSES_PER_BALL+0.5)*mass_spacing - ball_diam/2,2));
+			double V = sqrt(pow(ball_diam/2,2) - pow((i-2*num_masses_per_ball+0.5)*mass_spacing - ball_diam/2,2));
 			cairo_move_to(cr, H, h/2 - V);
 			cairo_line_to(cr, H, h/2 + V);
 			cairo_stroke(cr);
@@ -278,6 +271,17 @@ int main (int argc, char **argv) {
 	GtkWidget *save_button_2;
 	double start_dt;
 
+	if(argc < 2) {
+		printf("\nUsage: newton_cradle <num_masses_per_ball>\n\n");
+		return 0;
+	}
+	num_masses_per_ball = atoi(argv[1]);
+	n = 3 * num_masses_per_ball;
+	pos_traces = malloc(sizeof(trace_handle)*3*num_masses_per_ball);
+	vel_traces = malloc(sizeof(trace_handle)*3*num_masses_per_ball);
+	x = malloc(sizeof(double)*2*num_masses_per_ball*3);
+	k = malloc(sizeof(double)*2*num_masses_per_ball*3);
+
 	step_type = (gsl_odeiv_step_type *)gsl_odeiv_step_rkf45;
 	step = gsl_odeiv_step_alloc(step_type, 2*n);
 	control = gsl_odeiv_control_y_new(1.e-6, 0.0);
@@ -286,7 +290,7 @@ int main (int argc, char **argv) {
 	for(i=0; i<n; i++) {
 		x[i] = 0.0;
 	}
-	for(i=0; i<NUM_MASSES_PER_BALL; i++) {
+	for(i=0; i<num_masses_per_ball; i++) {
 		POS(x,i) = BALL_1_INIT_POS;
 		VEL(x,i) = BALL_1_INIT_VEL;
 	}
@@ -329,16 +333,6 @@ int main (int argc, char **argv) {
 	dt_scale = gtk_hscale_new_with_range(0.000025, 0.0005, 0.000025);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
-
-	if(argc > 1) {
-		if(sscanf(argv[1], "%lg", &start_dt) != 1) {
-			printf("Error parsing start_dt parameter\n");
-			return -1;
-		}
-		else {
-			gtk_range_set_value((GtkRange *)dt_scale, start_dt);
-		}
-	}
 
 
 	canvas = gtk_drawing_area_new();
@@ -388,14 +382,14 @@ int main (int argc, char **argv) {
 			printf("error creating trace!\n");
 			return 0;
 		}
-		if(i < NUM_MASSES_PER_BALL) {
-			color = rgb_scale(0.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * i);
+		if(i < num_masses_per_ball) {
+			color = rgb_scale(0.0, -0.6 + 1.2/num_masses_per_ball * i);
 		}
-		else if(i < 2*NUM_MASSES_PER_BALL) {
-			color = rgb_scale(0.5, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-NUM_MASSES_PER_BALL));
+		else if(i < 2*num_masses_per_ball) {
+			color = rgb_scale(0.5, -0.6 + 1.2/num_masses_per_ball * (i-num_masses_per_ball));
 		}
 		else {
-			color = rgb_scale(1.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-2*NUM_MASSES_PER_BALL));
+			color = rgb_scale(1.0, -0.6 + 1.2/num_masses_per_ball * (i-2*num_masses_per_ball));
 		}
 		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 2.0, &color);
 		sprintf(trace_name, "mass_%d", i);
