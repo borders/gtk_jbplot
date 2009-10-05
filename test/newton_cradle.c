@@ -14,7 +14,7 @@
 #define BALL_MASS 1.0
 #define ALPHA 100000.
 
-#define BALL_1_INIT_POS -0.2
+#define BALL_1_INIT_POS -0.1
 #define BALL_1_INIT_VEL 10.0
 
 static double t = 0.0;
@@ -45,6 +45,36 @@ gsl_odeiv_evolve *evolve;
 
 #define POS(X,I) X[2*(I)]
 #define VEL(X,I) X[2*(I)+1]
+
+
+rgb_color_t rgb_scale(float x, float y) {
+	rgb_color_t c;
+	if(x < 0) x = 0;
+	else if(x > 1) x = 1;
+	if(y < -1) y = -1;
+	else if(y > 1) y = 1;
+
+	if(x < 0.5) {
+		c.red = 1 - 2*x + y;
+		c.green = 2*x + y;
+		c.blue = 0.0 + y;
+	}
+	else {
+		c.red = 0.0 + y;
+		c.green = 2 - 2*x + y;
+		c.blue = -1 + 2*x + y;
+	}
+
+	if(c.red < 0) c.red = 0;
+	else if(c.red > 1) c.red = 1;
+	if(c.green < 0) c.green = 0;
+	else if(c.green > 1) c.green = 1;
+	if(c.blue < 0) c.blue = 0;
+	else if(c.blue > 1) c.blue = 1;
+	//printf("%.2f, %.2f, %.2f\n", c.red,c.green,c.blue);
+	return c;
+}
+
 
 int state_func(double t, const double *x, double *xd, void *params) {
 	int i;
@@ -172,7 +202,7 @@ void save_button_activate_2(GtkButton *b, gpointer data) {
 
 
 
-gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   cairo_t *cr = gdk_cairo_create(widget->window);
   int i;
   double w, h, max_dim, min_dim;
@@ -180,6 +210,7 @@ gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data)
   h = widget->allocation.height;
 	double margin = 0.3 * w;
 	double mass_spacing = (w - 2*margin)/(n-1);
+	double ball_diam = mass_spacing * NUM_MASSES_PER_BALL;
 	double fudge = 2000;
 	if(w > h) {
 		max_dim = w;
@@ -194,15 +225,39 @@ gboolean draw_pendulum (GtkWidget *widget, GdkEventExpose *event, gpointer data)
   cairo_set_source_rgb (cr, 1, 1, 1);
   cairo_paint(cr);
  
+	double b1_center = margin + ball_diam/2;
+	double b2_center = margin + ball_diam/2 + ball_diam;
+	double b3_center = margin + ball_diam/2 + 2 * ball_diam;
+
+	cairo_set_line_width(cr, mass_spacing/2);
 	for(i=0; i<n; i++) {
+		rgb_color_t color;
 		if(i<NUM_MASSES_PER_BALL) {
-			cairo_set_source_rgb(cr, 1, 0, 0);
+			color = rgb_scale(0.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * i);
+			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
+			double H = margin + i * mass_spacing + fudge*POS(x,i);
+			double V = sqrt(pow(ball_diam/2,2) - pow((i+0.5)*mass_spacing - ball_diam/2,2));
+			cairo_move_to(cr, H, h/2 - V);
+			cairo_line_to(cr, H, h/2 + V);
+			cairo_stroke(cr);
 		}
 		else if(i<2*NUM_MASSES_PER_BALL) {
-			cairo_set_source_rgb(cr, 0, 1, 0);
+			color = rgb_scale(0.5, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-NUM_MASSES_PER_BALL));
+			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
+			double H = margin + i * mass_spacing + fudge*POS(x,i);
+			double V = sqrt(pow(ball_diam/2,2) - pow((i-NUM_MASSES_PER_BALL+0.5)*mass_spacing - ball_diam/2,2));
+			cairo_move_to(cr, H, h/2 - V);
+			cairo_line_to(cr, H, h/2 + V);
+			cairo_stroke(cr);
 		}
 		else {
-			cairo_set_source_rgb(cr, 0, 0, 1);
+			color = rgb_scale(1.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-2*NUM_MASSES_PER_BALL));
+			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
+			double H = margin + i * mass_spacing + fudge*POS(x,i);
+			double V = sqrt(pow(ball_diam/2,2) - pow((i-2*NUM_MASSES_PER_BALL+0.5)*mass_spacing - ball_diam/2,2));
+			cairo_move_to(cr, H, h/2 - V);
+			cairo_line_to(cr, H, h/2 + V);
+			cairo_stroke(cr);
 		}
 		cairo_arc(cr, margin + i*mass_spacing + fudge*POS(x,i), h/2, mass_spacing/2, 0, 2*M_PI);
 		cairo_fill(cr);
@@ -289,7 +344,7 @@ int main (int argc, char **argv) {
 	canvas = gtk_drawing_area_new();
 	gtk_widget_set_size_request(canvas, 700,400);
 	gtk_box_pack_start (GTK_BOX(v_box), canvas, TRUE, TRUE, 0);
-	g_signal_connect(canvas, "expose_event", G_CALLBACK(draw_pendulum), NULL);
+	g_signal_connect(canvas, "expose_event", G_CALLBACK(draw_balls), NULL);
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
@@ -323,46 +378,32 @@ int main (int argc, char **argv) {
 	rgb_color_t color;
 	for(i=0; i<n; i++) {
 		char trace_name[100];
+		vel_traces[i] = jbplot_create_trace(3000);
 		pos_traces[i] = jbplot_create_trace(3000);
+		if(vel_traces[i] == NULL) {
+			printf("error creating trace!\n");
+			return 0;
+		}
 		if(pos_traces[i] == NULL) {
 			printf("error creating trace!\n");
 			return 0;
 		}
 		if(i < NUM_MASSES_PER_BALL) {
-			color.red = 1.0; color.green = 0.0; color.blue = 0.0;
+			color = rgb_scale(0.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * i);
 		}
 		else if(i < 2*NUM_MASSES_PER_BALL) {
-			color.red = 0.0; color.green = 1.0; color.blue = 0.0;
+			color = rgb_scale(0.5, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-NUM_MASSES_PER_BALL));
 		}
 		else {
-			color.red = 0.0; color.green = 0.0; color.blue = 1.0;
-		}
-		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 2.0, &color);
-		sprintf(trace_name, "mass_%d", i);
-		jbplot_trace_set_name(pos_traces[i], trace_name);
-		jbplot_add_trace((jbplot *)pos_plot, pos_traces[i]);
-	}
-
-	for(i=0; i<n; i++) {
-		char trace_name[100];
-		vel_traces[i] = jbplot_create_trace(3000);
-		if(vel_traces[i] == NULL) {
-			printf("error creating trace!\n");
-			return 0;
-		}
-		if(i < NUM_MASSES_PER_BALL) {
-			color.red = 1.0; color.green = 0.0; color.blue = 0.0;
-		}
-		else if(i < 2*NUM_MASSES_PER_BALL) {
-			color.red = 0.0; color.green = 1.0; color.blue = 0.0;
-		}
-		else {
-			color.red = 0.0; color.green = 0.0; color.blue = 1.0;
+			color = rgb_scale(1.0, -0.6 + 1.2/NUM_MASSES_PER_BALL * (i-2*NUM_MASSES_PER_BALL));
 		}
 		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 2.0, &color);
 		sprintf(trace_name, "mass_%d", i);
 		jbplot_trace_set_name(vel_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)vel_plot, vel_traces[i]);
+		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 2.0, &color);
+		jbplot_trace_set_name(pos_traces[i], trace_name);
+		jbplot_add_trace((jbplot *)pos_plot, pos_traces[i]);
 	}
 
 
