@@ -246,7 +246,7 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	dt_scale = gtk_hscale_new_with_range(0.000025, 0.0005, 0.000025);
+	dt_scale = gtk_hscale_new_with_range(0.00003, 0.0002, 0.00003);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
 
