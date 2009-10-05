@@ -14,7 +14,6 @@
 
 int state_func(double t, const double *x, double *xd, void *params);
 
-
 static double t = 0.0;
 static double h = 1e-3;
 static trace_handle *pos_traces;
@@ -27,6 +26,8 @@ static int run = 1;
 static int name_changed = 0;
 int n;
 int num_masses_per_ball;
+int num_balls;
+int	num_balls_moving;
 static double *x;
 static double *k;
 gsl_odeiv_system sys = {state_func, NULL, 4, NULL};
@@ -147,6 +148,7 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	double mass_spacing = (w - 2*margin)/(n-1);
 	double ball_diam = mass_spacing * num_masses_per_ball;
 	double fudge = 2000;
+	fudge = mass_spacing / (sqrt(BALL_MASS / ALPHA) * BALL_1_INIT_VEL); 
 	if(w > h) {
 		max_dim = w;
 		min_dim = h;
@@ -167,33 +169,13 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	cairo_set_line_width(cr, mass_spacing/2);
 	for(i=0; i<n; i++) {
 		rgb_color_t color;
-		if(i<num_masses_per_ball) {
-			color = rgb_scale(0.0, -0.6 + 1.2/num_masses_per_ball * i);
-			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
-			double H = margin + i * mass_spacing + fudge*POS(x,i);
-			double V = sqrt(pow(ball_diam/2,2) - pow((i+0.5)*mass_spacing - ball_diam/2,2));
-			cairo_move_to(cr, H, h/2 - V);
-			cairo_line_to(cr, H, h/2 + V);
-			cairo_stroke(cr);
-		}
-		else if(i<2*num_masses_per_ball) {
-			color = rgb_scale(0.5, -0.6 + 1.2/num_masses_per_ball * (i-num_masses_per_ball));
-			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
-			double H = margin + i * mass_spacing + fudge*POS(x,i);
-			double V = sqrt(pow(ball_diam/2,2) - pow((i-num_masses_per_ball+0.5)*mass_spacing - ball_diam/2,2));
-			cairo_move_to(cr, H, h/2 - V);
-			cairo_line_to(cr, H, h/2 + V);
-			cairo_stroke(cr);
-		}
-		else {
-			color = rgb_scale(1.0, -0.6 + 1.2/num_masses_per_ball * (i-2*num_masses_per_ball));
-			cairo_set_source_rgb(cr, color.red, color.green, color.blue);
-			double H = margin + i * mass_spacing + fudge*POS(x,i);
-			double V = sqrt(pow(ball_diam/2,2) - pow((i-2*num_masses_per_ball+0.5)*mass_spacing - ball_diam/2,2));
-			cairo_move_to(cr, H, h/2 - V);
-			cairo_line_to(cr, H, h/2 + V);
-			cairo_stroke(cr);
-		}
+		color = rgb_scale((i/num_masses_per_ball)/(num_balls-1.), -0.4 + 0.8/num_masses_per_ball * (i%num_masses_per_ball));
+		cairo_set_source_rgb(cr, color.red, color.green, color.blue);
+		double H = margin + i * mass_spacing + fudge*POS(x,i);
+		double V = sqrt(pow(ball_diam/2,2) - pow((i%num_masses_per_ball+0.5)*mass_spacing - ball_diam/2,2));
+		cairo_move_to(cr, H, h/2 - V);
+		cairo_line_to(cr, H, h/2 + V);
+		cairo_stroke(cr);
 		cairo_arc(cr, margin + i*mass_spacing + fudge*POS(x,i), h/2, mass_spacing/2, 0, 2*M_PI);
 		cairo_fill(cr);
 	}
@@ -211,16 +193,18 @@ int main (int argc, char **argv) {
 	GtkWidget *plot_notebook;
 	double start_dt;
 
-	if(argc < 2) {
-		printf("\nUsage: newton_cradle <num_masses_per_ball>\n\n");
+	if(argc < 4) {
+		printf("\nUsage: newton_cradle <num_balls> <num_masses_per_ball> <num_balls_initially_moving>\n\n");
 		return 0;
 	}
-	num_masses_per_ball = atoi(argv[1]);
-	n = 3 * num_masses_per_ball;
-	pos_traces = malloc(sizeof(trace_handle)*3*num_masses_per_ball);
-	vel_traces = malloc(sizeof(trace_handle)*3*num_masses_per_ball);
-	x = malloc(sizeof(double)*2*num_masses_per_ball*3);
-	k = malloc(sizeof(double)*2*num_masses_per_ball*3);
+	num_balls = atoi(argv[1]);
+	num_masses_per_ball = atoi(argv[2]);
+	num_balls_moving = atoi(argv[3]);
+	n = num_balls * num_masses_per_ball;
+	pos_traces = malloc(sizeof(trace_handle)*num_balls*num_masses_per_ball);
+	vel_traces = malloc(sizeof(trace_handle)*num_balls*num_masses_per_ball);
+	x = malloc(sizeof(double)*2*num_masses_per_ball*num_balls);
+	k = malloc(sizeof(double)*2*num_masses_per_ball*num_balls);
 
 	step_type = (gsl_odeiv_step_type *)gsl_odeiv_step_rkf45;
 	step = gsl_odeiv_step_alloc(step_type, 2*n);
@@ -230,7 +214,7 @@ int main (int argc, char **argv) {
 	for(i=0; i<n; i++) {
 		x[i] = 0.0;
 	}
-	for(i=0; i<num_masses_per_ball; i++) {
+	for(i=0; i<num_masses_per_ball*num_balls_moving; i++) {
 		POS(x,i) = BALL_1_INIT_POS;
 		VEL(x,i) = BALL_1_INIT_VEL;
 	}
@@ -266,7 +250,6 @@ int main (int argc, char **argv) {
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
 
-
 	canvas = gtk_drawing_area_new();
 	gtk_widget_set_size_request(canvas, 700,400);
 	gtk_box_pack_start (GTK_BOX(v_box), canvas, TRUE, TRUE, 0);
@@ -276,7 +259,7 @@ int main (int argc, char **argv) {
 
 	gtk_widget_show_all (window);
 
-	g_timeout_add(30, update_data, NULL);
+	g_timeout_add(20, update_data, NULL);
 
 	jbplot_set_plot_title((jbplot *)pos_plot, "Position Plot", 1);
 	jbplot_set_plot_title_visible((jbplot *)pos_plot, 1);
@@ -314,17 +297,9 @@ int main (int argc, char **argv) {
 			printf("error creating trace!\n");
 			return 0;
 		}
-		if(i < num_masses_per_ball) {
-			color = rgb_scale(0.0, -0.6 + 1.2/num_masses_per_ball * i);
-		}
-		else if(i < 2*num_masses_per_ball) {
-			color = rgb_scale(0.5, -0.6 + 1.2/num_masses_per_ball * (i-num_masses_per_ball));
-		}
-		else {
-			color = rgb_scale(1.0, -0.6 + 1.2/num_masses_per_ball * (i-2*num_masses_per_ball));
-		}
+		color = rgb_scale((i/num_masses_per_ball)/(num_balls-1.), -0.4 + 0.8/num_masses_per_ball * (i%num_masses_per_ball));
 		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 2.0, &color);
-		sprintf(trace_name, "mass_%d", i);
+		sprintf(trace_name, "ball_%d,mass_%d", i/num_masses_per_ball+1, i%num_masses_per_ball+1);
 		jbplot_trace_set_name(vel_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)vel_plot, vel_traces[i]);
 		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 2.0, &color);
