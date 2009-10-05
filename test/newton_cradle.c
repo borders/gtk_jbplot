@@ -73,7 +73,7 @@ int state_func(double t, const double *x, double *xd, void *params) {
 	int i;
 	// calc spring constants
 	for(i=0; i<n-1; i++) {
-		if(i==(num_masses_per_ball-1) || i==(2*num_masses_per_ball-1)) {
+		if((i+1)%num_masses_per_ball == 0) {
 			if(x[2*(i+1)] < x[2*i]) {
 				k[i] = ALPHA * num_masses_per_ball;
 			}
@@ -84,9 +84,7 @@ int state_func(double t, const double *x, double *xd, void *params) {
 		else {
 			k[i] = ALPHA * num_masses_per_ball;
 		}
-		//printf("k[%d] = %g, ", i, k[i]);
 	}
-	//printf("\n");
 
 	xd[0] = VEL(x,0);
 	xd[1] = 1./(BALL_MASS/num_masses_per_ball) * k[0] * (POS(x,1)-POS(x,0));
@@ -116,25 +114,10 @@ gboolean update_data(gpointer data) {
 		gsl_odeiv_evolve_apply(evolve, control, step, &sys, &t, t+v, &h, x);
 	}
 
-/*	
-	for(i=0; i<n; i++) {
-		printf("x[%d] = %g, ", i, POS(x,i));
-	}
-	printf("\n");
-*/
-/*	
-	for(i=0; i<n; i++) {
-		printf("v[%d] = %g, ", i, VEL(x,i));
-	}
-	printf("\n");
-*/
-
-
 	for(i=0; i<n; i++) {
 		jbplot_trace_add_point(pos_traces[i], t, POS(x,i)); 
 		jbplot_trace_add_point(vel_traces[i], t, VEL(x,i)); 
 	}
-
 
 	jbplot_refresh((jbplot *)pos_plot);
 	jbplot_refresh((jbplot *)vel_plot);
@@ -150,49 +133,8 @@ void button_activate(GtkButton *b, gpointer data) {
 	else {
 		gtk_button_set_label(b, "Resume");
 	}
-	//printf("button activated!\n");
 	return;
 }
-
-void save_button_activate(GtkButton *b, gpointer data) {
-	jbplot_capture_png((jbplot *)pos_plot, "capture.png");
-	GtkWidget *tab1_label = gtk_label_new("Position");
-	//printf("save button activated!\n");
-	return;
-}
-
-
-void save_button_activate_2(GtkButton *b, gpointer data) {
-	GtkWidget *dialog;
-	dialog = gtk_file_chooser_dialog_new("Save file to...",
-	                                     (GtkWindow *)pos_plot,
-	                                     GTK_FILE_CHOOSER_ACTION_SAVE,
-	                                     GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-	                                     GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-	                                     NULL);
-	gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(dialog), TRUE);
-	if(gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_ACCEPT) {
-		char *filename;
-		char fname[1000];
-		fname[0] = '\0';
-		filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
-		strncat(fname, filename, 999);
-		int fl = strlen(filename);
-		if(        filename[fl-4]  != '.' || 
-		   tolower(filename[fl-3]) != 's' || 
-		   tolower(filename[fl-2]) != 'v' || 
-		   tolower(filename[fl-1]) != 'g') 
-			{
-			printf("Adding SVG extension\n");
-			strncat(fname, ".svg", 999-strlen(fname));
-		}
-		jbplot_capture_svg((jbplot *)pos_plot, fname);
-		g_free(filename);
-	}
-	gtk_widget_destroy(dialog);
-	return;
-}
-
 
 
 gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
@@ -267,8 +209,6 @@ int main (int argc, char **argv) {
 	GtkWidget *v_box;
 	GtkWidget *button;
 	GtkWidget *plot_notebook;
-	GtkWidget *save_button;
-	GtkWidget *save_button_2;
 	double start_dt;
 
 	if(argc < 2) {
@@ -321,14 +261,6 @@ int main (int argc, char **argv) {
 	button = gtk_button_new_with_label("Pause");
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
-
-	save_button = gtk_button_new_with_label("Capture Plot to File (PNG)");
-	gtk_box_pack_start (GTK_BOX(v_box), save_button, FALSE, FALSE, 0);
-	g_signal_connect(save_button, "clicked", G_CALLBACK(save_button_activate), NULL);
-
-	save_button_2 = gtk_button_new_with_label("Capture Plot to File (SVG)");
-	gtk_box_pack_start (GTK_BOX(v_box), save_button_2, FALSE, FALSE, 0);
-	g_signal_connect(save_button_2, "clicked", G_CALLBACK(save_button_activate_2), NULL);
 
 	dt_scale = gtk_hscale_new_with_range(0.000025, 0.0005, 0.000025);
 	gtk_scale_set_digits((GtkScale *)dt_scale, 5);
