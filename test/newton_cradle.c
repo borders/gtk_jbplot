@@ -16,6 +16,7 @@
 
 int state_func(double t, const double *x, double *xd, void *params);
 
+static int quit = 0;
 static double t = 0.0;
 static double h = 1e-3;
 static trace_handle *pos_traces;
@@ -102,15 +103,21 @@ int state_func(double t, const double *x, double *xd, void *params) {
 
 
 gboolean update_data(gpointer data) {
-	int i;
+	int i, j;
+
+	if(quit) {
+		gtk_main_quit();	
+		return FALSE;
+	}
+
 	if(!run) {
 		return TRUE;
 	}
 
-	gdouble v = 0.0;
-	if(dt_scale !=NULL) {
-		v = gtk_range_get_value(GTK_RANGE(dt_scale));
-	}
+	gdouble v = gtk_range_get_value(GTK_RANGE(dt_scale));
+
+
+	for(j=0; j<10; j++) {
 
 	double t_next = t + v;
 	while(t < t_next) {	
@@ -129,8 +136,10 @@ gboolean update_data(gpointer data) {
 		jbplot_trace_add_point(vel_traces[i], t, VEL(x,i)); 
 	}
 
-	jbplot_refresh((jbplot *)pos_plot);
-	jbplot_refresh((jbplot *)vel_plot);
+	}
+
+	jbplot_refresh(JBPLOT(pos_plot));
+	jbplot_refresh(JBPLOT(vel_plot));
 	gtk_widget_queue_draw(canvas);	
 	return TRUE;
 }
@@ -194,6 +203,11 @@ gboolean draw_balls(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   return TRUE;
 }
 
+void main_quit(GtkObject *obj, gpointer data) {	
+	quit = 1;
+	printf("Quiting...\n");
+	//gtk_main_quit();	
+}
 
 int main (int argc, char **argv) {
 	GtkWidget *window;
@@ -264,11 +278,12 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), canvas, TRUE, TRUE, 0);
 	g_signal_connect(canvas, "expose_event", G_CALLBACK(draw_balls), NULL);
 
-	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+	//g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+	g_signal_connect (window, "destroy", G_CALLBACK (main_quit), NULL);
 
 	gtk_widget_show_all (window);
 
-	g_timeout_add(20, update_data, NULL);
+	g_timeout_add(40, update_data, NULL);
 
 	jbplot_set_plot_title((jbplot *)pos_plot, "Position Plot", 1);
 	jbplot_set_plot_title_visible((jbplot *)pos_plot, 1);
@@ -296,8 +311,8 @@ int main (int argc, char **argv) {
 	rgb_color_t color;
 	for(i=0; i<n; i++) {
 		char trace_name[100];
-		vel_traces[i] = jbplot_create_trace(3000);
-		pos_traces[i] = jbplot_create_trace(3000);
+		vel_traces[i] = jbplot_create_trace(2000);
+		pos_traces[i] = jbplot_create_trace(2000);
 		if(vel_traces[i] == NULL) {
 			printf("error creating trace!\n");
 			return 0;
@@ -307,11 +322,11 @@ int main (int argc, char **argv) {
 			return 0;
 		}
 		color = rgb_scale((i/num_masses_per_ball)/(num_balls-1.), -0.4 + 0.8/num_masses_per_ball * (i%num_masses_per_ball));
-		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 2.0, &color);
+		jbplot_trace_set_line_props(vel_traces[i], LINETYPE_SOLID, 1.0, &color);
 		sprintf(trace_name, "ball_%d,mass_%d", i/num_masses_per_ball+1, i%num_masses_per_ball+1);
 		jbplot_trace_set_name(vel_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)vel_plot, vel_traces[i]);
-		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 2.0, &color);
+		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 1.0, &color);
 		jbplot_trace_set_name(pos_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)pos_plot, pos_traces[i]);
 	}
