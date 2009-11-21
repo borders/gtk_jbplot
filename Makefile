@@ -1,4 +1,4 @@
-all: test/test1 test/dp test/data_view test/chaos test/newton_cradle test/pstb_plot.c
+all: test/test1 test/dp test/data_view test/chaos test/newton_cradle test/pstb_plot
 
 test/pstb_plot: jbplot.c jbplot.h test/pstb_plot.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/pstb_plot jbplot.c test/pstb_plot.c jbplot-marshallers.c \
