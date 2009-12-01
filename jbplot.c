@@ -1313,6 +1313,22 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 														);
 	}
 	
+
+	/*********** draw the plot area border ******************/
+	if(pa->do_show_bounding_box) {
+		cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
+		cairo_set_line_width(cr, pa->bounding_box_width);
+		cairo_rectangle(
+			cr, 
+			plot_area_left_edge, 
+			plot_area_top_edge,
+			plot_area_right_edge - plot_area_left_edge,
+			plot_area_bottom_edge - plot_area_top_edge
+		);
+		cairo_stroke(cr);	
+	}
+
+
 	/*************** Draw the data ******************/
 
 	// first set the clipping region
@@ -1401,19 +1417,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_restore(cr);
 	}
 
-	/*********** draw the plot area border ******************/
-	if(pa->do_show_bounding_box) {
-		cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
-		cairo_set_line_width(cr, pa->bounding_box_width);
-		cairo_rectangle(
-			cr, 
-			plot_area_left_edge, 
-			plot_area_top_edge,
-			plot_area_right_edge - plot_area_left_edge,
-			plot_area_bottom_edge - plot_area_top_edge
-		);
-		cairo_stroke(cr);	
-	}
 
 /*
 	// DEBUG!!!!!
