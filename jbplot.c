@@ -12,6 +12,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
+#include <cairo/cairo-svg.h>
 
 #include "jbplot.h"
 #include "jbplot-marshallers.h"
