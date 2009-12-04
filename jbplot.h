@@ -47,6 +47,16 @@ typedef enum {
 	MARKER_POINT
 } marker_type_t;
 
+/**
+ * Supported cursor types
+ */
+typedef enum {
+	CURSOR_NONE,
+	CURSOR_VERT,
+	CURSOR_HORIZ,
+	CURSOR_CROSS,
+} cursor_type_t;
+
 
 /**
  * Supported trace line types
@@ -137,6 +147,14 @@ int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float siz
 int jbplot_trace_set_name(trace_handle th, char *name);
 int jbplot_trace_clear_data(trace_handle th);
 
+/* cursor related functions */
+int jbplot_set_cursor_pos(jbplot *plot, float x, float y);
+int jbplot_set_cursor_props(
+	jbplot *plot, 
+	cursor_type_t type, 
+	rgb_color_t color,
+	float line_width, 
+	int line_type);
 
 int jbplot_capture_png(jbplot *plot, char *filename);
 int jbplot_capture_svg(jbplot *plot, char *filename);

@@ -112,6 +112,14 @@ typedef struct trace_t {
 	char name[MAX_TRACE_NAME_LENGTH + 1];
 } trace_t;
 
+typedef struct cursor_t {
+	int type;
+	rgb_color_t color;
+	float line_width;
+	int line_type;
+	float x;
+	float y;
+} cursor_t;
 
 typedef struct plot_t {
 	rgb_color_t bg_color;
@@ -127,6 +135,8 @@ typedef struct plot_t {
   
   struct trace_t *traces[MAX_NUM_TRACES];
   int num_traces;
+
+	cursor_t cursor;
 } plot_t;
 
 
@@ -1418,6 +1428,34 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_restore(cr);
 	}
 
+	/* draw the cursor (if needed) */
+	if(p->cursor.type != CURSOR_NONE) {
+		cursor_t *c = &(p->cursor);
+		cairo_save(cr);
+		cairo_set_source_rgb (cr, c->color.red, c->color.green, c->color.blue);
+		cairo_set_line_width(cr, c->line_width);
+		if(c->line_type == LINETYPE_SOLID) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
+		}	
+		else if(c->line_type == LINETYPE_DASHED) {
+			cairo_set_dash(cr, dash_pattern, 2, 0);
+		}	
+		else if(c->line_type == LINETYPE_DOTTED) {
+			cairo_set_dash(cr, dot_pattern, 2, 0);
+		}
+		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
+			cairo_move_to(cr, x_m * c->x + x_b, plot_area_top_edge);
+			cairo_line_to(cr, x_m * c->x + x_b, plot_area_bottom_edge);
+			cairo_stroke(cr);
+		}
+		if(c->type == CURSOR_HORIZ || c->type == CURSOR_CROSS) {
+			cairo_move_to(cr, plot_area_left_edge, y_m * c->y + y_b);
+			cairo_line_to(cr, plot_area_right_edge, y_m * c->y + y_b);
+			cairo_stroke(cr);
+		}
+		cairo_restore(cr);
+	}
+
 
 /*
 	// DEBUG!!!!!
@@ -1853,6 +1891,28 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
 }
 
 /******************** Public Functions *******************************/
+
+int jbplot_set_cursor_pos(jbplot *plot, float x, float y) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.cursor.x = x;
+	priv->plot.cursor.y = y;
+	return 0;
+}
+
+int jbplot_set_cursor_props(
+	jbplot *plot, 
+	cursor_type_t type, 
+	rgb_color_t color,
+	float line_width, 
+	int line_type)
+{
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->plot.cursor.type = type;
+	priv->plot.cursor.line_width = line_width;	
+	priv->plot.cursor.line_type = line_type;	
+	priv->plot.cursor.color = color;
+	return 0;	
+}
 
 int jbplot_set_antialias(jbplot *plot, gboolean state) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
