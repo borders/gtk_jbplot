@@ -1428,34 +1428,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_restore(cr);
 	}
 
-	/* draw the cursor (if needed) */
-	if(p->cursor.type != CURSOR_NONE) {
-		cursor_t *c = &(p->cursor);
-		cairo_save(cr);
-		cairo_set_source_rgb (cr, c->color.red, c->color.green, c->color.blue);
-		cairo_set_line_width(cr, c->line_width);
-		if(c->line_type == LINETYPE_SOLID) {
-			cairo_set_dash(cr, dash_pattern, 0, 0);
-		}	
-		else if(c->line_type == LINETYPE_DASHED) {
-			cairo_set_dash(cr, dash_pattern, 2, 0);
-		}	
-		else if(c->line_type == LINETYPE_DOTTED) {
-			cairo_set_dash(cr, dot_pattern, 2, 0);
-		}
-		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
-			cairo_move_to(cr, x_m * c->x + x_b, plot_area_top_edge);
-			cairo_line_to(cr, x_m * c->x + x_b, plot_area_bottom_edge);
-			cairo_stroke(cr);
-		}
-		if(c->type == CURSOR_HORIZ || c->type == CURSOR_CROSS) {
-			cairo_move_to(cr, plot_area_left_edge, y_m * c->y + y_b);
-			cairo_line_to(cr, plot_area_right_edge, y_m * c->y + y_b);
-			cairo_stroke(cr);
-		}
-		cairo_restore(cr);
-	}
-
 
 /*
 	// DEBUG!!!!!
@@ -1544,6 +1516,34 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	cairo_paint(cr);
 	cairo_restore(cr);
 	
+	/********************** draw the cursor (if needed) *************************/
+	if(p->cursor.type != CURSOR_NONE) {
+		cursor_t *c = &(p->cursor);
+		cairo_save(cr);
+		cairo_set_source_rgb (cr, c->color.red, c->color.green, c->color.blue);
+		cairo_set_line_width(cr, c->line_width);
+		if(c->line_type == LINETYPE_SOLID) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
+		}	
+		else if(c->line_type == LINETYPE_DASHED) {
+			cairo_set_dash(cr, dash_pattern, 2, 0);
+		}	
+		else if(c->line_type == LINETYPE_DOTTED) {
+			cairo_set_dash(cr, dot_pattern, 2, 0);
+		}
+		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
+			cairo_move_to(cr, x_m * c->x + x_b, p->plot_area.top_edge);
+			cairo_line_to(cr, x_m * c->x + x_b, p->plot_area.bottom_edge);
+			cairo_stroke(cr);
+		}
+		if(c->type == CURSOR_HORIZ || c->type == CURSOR_CROSS) {
+			cairo_move_to(cr, p->plot_area.left_edge, y_m * c->y + y_b);
+			cairo_line_to(cr, p->plot_area.right_edge, y_m * c->y + y_b);
+			cairo_stroke(cr);
+		}
+		cairo_restore(cr);
+	}
+
 
 	/************* draw the zoom box if zooming is active *****************/
 	if(priv->zooming) {
@@ -1896,6 +1896,7 @@ int jbplot_set_cursor_pos(jbplot *plot, float x, float y) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.cursor.x = x;
 	priv->plot.cursor.y = y;
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
@@ -1975,6 +1976,25 @@ int jbplot_capture_png(jbplot *plot, char *filename) {
 	return 0;
 }
 
+int jbplot_trace_resize(trace_handle th, int new_size) {
+	if(!th->is_data_owner) {
+		th->capacity = new_size;
+	}
+	else {
+		if(new_size >= th->capacity) {
+			float *px, *py;
+			px = realloc(th->x_data, new_size * sizeof(float));
+			py = realloc(th->y_data, new_size * sizeof(float));
+			if(px==NULL || py==NULL) {
+				return -1;
+			} 
+			th->x_data = px;
+			th->y_data = py;
+			th->capacity = new_size;
+		}
+	}	
+	return 0;
+}
 
 int jbplot_trace_set_name(trace_t *t, char *name) {
 	t->name[0] = '\0';
@@ -2216,7 +2236,7 @@ int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rg
 	return 0;
 }
 
-trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length) {
+trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, int capacity) {
 	trace_t *t;
 	t = malloc(sizeof(trace_t));
 	if(t==NULL) {
@@ -2225,7 +2245,7 @@ trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length) 
 	}
 	t->x_data = x;
 	t->y_data = y;
-	t->capacity = length;
+	t->capacity = capacity;
 	t->length = length;
 	t->start_index = 0;
 	t->end_index = length - 1;

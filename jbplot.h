@@ -136,11 +136,12 @@ int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_co
 int jbplot_legend_refresh(jbplot *plot);
 
 /* Trace-related functions */
+int jbplot_trace_resize(trace_handle th, int new_size);
 int jbplot_add_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
 
-trace_handle jbplot_create_trace_with_external_data(float *x, float *y, int length);
+trace_handle jbplot_create_trace_with_external_data(float *x, float *y, int length, int capacity);
 int jbplot_trace_add_point(trace_handle th, float x, float y);
 int jbplot_trace_set_line_props(trace_handle th, line_type_t type, float width, rgb_color_t *color);
 int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float size, rgb_color_t *color);
