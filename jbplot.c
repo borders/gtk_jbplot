@@ -460,13 +460,37 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				priv->drag_start_y = priv->plot.plot_area.top_edge;
 				y_now = priv->plot.plot_area.bottom_edge;
 				priv->h_zoom = FALSE;
+
+				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
+				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
+				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
+				y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
+				double xmin = (x_min - priv->x_b)/priv->x_m;
+				double xmax = (x_max - priv->x_b)/priv->x_m;
+				double ymin = (y_max - priv->y_b)/priv->y_m;
+				double ymax = (y_min - priv->y_b)/priv->y_m;
+				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
+				priv->needs_redraw = TRUE;
+				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
-			if(priv->v_zoom) {
+			else if(priv->v_zoom) {
 				priv->drag_start_x = priv->plot.plot_area.left_edge;
 				x_now = priv->plot.plot_area.right_edge;
 				priv->v_zoom = FALSE;
+
+				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
+				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
+				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
+				y_max = (y_now > priv->drag_start_y) ? y_now : priv->drag_start_y;
+				double xmin = (x_min - priv->x_b)/priv->x_m;
+				double xmax = (x_max - priv->x_b)/priv->x_m;
+				double ymin = (y_max - priv->y_b)/priv->y_m;
+				double ymax = (y_min - priv->y_b)/priv->y_m;
+				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
+				priv->needs_redraw = TRUE;
+				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
-			if(x_now != priv->drag_start_x && y_now != priv->drag_start_y) {
+			else if(x_now != priv->drag_start_x && y_now != priv->drag_start_y) {
 				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
 				x_max = (x_now > priv->drag_start_x) ? x_now : priv->drag_start_x;
 				y_min = (y_now < priv->drag_start_y) ? y_now : priv->drag_start_y;
