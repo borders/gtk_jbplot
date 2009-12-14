@@ -1774,6 +1774,10 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 	double tic_val;
 	int i = 0;
 	for(tic_val = min_tic_val; tic_val < max && i < MAX_NUM_MAJOR_TICS; tic_val += actual_tic_delta) {
+		/* perform check to see if it should be equal to zero */
+		if(fabs(tic_val / actual_tic_delta) < 0.5) {
+			tic_val = 0.0;
+		}
 		a->major_tic_values[i] = tic_val;
 		i++;
 	}
