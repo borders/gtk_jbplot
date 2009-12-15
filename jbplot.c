@@ -3,9 +3,10 @@
  *
  * A GTK+ widget that implements a plot
  *
- * Authors:
+ * Author:
  *   James Borders
- */
+ * 
+*/
 
 #include <gtk/gtk.h>
 #include <math.h>
