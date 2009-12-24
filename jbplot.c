@@ -2023,7 +2023,7 @@ int jbplot_trace_set_decimation(trace_handle th, int divisor) {
 
 
 int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length) {
-	if(!th->is_data_owner) {
+	if(th->is_data_owner) {
 		free(th->x_data);
 		free(th->y_data);
 		th->is_data_owner = 0;
