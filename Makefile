@@ -45,3 +45,7 @@ clean:
 	rm -f test/test1
 	rm -f test/chaos
 	rm -f test/set_data
+	rm -f test/data_view
+	rm -f test/dp
+	rm -f test/pstb_plot
+	rm -f test/newton_cradle
