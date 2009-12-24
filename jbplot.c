@@ -2009,6 +2009,20 @@ int jbplot_capture_png(jbplot *plot, char *filename) {
 	return 0;
 }
 
+int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length) {
+	if(!th->is_data_owner) {
+		free(th->x_data);
+		free(th->y_data);
+		th->is_data_owner = 0;
+	}
+	th->x_data = x_start;
+	th->y_data = y_start;
+	th->length = length;
+	th->capacity = length;
+	th->start_index = 0;
+	th->end_index = length-1;
+}
+
 int jbplot_trace_resize(trace_handle th, int new_size) {
 	if(!th->is_data_owner) {
 		th->capacity = new_size;
@@ -2288,6 +2302,9 @@ trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, 
 }
 
 int jbplot_trace_add_point(trace_t *t, float x, float y) {
+	if(!t->is_data_owner) {
+		return -1;
+	}
 	if(t->length >= t->capacity) {
 		t->x_data[t->start_index] = x;
 		t->y_data[t->start_index] = y;

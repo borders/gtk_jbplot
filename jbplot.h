@@ -140,6 +140,7 @@ int jbplot_trace_resize(trace_handle th, int new_size);
 int jbplot_add_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
+int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length);
 
 trace_handle jbplot_create_trace_with_external_data(float *x, float *y, int length, int capacity);
 int jbplot_trace_add_point(trace_handle th, float x, float y);

@@ -1,4 +1,4 @@
-all: test/test1 test/dp test/data_view test/chaos test/newton_cradle test/pstb_plot
+all: test/test1 test/dp test/data_view test/chaos test/newton_cradle test/pstb_plot test/set_data
 
 test/pstb_plot: jbplot.c jbplot.h test/pstb_plot.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/pstb_plot jbplot.c test/pstb_plot.c jbplot-marshallers.c \
@@ -10,6 +10,10 @@ test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshalle
 
 test/chaos: jbplot.c jbplot.h test/chaos.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/chaos jbplot.c test/chaos.c jbplot-marshallers.c \
+		`pkg-config --libs --cflags gtk+-2.0`
+
+test/set_data: jbplot.c jbplot.h test/set_data.c jbplot-marshallers.c jbplot-marshallers.h
+	gcc -g -o test/set_data jbplot.c test/set_data.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
 
 test/newton_cradle: jbplot.c jbplot.h test/newton_cradle.c jbplot-marshallers.c jbplot-marshallers.h
@@ -36,5 +40,8 @@ docs: jbplot.c jbplot.h
 	@ doxygen Doxyfile > /dev/null
 
 clean:
+	rm -f *.o
 	rm -f jbplot-marshallers.h jbplot-marshallers.c
 	rm -f test/test1
+	rm -f test/chaos
+	rm -f test/set_data
