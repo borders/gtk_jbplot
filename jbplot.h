@@ -138,6 +138,7 @@ int jbplot_legend_refresh(jbplot *plot);
 /* Trace-related functions */
 int jbplot_trace_resize(trace_handle th, int new_size);
 int jbplot_add_trace(jbplot *plot, trace_handle th);
+int jbplot_remove_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
 int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length);

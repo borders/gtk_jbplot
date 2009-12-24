@@ -2396,6 +2396,47 @@ void jbplot_destroy_trace(trace_t *trace) {
 	return;
 }
 
+int jbplot_remove_trace(jbplot *plot, trace_handle th) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	plot_t *p = &(priv->plot);
+	int i;
+	int trace_index = -1;
+
+	/* can't remove trace is there are none */
+	if(p->num_traces < 1) {
+		return -1;
+	}
+
+	/* find index of trace to remove */
+	for(i = 0; i < p->num_traces; i++) {
+		if(p->traces[i] == th) {
+			trace_index = i;
+			break;
+		}
+	}
+
+	/* not found */
+	if(trace_index < 0) {
+		return -1;
+	}
+
+	/* if it's the last trace, this is easy */
+	if(trace_index == p->num_traces - 1) {
+		p->num_traces--;
+		jbplot_refresh(plot);
+		return 0;
+	}
+	
+	/* if it's in the middle, slide eveything down one slot */
+	memmove(
+		p->traces + trace_index, 
+		p->traces + trace_index + 1, 
+		(p->num_traces - trace_index - 1)*sizeof(trace_t *)
+	);
+	p->num_traces--;
+	jbplot_refresh(plot);
+	return 0;
+}
 
 int jbplot_add_trace(jbplot *plot, trace_t *t) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
