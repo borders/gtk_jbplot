@@ -2337,18 +2337,23 @@ trace_t *jbplot_create_trace(int capacity) {
 	if(t==NULL) {
 		return NULL;
 	}	
-	t->x_data = malloc(sizeof(float)*capacity);
-	if(t->x_data==NULL) {
-		free(t);
-		return NULL;
+	if(capacity > 0) {
+		t->x_data = malloc(sizeof(float)*capacity);
+		if(t->x_data==NULL) {
+			free(t);
+			return NULL;
+		}
+		t->y_data = malloc(sizeof(float)*capacity);
+		if(t->y_data==NULL) {
+			free(t);
+			free(t->x_data);
+			return NULL;
+		}
+		t->is_data_owner = 1;
 	}
-	t->y_data = malloc(sizeof(float)*capacity);
-	if(t->y_data==NULL) {
-		free(t);
-		free(t->x_data);
-		return NULL;
+	else {
+		t->is_data_owner = 0;
 	}
-	t->is_data_owner = 1;
 	t->start_index = 0;
 	t->end_index = 0;
 	t->length = 0;
