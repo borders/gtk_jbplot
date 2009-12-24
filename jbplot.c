@@ -111,6 +111,7 @@ typedef struct trace_t {
 	int marker_type;
 	float marker_size;
 	char name[MAX_TRACE_NAME_LENGTH + 1];
+	int decimate_divisor;
 } trace_t;
 
 typedef struct cursor_t {
@@ -1396,7 +1397,8 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 			cairo_set_dash(cr, dot_pattern, 2, 0);
 		}	
 		if(t->length <= 0) continue;
-		for(j = 0; j < t->length; j++) {
+		int dd = t->decimate_divisor;
+		for(j = 0; j < t->length; j += dd) {
 			int n;
 			n = t->start_index + j;
 			if(n >= t->capacity) {
@@ -1434,7 +1436,8 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 			cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
 		}
 		if(t->length <= 0) continue;
-		for(j = 0; j < t->length; j++) {
+		int dd = t->decimate_divisor;
+		for(j = 0; j < t->length; j += dd) {
 			int n;
 			n = t->start_index + j;
 			if(n >= t->capacity) {
@@ -2009,6 +2012,16 @@ int jbplot_capture_png(jbplot *plot, char *filename) {
 	return 0;
 }
 
+int jbplot_trace_set_decimation(trace_handle th, int divisor) {
+	if(divisor < 1) {
+		divisor = 1;
+	}
+	th->decimate_divisor = divisor;
+	return 0;
+}
+
+
+
 int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length) {
 	if(!th->is_data_owner) {
 		free(th->x_data);
@@ -2297,6 +2310,7 @@ trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, 
 	t->start_index = 0;
 	t->end_index = length - 1;
 	t->is_data_owner = 0;
+	t->decimate_divisor = 1;
 	strcpy(t->name, "trace");
 	return t;
 }
@@ -2367,6 +2381,7 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->marker_color.red = 0.0;
 	t->marker_color.green = 0.0;
 	t->marker_color.blue = 0.0;
+	t->decimate_divisor = 1;
 	strcpy(t->name, "trace_name");
 
 	return t;

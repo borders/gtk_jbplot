@@ -110,6 +110,7 @@ int main (int argc, char **argv) {
 	//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 5.0, &color);
 	init_trace_with_data(t1);
 	init_trace_with_data_2(t2);
+	jbplot_trace_set_decimation(t1, 10);
 	jbplot_add_trace((jbplot *)plot, t1);
 	jbplot_add_trace((jbplot *)plot, t2);
 
