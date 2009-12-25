@@ -2034,6 +2034,7 @@ int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int l
 	th->capacity = length;
 	th->start_index = 0;
 	th->end_index = length-1;
+	return 0;
 }
 
 int jbplot_trace_resize(trace_handle th, int new_size) {
