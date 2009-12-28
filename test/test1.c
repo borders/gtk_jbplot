@@ -54,7 +54,7 @@ void button_activate(GtkButton *b, gpointer data) {
 	return;
 }
 
-int main (int argc, char **argv) {
+int main(int argc, char **argv) {
 	GtkWidget *window;
 	GtkWidget *v_box;
 	GtkWidget *button;
@@ -111,6 +111,7 @@ int main (int argc, char **argv) {
 	init_trace_with_data(t1);
 	init_trace_with_data_2(t2);
 	jbplot_trace_set_decimation(t1, 10);
+	jbplot_trace_set_decimation(t2, 0);
 	jbplot_add_trace((jbplot *)plot, t1);
 	jbplot_add_trace((jbplot *)plot, t2);
 

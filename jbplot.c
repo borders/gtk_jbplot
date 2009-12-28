@@ -112,6 +112,7 @@ typedef struct trace_t {
 	float marker_size;
 	char name[MAX_TRACE_NAME_LENGTH + 1];
 	int decimate_divisor;
+	int lossless_decimation;
 } trace_t;
 
 typedef struct cursor_t {
@@ -274,6 +275,7 @@ static gboolean popup_callback_y_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
+
 static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
   GtkWidget *menu;
   GtkWidget *x_axis_submenu;
@@ -1398,26 +1400,57 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		}	
 		if(t->length <= 0) continue;
 		int dd = t->decimate_divisor;
-		for(j = 0; j < t->length; j += dd) {
-			int n;
-			n = t->start_index + j;
-			if(n >= t->capacity) {
-				n -= t->capacity;
+		if(t->lossless_decimation) {
+			for(j = 0; j < t->length; j += dd) {
+				int last_x_px, last_y_px;
+				float min_y, max_y;
+				int n = t->start_index + j;
+				if(n >= t->capacity) {
+					n -= t->capacity;
+				}
+				float x_px = x_m * t->x_data[n] + x_b;
+				float y_px = y_m * t->y_data[n] + y_b;
+				if(first_pt) {
+					cairo_move_to(cr,	x_px,	y_px);
+					first_pt = 0;
+					min_y = max_y = y_px;
+				}
+				else {
+					if(x_px != last_x_px) {
+						/* first draw vertical line spanning min to max for previous x-pixel */
+						cairo_move_to(cr,	last_x_px,	min_y);
+						cairo_line_to(cr,	last_x_px,	max_y);
+						/* then draw a line connecting last point to this point */
+						cairo_move_to(cr,	last_x_px,	last_y_px);
+						cairo_line_to(cr,	x_px,	y_px);
+						min_y = max_y = y_px;
+					}
+					else {
+						if(y_px > max_y) 
+							max_y = y_px;
+						if(y_px < min_y) 
+							min_y = y_px;
+					}
+				}
+				last_x_px = x_px;
+				last_y_px = y_px;
 			}
-			if(first_pt) {
-				cairo_move_to(
-					cr, 
-					x_m * t->x_data[n] + x_b,
-					y_m * t->y_data[n] + y_b
-				);
-				first_pt = 0;
-			}
-			else {
-				cairo_line_to(
-					cr,
-					x_m * t->x_data[n] + x_b, 
-					y_m * t->y_data[n] + y_b
-				);
+		}
+		else {
+			for(j = 0; j < t->length; j += dd) {
+				int n = t->start_index + j;
+				if(n >= t->capacity) {
+					n -= t->capacity;
+				}
+				float x_px = x_m * t->x_data[n] + x_b;
+				float y_px = y_m * t->y_data[n] + y_b;
+				if(first_pt) {
+					cairo_move_to(cr,	x_px,	y_px);
+					first_pt = 0;
+				}
+				else {
+					cairo_line_to(cr,	x_px,	y_px);
+				}
 			}
 		}
 		cairo_stroke(cr);
@@ -2013,10 +2046,15 @@ int jbplot_capture_png(jbplot *plot, char *filename) {
 }
 
 int jbplot_trace_set_decimation(trace_handle th, int divisor) {
+	/* divisor value less than 1 means lossless decimation */
 	if(divisor < 1) {
-		divisor = 1;
+		th->decimate_divisor = 1;
+		th->lossless_decimation = 1;
 	}
-	th->decimate_divisor = divisor;
+	else {
+		th->decimate_divisor = divisor;
+		th->lossless_decimation = 0;
+	}
 	return 0;
 }
 
@@ -2312,6 +2350,7 @@ trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, 
 	t->end_index = length - 1;
 	t->is_data_owner = 0;
 	t->decimate_divisor = 1;
+	t->lossless_decimation = 0;
 	strcpy(t->name, "trace");
 	return t;
 }
@@ -2383,6 +2422,7 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->marker_color.green = 0.0;
 	t->marker_color.blue = 0.0;
 	t->decimate_divisor = 1;
+	t->lossless_decimation = 0;
 	strcpy(t->name, "trace_name");
 
 	return t;
