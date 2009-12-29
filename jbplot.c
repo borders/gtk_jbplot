@@ -1592,17 +1592,19 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		else if(c->line_type == LINETYPE_DOTTED) {
 			cairo_set_dash(cr, dot_pattern, 2, 0);
 		}
+		float x_px = x_m * c->x + x_b;	
+		float y_px = y_m * c->y + y_b;	
 		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
-			if(c->x >= p->x_axis.min_val && c->x <= p->x_axis.max_val) {
-				cairo_move_to(cr, x_m * c->x + x_b, p->plot_area.top_edge);
-				cairo_line_to(cr, x_m * c->x + x_b, p->plot_area.bottom_edge);
+			if(x_px >= p->plot_area.left_edge && x_px <= p->plot_area.right_edge) {
+				cairo_move_to(cr, x_px, p->plot_area.top_edge);
+				cairo_line_to(cr, x_px, p->plot_area.bottom_edge);
 				cairo_stroke(cr);
 			}
 		}
 		if(c->type == CURSOR_HORIZ || c->type == CURSOR_CROSS) {
-			if(c->y >= p->y_axis.min_val && c->y <= p->y_axis.max_val) {
-				cairo_move_to(cr, p->plot_area.left_edge, y_m * c->y + y_b);
-				cairo_line_to(cr, p->plot_area.right_edge, y_m * c->y + y_b);
+			if(y_px >= p->plot_area.top_edge && y_px <= p->plot_area.bottom_edge) {
+				cairo_move_to(cr, p->plot_area.left_edge, y_px);
+				cairo_line_to(cr, p->plot_area.right_edge, y_px);
 				cairo_stroke(cr);
 			}
 		}
