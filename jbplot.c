@@ -937,6 +937,10 @@ static int draw_legend(jbplot *plot) {
 		int i;
 		double w;
 		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
 			w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
 			if(w > max_width) {
 				max_width = w;
@@ -946,12 +950,17 @@ static int draw_legend(jbplot *plot) {
 		double x_start = border_margin + max_width + text_to_line_gap;
 		cairo_set_font_size(cr, p->legend.font_size);
 		double entry_spacing = 1.5 * get_text_height(cr, "Test", p->legend.font_size);
+		int j=0;
 		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
 			cairo_set_source_rgb (cr, 0., 0., 0.);
 			draw_horiz_text_at_point(	cr, 
 			                          p->traces[i]->name, 
 																border_margin, 
-																border_margin + entry_spacing*i, 
+																border_margin + entry_spacing*j, 
 																ANCHOR_TOP_LEFT
 															);
 			if(p->traces[i]->line_type != LINETYPE_NONE) {
@@ -961,7 +970,7 @@ static int draw_legend(jbplot *plot) {
 				                     p->traces[i]->line_color.blue
 				);
 				cairo_set_line_width(cr, p->traces[i]->line_width);
-				double h = border_margin + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+				double h = border_margin + entry_spacing * j + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
 				cairo_move_to(cr, x_start, h);
 				cairo_line_to(cr, x_start + line_length, h);
 				cairo_stroke(cr);
@@ -973,13 +982,14 @@ static int draw_legend(jbplot *plot) {
 				                     p->traces[i]->marker_color.blue
 				);
 				cairo_set_line_width(cr, p->traces[i]->line_width);
-				double h = border_margin + entry_spacing * i + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
+				double h = border_margin + entry_spacing * j + 0.5 * get_text_height(cr, p->traces[i]->name, p->legend.font_size);
 				cairo_move_to(cr, x_start + line_length/2., h);
 				draw_marker(cr, p->traces[i]->marker_type, p->traces[i]->marker_size);
 			}
+			j++;
 		}
 		l->size.width = x_start + line_length + border_margin;
-		l->size.height = border_margin + p->num_traces * entry_spacing + border_margin;
+		l->size.height = border_margin + j * entry_spacing + border_margin;
 		if(l->do_show_bounding_box) {
 			cairo_set_source_rgb(cr, l->border_color.red, l->border_color.green, l->border_color.blue);
 			cairo_set_line_width(cr, l->bounding_box_width);
@@ -999,6 +1009,10 @@ static int draw_legend(jbplot *plot) {
 		double total_width = 0.;
 		double w;
 		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
 			w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
 			total_width += w + text_to_line_gap + line_length + h_space;
 		}
@@ -1010,6 +1024,10 @@ static int draw_legend(jbplot *plot) {
 			double max_width = 10.;
 			double w;
 			for(i=0; i < p->num_traces; i++) {
+				/* skip traces with empty names */
+				if(strlen(p->traces[i]->name) == 0) {
+					continue;
+				}
 				w = get_text_width(cr, p->traces[i]->name, p->legend.font_size);
 				if(w > max_width) {
 					max_width = w;
@@ -1022,6 +1040,10 @@ static int draw_legend(jbplot *plot) {
 			double x = border_margin;
 			cairo_set_font_size(cr, p->legend.font_size);
 			for(i=0; i < p->num_traces; i++) {
+				/* skip traces with empty names */
+				if(strlen(p->traces[i]->name) == 0) {
+					continue;
+				}
 				cairo_set_source_rgb (cr, 0., 0., 0.);
 				draw_horiz_text_at_point(	cr, 
 																	p->traces[i]->name, 
@@ -1383,6 +1405,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	// now draw the trace lines (if requested)
 	for(i = 0; i < p->num_traces; i++) {
 		char first_pt = 1;
+		char last_was_NAN = 0;
 		trace_t *t = p->traces[i];
 		if(t->line_type == LINETYPE_NONE) {
 			continue;
@@ -1442,15 +1465,25 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 				if(n >= t->capacity) {
 					n -= t->capacity;
 				}
+				if(isnan(t->y_data[n])) {
+					last_was_NAN = 1;
+					continue;
+				}
 				float x_px = x_m * t->x_data[n] + x_b;
 				float y_px = y_m * t->y_data[n] + y_b;
 				if(first_pt) {
 					cairo_move_to(cr,	x_px,	y_px);
 					first_pt = 0;
 				}
+#if 0
+				else if(last_was_NAN) {
+					cairo_move_to(cr,	x_px,	y_px);
+				}
+#endif
 				else {
 					cairo_line_to(cr,	x_px,	y_px);
 				}
+				last_was_NAN = 0;
 			}
 		}
 		cairo_stroke(cr);
