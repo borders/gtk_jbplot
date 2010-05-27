@@ -304,6 +304,8 @@ int main (int argc, char **argv) {
 
 	gtk_widget_show_all (window);
 
+	gtk_notebook_set_current_page((GtkNotebook *)plot_notebook, 2);
+
 	g_timeout_add(40, update_data, NULL);
 
 	jbplot_set_plot_title((jbplot *)pos_plot, "Position Plot", 1);
@@ -372,7 +374,7 @@ int main (int argc, char **argv) {
 		}
 		color = rgb_scale(i/(num_balls-1.) , 0.0);
 		jbplot_trace_set_line_props(avg_vel_traces[i], LINETYPE_SOLID, 1.0, &color);
-		sprintf(trace_name, "ball_%d", i);
+		sprintf(trace_name, "ball_%d", i+1);
 		jbplot_trace_set_name(avg_vel_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)avg_vel_plot, avg_vel_traces[i]);
 	}
