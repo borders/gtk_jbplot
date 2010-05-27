@@ -21,8 +21,10 @@ static double t = 0.0;
 static double h = 1e-3;
 static trace_handle *pos_traces;
 static trace_handle *vel_traces;
+static trace_handle *avg_vel_traces;
 GtkWidget *pos_plot;
 GtkWidget *vel_plot;
+GtkWidget *avg_vel_plot;
 GtkWidget *canvas;
 GtkWidget *dt_scale;
 static int run = 1;
@@ -136,10 +138,22 @@ gboolean update_data(gpointer data) {
 		jbplot_trace_add_point(vel_traces[i], t, VEL(x,i)); 
 	}
 
+	for(i=0; i<num_balls; i++) {
+		int j;
+		float sum=0.0;
+		float avg;
+		for(j=0; j<num_masses_per_ball; j++) {
+			sum += VEL(x, i*num_masses_per_ball + j);
+		}
+		avg = sum / num_masses_per_ball;
+		jbplot_trace_add_point(avg_vel_traces[i], t, avg); 
+	}
+
 	}
 
 	jbplot_refresh(JBPLOT(pos_plot));
 	jbplot_refresh(JBPLOT(vel_plot));
+	jbplot_refresh(JBPLOT(avg_vel_plot));
 	gtk_widget_queue_draw(canvas);	
 	return TRUE;
 }
@@ -226,6 +240,7 @@ int main (int argc, char **argv) {
 	n = num_balls * num_masses_per_ball;
 	pos_traces = malloc(sizeof(trace_handle)*num_balls*num_masses_per_ball);
 	vel_traces = malloc(sizeof(trace_handle)*num_balls*num_masses_per_ball);
+	avg_vel_traces = malloc(sizeof(trace_handle)*num_balls);
 	x = malloc(sizeof(double)*2*num_masses_per_ball*num_balls);
 	k = malloc(sizeof(double)*2*num_masses_per_ball*num_balls);
 
@@ -252,16 +267,22 @@ int main (int argc, char **argv) {
 	plot_notebook = gtk_notebook_new();
 	GtkWidget *tab1_label = gtk_label_new("Position");
 	GtkWidget *tab2_label = gtk_label_new("Velocity");
+	GtkWidget *tab3_label = gtk_label_new("Avg. Vel.");
 	
 	pos_plot = jbplot_new ();
-	gtk_widget_set_size_request(pos_plot, 700, 400);
+	gtk_widget_set_size_request(pos_plot, 500, 300);
 	jbplot_set_antialias((jbplot *)pos_plot, 0);
 	gtk_notebook_append_page(GTK_NOTEBOOK(plot_notebook),pos_plot, tab1_label);
 
 	vel_plot = jbplot_new ();
-	gtk_widget_set_size_request(vel_plot, 700, 400);
+	gtk_widget_set_size_request(vel_plot, 500, 300);
 	jbplot_set_antialias((jbplot *)vel_plot, 0);
 	gtk_notebook_append_page(GTK_NOTEBOOK(plot_notebook),vel_plot, tab2_label);
+
+	avg_vel_plot = jbplot_new ();
+	gtk_widget_set_size_request(avg_vel_plot, 500, 300);
+	jbplot_set_antialias((jbplot *)avg_vel_plot, 0);
+	gtk_notebook_append_page(GTK_NOTEBOOK(plot_notebook),avg_vel_plot, tab3_label);
 
 	gtk_box_pack_start (GTK_BOX(v_box), plot_notebook, TRUE, TRUE, 0);
 
@@ -274,7 +295,7 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), dt_scale, FALSE, FALSE, 0);
 
 	canvas = gtk_drawing_area_new();
-	gtk_widget_set_size_request(canvas, 700,400);
+	gtk_widget_set_size_request(canvas, 500,200);
 	gtk_box_pack_start (GTK_BOX(v_box), canvas, TRUE, TRUE, 0);
 	g_signal_connect(canvas, "expose_event", G_CALLBACK(draw_balls), NULL);
 
@@ -308,6 +329,17 @@ int main (int argc, char **argv) {
 	jbplot_set_y_axis_gridline_props((jbplot *)vel_plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_legend_props((jbplot *)vel_plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
 
+	jbplot_set_plot_title((jbplot *)avg_vel_plot, "Average Velocity Plot", 1);
+	jbplot_set_plot_title_visible((jbplot *)avg_vel_plot, 1);
+	jbplot_set_x_axis_label((jbplot *)avg_vel_plot, "Time (sec)", 1);
+	jbplot_set_x_axis_label_visible((jbplot *)avg_vel_plot, 1);
+	jbplot_set_y_axis_label((jbplot *)avg_vel_plot, "Amplitude", 1);
+	jbplot_set_y_axis_label_visible((jbplot *)avg_vel_plot, 1);
+
+	jbplot_set_x_axis_gridline_props((jbplot *)avg_vel_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)avg_vel_plot, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_legend_props((jbplot *)avg_vel_plot, 1, NULL, NULL, LEGEND_POS_RIGHT);
+
 	rgb_color_t color;
 	for(i=0; i<n; i++) {
 		char trace_name[100];
@@ -329,6 +361,20 @@ int main (int argc, char **argv) {
 		jbplot_trace_set_line_props(pos_traces[i], LINETYPE_SOLID, 1.0, &color);
 		jbplot_trace_set_name(pos_traces[i], trace_name);
 		jbplot_add_trace((jbplot *)pos_plot, pos_traces[i]);
+	}
+
+	for(i=0; i<num_balls; i++) {
+		char trace_name[100];
+		avg_vel_traces[i] = jbplot_create_trace(2000);
+		if(avg_vel_traces[i] == NULL) {
+			printf("error creating trace!\n");
+			return 0;
+		}
+		color = rgb_scale(i/(num_balls-1.) , 0.0);
+		jbplot_trace_set_line_props(avg_vel_traces[i], LINETYPE_SOLID, 1.0, &color);
+		sprintf(trace_name, "ball_%d", i);
+		jbplot_trace_set_name(avg_vel_traces[i], trace_name);
+		jbplot_add_trace((jbplot *)avg_vel_plot, avg_vel_traces[i]);
 	}
 
 
