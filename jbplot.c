@@ -1996,6 +1996,18 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
 
 /******************** Public Functions *******************************/
 
+int jbplot_set_x_axis_format(jbplot *plot, char *str) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+  strcpy(priv->plot.x_axis.tic_label_format_string, str);
+	return 0;
+}
+
+int jbplot_set_y_axis_format(jbplot *plot, char *str) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+  strcpy(priv->plot.y_axis.tic_label_format_string, str);
+	return 0;
+}
+
 int jbplot_set_cursor_pos(jbplot *plot, float x, float y) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.cursor.x = x;
