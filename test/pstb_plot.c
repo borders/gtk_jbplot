@@ -52,18 +52,30 @@ gboolean update_data(gpointer data) {
 				cmd = strtok(strip_leading_ws(line), " \t"); 
 				printf("Got command: %s\n", cmd);
 				if(!strcmp(cmd,"xlabel")) {
-					//printf("xlabel handler\n");
 					jbplot_set_x_axis_label((jbplot *)plot, cmd+7, 1);
 				}
 				else if(!strcmp(cmd,"ylabel")) {
-					//printf("ylabel handler\n");
 					jbplot_set_y_axis_label((jbplot *)plot, cmd+7, 1);
 				}
 				else if(!strcmp(cmd,"title")) {
-					//printf("title handler\n");
 					jbplot_set_plot_title((jbplot *)plot, cmd+6, 1);
 				}
-				
+				else if(!strcmp(cmd,"xformat")) {
+					char *c = strtok(NULL, " \t");
+					if(c != NULL) {
+						printf("setting x format string to '%s'\n", c);
+						jbplot_set_x_axis_format((jbplot *)plot, c);
+						got_one = 1;
+					}
+				}
+				else if(!strcmp(cmd,"yformat")) {
+					char *c = strtok(NULL, " \t");
+					if(c != NULL) {
+						printf("setting y format string to '%s'\n", c);
+						jbplot_set_y_axis_format((jbplot *)plot, c);
+						got_one = 1;
+					}
+				}
 			}
 			else {
 				if(sscanf(line, "%lf %lf", &x, &y) != 2) {
@@ -138,6 +150,7 @@ int main (int argc, char **argv) {
 	jbplot_set_y_axis_label((jbplot *)plot, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)plot, 1);
 
+	jbplot_set_x_axis_format((jbplot *)plot, "%.0f");
 
 	jbplot_set_legend_props((jbplot *)plot, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
 	//jbplot_set_legend_props((jbplot *)plot, 1.0, NULL, NULL, LEGEND_POS_TOP);
