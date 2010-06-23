@@ -147,7 +147,7 @@ int main (int argc, char **argv) {
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 
-	t1 = jbplot_create_trace(2000);
+	t1 = jbplot_create_trace(20000);
 	if(t1==NULL) {
 		printf("error creating trace!\n");
 		return 0;
