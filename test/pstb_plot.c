@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <string.h>
 
 #include "../jbplot.h"
 
@@ -18,13 +19,23 @@ static int run = 1;
 #define LINE_SIZE 1000
 static char line[LINE_SIZE];
 static char line_index = 0;
+static int line_count = 0;
+
+char *strip_leading_ws(char *s) {
+	int i=0;
+	while(isspace(s[i])) {
+		i++;
+	}
+	return s+i;
+}
 
 gboolean update_data(gpointer data) {
 	int i;
-  int ret;
+	int ret;
 	double x, y;
 	char c;
 	int got_one = 0;
+	int is_cmd = 0;
 	if(!run) {
 		return TRUE;
 	}
@@ -33,15 +44,40 @@ gboolean update_data(gpointer data) {
 		//printf("got char: %c\n", c);
 		if(c == '\n') {
 			line[line_index] = '\0';
+			line_count++;
 			line_index = 0;
 			//printf("got line: %s\n", line);
-			if(sscanf(line, "%lf %lf", &x, &y) != 2) {
-				printf("error parsing x y\n");
-				exit(1);
+			if(is_cmd) {
+				char *cmd;
+				cmd = strtok(strip_leading_ws(line), " \t"); 
+				printf("Got command: %s\n", cmd);
+				if(!strcmp(cmd,"xlabel")) {
+					//printf("xlabel handler\n");
+					jbplot_set_x_axis_label((jbplot *)plot, cmd+7, 1);
+				}
+				else if(!strcmp(cmd,"ylabel")) {
+					//printf("ylabel handler\n");
+					jbplot_set_y_axis_label((jbplot *)plot, cmd+7, 1);
+				}
+				else if(!strcmp(cmd,"title")) {
+					//printf("title handler\n");
+					jbplot_set_plot_title((jbplot *)plot, cmd+6, 1);
+				}
+				
 			}
-			got_one = 1;
-			jbplot_trace_add_point(t1, x, y); 
+			else {
+				if(sscanf(line, "%lf %lf", &x, &y) != 2) {
+					printf("error parsing x y on line %d\n", line_count);
+				}
+				else {
+					got_one = 1;
+					jbplot_trace_add_point(t1, x, y); 
+				}
 			}
+		}
+		else if(line_index==0 && c == '#') {
+			is_cmd = 1;
+		}
 		else {
 			line[line_index++] = c;
 		}
