@@ -12,9 +12,14 @@
 
 #include "../jbplot.h"
 
+
+#define MAX_PLOTS 10
+
 static int t = 0;
 static trace_handle t1;
-GtkWidget *plot;
+static GtkWidget *v_box;
+static GtkWidget *plots[MAX_PLOTS];
+static int plot_count = 0;
 static int run = 1;
 #define LINE_SIZE 1000
 static char line[LINE_SIZE];
@@ -40,6 +45,7 @@ gboolean update_data(gpointer data) {
 		return TRUE;
 	}
 
+	GtkWidget *plot = plots[plot_count-1];
 	while((ret = read(0, &c, 1)) > 0) {
 		//printf("got char: %c\n", c);
 		if(c == '\n') {
@@ -101,20 +107,36 @@ gboolean update_data(gpointer data) {
 	return TRUE;
 }
 
-void button_activate(GtkButton *b, gpointer data) {
-	run = !run;
-	if(run) {
-		gtk_button_set_label(b, "Pause");
+static int add_plot() {
+	if(plot_count >= MAX_PLOTS) {
+		return -1;
 	}
-	else {
-		gtk_button_set_label(b, "Resume");
-	}
-	return;
+	GtkWidget *p = jbplot_new ();
+	gtk_widget_set_size_request(p, 300, 300);
+	gtk_box_pack_start (GTK_BOX(v_box), p, TRUE, TRUE, 0);
+
+	jbplot_set_plot_title((jbplot *)p, "PSTB plot", 1);
+	jbplot_set_plot_title_visible((jbplot *)p, 1);
+	jbplot_set_x_axis_label((jbplot *)p, "Time (sec)", 1);
+	jbplot_set_x_axis_label_visible((jbplot *)p, 1);
+	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
+	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
+
+	jbplot_set_x_axis_format((jbplot *)p, "%.0f");
+
+	jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
+	jbplot_legend_refresh((jbplot *)p);
+
+	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
+	jbplot_set_x_axis_gridline_props((jbplot *)p, LINETYPE_DASHED, 1.0, &gridline_color);
+	jbplot_set_y_axis_gridline_props((jbplot *)p, LINETYPE_DASHED, 1.0, &gridline_color);
+
+	plots[plot_count++] = p;
+	return 0;
 }
 
 int main (int argc, char **argv) {
 	GtkWidget *window;
-	GtkWidget *v_box;
 	GtkWidget *button;
 
 	gtk_init (&argc, &argv);
@@ -128,20 +150,13 @@ int main (int argc, char **argv) {
 
 	v_box = gtk_vbox_new(FALSE, 10);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
+
+
 	
+#if 0
 	plot = jbplot_new ();
 	gtk_widget_set_size_request(plot, 700, 700);
 	gtk_box_pack_start (GTK_BOX(v_box), plot, TRUE, TRUE, 0);
-
-	button = gtk_button_new_with_label("Pause");
-	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
-	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
-
-	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
-
-	gtk_widget_show_all (window);
-
-	g_timeout_add(50, update_data, t1);
 
 	jbplot_set_plot_title((jbplot *)plot, "PSTB plot", 1);
 	jbplot_set_plot_title_visible((jbplot *)plot, 1);
@@ -159,6 +174,17 @@ int main (int argc, char **argv) {
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
 	jbplot_set_x_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
 	jbplot_set_y_axis_gridline_props((jbplot *)plot, LINETYPE_DASHED, 1.0, &gridline_color);
+#else
+
+add_plot();
+
+#endif
+
+	gtk_widget_show_all (window);
+
+	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+
+	g_timeout_add(50, update_data, t1);
 
 	t1 = jbplot_create_trace(20000);
 	if(t1==NULL) {
@@ -170,7 +196,7 @@ int main (int argc, char **argv) {
 	color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
 	color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
 	jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
-	jbplot_add_trace((jbplot *)plot, t1);
+	jbplot_add_trace((jbplot *)plots[plot_count-1], t1);
 
 	gtk_main ();
 
