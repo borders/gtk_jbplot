@@ -98,6 +98,16 @@ gboolean update_data(gpointer data) {
 				char *cmd;
 				cmd = strtok(strip_leading_ws(line), " \t"); 
 				printf("Got command: %s\n", cmd);
+				if(!strcmp(cmd,"tracename")) {
+					char *c;
+					int i;
+					if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || (c = strtok(NULL, "")) == NULL) {
+						printf("tracename usage: #tracename <trace_index> <trace_name>\n");
+						continue;
+					}
+					jbplot_trace_set_name(charts[chart_count-1].traces[i], c);
+					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
+				}
 				if(!strcmp(cmd,"newplot")) {
 					add_plot();
 				}
