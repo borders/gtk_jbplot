@@ -248,6 +248,7 @@ static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis autoscale state\n");
 	priv->plot.x_axis.do_autoscale = !(priv->plot.x_axis.do_autoscale);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
@@ -256,6 +257,7 @@ static gboolean popup_callback_x_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling x-axis loose fit state\n");
 	priv->plot.x_axis.do_loose_fit = !(priv->plot.x_axis.do_loose_fit);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
@@ -264,6 +266,7 @@ static gboolean popup_callback_y_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis autoscale state\n");
 	priv->plot.y_axis.do_autoscale = !(priv->plot.y_axis.do_autoscale);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
@@ -272,6 +275,7 @@ static gboolean popup_callback_y_loose_fit(GtkWidget *w, GdkEvent *e, gpointer d
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	printf("Toggling y-axis loose fit state\n");
 	priv->plot.y_axis.do_loose_fit = !(priv->plot.y_axis.do_loose_fit);
+	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
 	return FALSE;
 }
