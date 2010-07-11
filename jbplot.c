@@ -964,6 +964,17 @@ static int draw_legend(jbplot *plot) {
 																ANCHOR_TOP_LEFT
 															);
 			if(p->traces[i]->line_type != LINETYPE_NONE) {
+
+				if(p->traces[i]->line_type == LINETYPE_SOLID) {
+					cairo_set_dash(cr, dash_pattern, 0, 0);
+				}	
+				else if(p->traces[i]->line_type == LINETYPE_DASHED) {
+					cairo_set_dash(cr, dash_pattern, 2, 0);
+				}	
+				else if(p->traces[i]->line_type == LINETYPE_DOTTED) {
+					cairo_set_dash(cr, dot_pattern, 2, 0);
+				}	
+
 				cairo_set_source_rgb(cr, 
 				                     p->traces[i]->line_color.red,
 				                     p->traces[i]->line_color.green,
@@ -991,6 +1002,7 @@ static int draw_legend(jbplot *plot) {
 		l->size.width = x_start + line_length + border_margin;
 		l->size.height = border_margin + j * entry_spacing + border_margin;
 		if(l->do_show_bounding_box) {
+			cairo_set_dash(cr, dash_pattern, 0, 0);
 			cairo_set_source_rgb(cr, l->border_color.red, l->border_color.green, l->border_color.blue);
 			cairo_set_line_width(cr, l->bounding_box_width);
 			cairo_move_to(cr, 0, 0);
