@@ -32,6 +32,7 @@ static int run = 1;
 static char line[LINE_SIZE];
 static char line_index = 0;
 static int line_count = 0;
+static int is_cmd = 0;
 
 char *strip_leading_ws(char *s) {
 	int i=0;
@@ -78,10 +79,9 @@ static int add_plot() {
 gboolean update_data(gpointer data) {
 	int i;
 	int ret;
-	double x, y;
 	char c;
 	int got_one = 0;
-	int is_cmd = 0;
+	//printf("** start update_data()\n");
 	if(!run) {
 		return TRUE;
 	}
@@ -91,16 +91,21 @@ gboolean update_data(gpointer data) {
 		//printf("got char: %c\n", c);
 		if(c == '\n') {
 			line[line_index] = '\0';
+			//printf("got line: '%s'\n", line);
 			line_count++;
 			line_index = 0;
-			//printf("got line: %s\n", line);
 			if(is_cmd) {
+				is_cmd = 0;
 				char *cmd;
 				cmd = strtok(strip_leading_ws(line), " \t"); 
 				printf("Got command: %s\n", cmd);
 				if(!strcmp(cmd,"tracename")) {
 					char *c;
 					int i;
+					if(charts[chart_count-1].num_points < 1) {
+						printf("tracename must be run after at least one data record\n");
+						continue;
+					}
 					if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || (c = strtok(NULL, "")) == NULL) {
 						printf("tracename usage: #tracename <trace_index> <trace_name>\n");
 						continue;
@@ -204,7 +209,7 @@ gboolean update_data(gpointer data) {
 
 			}
 		}
-		else if(line_index==0 && c == '#') {
+		else if(line_index==0 && c=='#') {
 			is_cmd = 1;
 		}
 		else {
@@ -215,6 +220,7 @@ gboolean update_data(gpointer data) {
 	if(got_one) {
 		jbplot_refresh((jbplot *)plot);
 	}
+	//printf("** end update_data()\n");
 	return TRUE;
 }
 
@@ -231,7 +237,7 @@ int main (int argc, char **argv) {
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
-	v_box = gtk_vbox_new(FALSE, 10);
+	v_box = gtk_vbox_new(FALSE, 1);
 	gtk_container_add (GTK_CONTAINER (window), v_box);
 
 
