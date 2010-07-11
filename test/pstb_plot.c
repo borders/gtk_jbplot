@@ -44,6 +44,7 @@ struct chart {
 static int t = 0;
 static trace_handle t1;
 static GtkWidget *v_box;
+static GtkWidget *plot_scroll_win;
 static struct chart charts[MAX_CHARTS];
 static int chart_count = 0;
 static int run = 1;
@@ -292,9 +293,20 @@ int main (int argc, char **argv) {
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
-	v_box = gtk_vbox_new(FALSE, 1);
-	gtk_container_add (GTK_CONTAINER (window), v_box);
+	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
+	gtk_widget_set_size_request(plot_scroll_win, 700, 600);
+	gtk_scrolled_window_set_policy(
+		GTK_SCROLLED_WINDOW(plot_scroll_win),
+		GTK_POLICY_NEVER,
+		GTK_POLICY_AUTOMATIC
+	);
+	gtk_container_add (GTK_CONTAINER (window), plot_scroll_win);
 
+	v_box = gtk_vbox_new(FALSE, 1);
+	gtk_scrolled_window_add_with_viewport(
+		GTK_SCROLLED_WINDOW(plot_scroll_win),
+		v_box
+	);
 
 	add_plot();
 
