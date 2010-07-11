@@ -15,6 +15,25 @@
 #define MAX_CHARTS 10
 #define MAX_TRACES 10
 
+
+rgb_color_t colors[] = {
+	{0.0, 0.0, 0.0},
+	{1.0, 0.0, 0.0},
+	{1.0, 1.0, 0.0},
+	{0.0, 1.0, 0.0},
+	{0.0, 1.0, 1.0},
+	{0.0, 0.0, 1.0},
+	{1.0, 0.0, 1.0}
+};
+#define NUM_COLORS 7
+
+line_type_t ltypes[] = {
+	LINETYPE_SOLID,
+	LINETYPE_DASHED,
+	LINETYPE_DOTTED
+};
+#define NUM_LTYPES 3
+
 struct chart {
 	GtkWidget *plot;
 	int num_points;
@@ -34,6 +53,36 @@ static char line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
 
+
+gint zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax) {
+	int i;
+	printf("Zoomed In!\n");
+	printf("x-range: (%g, %g)\n", xmin, xmax);
+	printf("y-range: (%g, %g)\n", ymin, ymax);
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(p != plot) {
+			jbplot_set_x_axis_range(p, xmin, xmax);
+		}
+	}
+	return 0;
+}
+
+
+gint zoom_all_cb(jbplot *plot) {
+	int i;
+	printf("Zoom All!\n");
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(p != plot) {
+			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_LOOSE);
+			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_LOOSE);
+		}
+	}
+	return 0;
+}
+
+
 char *strip_leading_ws(char *s) {
 	int i=0;
 	while(isspace(s[i])) {
@@ -48,17 +97,20 @@ static int add_plot() {
 		return -1;
 	}
 	GtkWidget *p = jbplot_new ();
-	gtk_widget_set_size_request(p, 300, 300);
+	gtk_widget_set_size_request(p, 300, 200);
 	gtk_box_pack_start (GTK_BOX(v_box), p, TRUE, TRUE, 0);
 
-	jbplot_set_plot_title((jbplot *)p, "PSTB plot", 1);
-	jbplot_set_plot_title_visible((jbplot *)p, 1);
+	g_signal_connect(p, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
+	g_signal_connect(p, "zoom-all", G_CALLBACK (zoom_all_cb), NULL);
+
+	//jbplot_set_plot_title((jbplot *)p, "PSTB plot", 1);
+	jbplot_set_plot_title_visible((jbplot *)p, 0);
 	jbplot_set_x_axis_label((jbplot *)p, "Time (sec)", 1);
 	jbplot_set_x_axis_label_visible((jbplot *)p, 1);
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
-	jbplot_set_x_axis_format((jbplot *)p, "%.0f");
+	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
 	jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
 	jbplot_legend_refresh((jbplot *)p);
@@ -173,10 +225,10 @@ gboolean update_data(gpointer data) {
 							return 0;
 						}
 						rgb_color_t color = {0.0, 1.0, 0.0};
-						jbplot_trace_set_line_props(t1, LINETYPE_SOLID, 1.0, &color);
+						jbplot_trace_set_line_props(t1, ltypes[i%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
 						color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
 						color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
-						jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+						//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
 						charts[chart_count-1].traces[i] = t1;
 						jbplot_add_trace((jbplot *)charts[chart_count-1].plot, t1);
 					}
