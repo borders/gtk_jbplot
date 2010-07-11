@@ -1713,7 +1713,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			int i, j;
 			int closest_point_index = 0;
 			int closest_trace_index = 0;
-			double min_dist = FLT_MAX;
+			double min_dist = DBL_MAX;
 			is_in_plot_area = TRUE;
 			for(j=0; j < p->num_traces; j++) {
 				for(i=0; i<(p->traces[0])->length; i++) {
@@ -1975,7 +1975,7 @@ static double round_down_to_nearest(double num, double nearest) {
 static data_range get_y_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  double min = FLT_MAX, max = FLT_MIN;
+  double min = DBL_MAX, max = DBL_MIN;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
@@ -1995,7 +1995,7 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
 static data_range get_x_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  double min = FLT_MAX, max = FLT_MIN;
+  double min = DBL_MAX, max = DBL_MIN;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
