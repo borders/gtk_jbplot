@@ -76,8 +76,8 @@ gint zoom_all_cb(jbplot *plot) {
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
-			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_LOOSE);
-			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_LOOSE);
+			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_TIGHT);
+			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT);
 		}
 	}
 	return 0;
