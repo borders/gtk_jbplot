@@ -98,7 +98,7 @@ static int add_plot() {
 		return -1;
 	}
 	GtkWidget *p = jbplot_new ();
-	gtk_widget_set_size_request(p, 700, 150);
+	gtk_widget_set_size_request(p, 700, 125);
 	gtk_box_pack_start (GTK_BOX(v_box), p, TRUE, TRUE, 0);
 
 	g_signal_connect(p, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
@@ -172,6 +172,7 @@ gboolean update_data(gpointer data) {
 					}
 				}
 				if(!strcmp(cmd,"xlabel")) {
+					//printf("setting xlabel to '%s'\n", cmd+7);
 					jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, cmd+7, 1);
 				}
 				else if(!strcmp(cmd,"ylabel")) {
