@@ -36,8 +36,8 @@ double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
 
 typedef struct box_size_t {
-  float width;
-  float height;
+  double width;
+  double height;
 } box_size_t;
 
 
@@ -52,15 +52,15 @@ typedef struct axis_t {
   char do_autoscale;
   char do_loose_fit;
   char do_show_major_gridlines;
-  float major_gridline_width;
+  double major_gridline_width;
 	rgb_color_t major_gridline_color;
 	int major_gridline_type;
   char do_show_minor_gridlines;
-  float major_tic_values[MAX_NUM_MAJOR_TICS];
+  double major_tic_values[MAX_NUM_MAJOR_TICS];
   char *major_tic_labels[MAX_NUM_MAJOR_TICS];
   char is_tic_label_owner;
-  float min_val;
-  float max_val;
+  double min_val;
+  double max_val;
   char tic_label_format_string[100];
   double tic_label_font_size;
   int num_actual_major_tics;
@@ -69,24 +69,24 @@ typedef struct axis_t {
 } axis_t;
 
 typedef struct data_range {
-  float min;
-  float max;
+  double min;
+  double max;
 } data_range;
 
 typedef struct plot_area_t {
   char do_show_bounding_box;
-  float bounding_box_width;
-	float left_edge;
-	float right_edge;
-	float top_edge;
-	float bottom_edge;
+  double bounding_box_width;
+	double left_edge;
+	double right_edge;
+	double top_edge;
+	double bottom_edge;
 	rgb_color_t bg_color;
 	rgb_color_t border_color;
 } plot_area_t;
 
 typedef struct legend_t {
   char do_show_bounding_box;
-  float bounding_box_width;
+  double bounding_box_width;
 	rgb_color_t bg_color;
 	rgb_color_t border_color;
 	legend_pos_t position;
@@ -97,19 +97,19 @@ typedef struct legend_t {
 
 #define MAX_TRACE_NAME_LENGTH 255
 typedef struct trace_t {
-  float *x_data;
-  float *y_data;
+  double *x_data;
+  double *y_data;
   int capacity;
   int length;
   int start_index;
   int end_index;
   int is_data_owner;
-	float line_width;
+	double line_width;
 	int line_type;
 	rgb_color_t line_color;
 	rgb_color_t marker_color;
 	int marker_type;
-	float marker_size;
+	double marker_size;
 	char name[MAX_TRACE_NAME_LENGTH + 1];
 	int decimate_divisor;
 	int lossless_decimation;
@@ -118,10 +118,10 @@ typedef struct trace_t {
 typedef struct cursor_t {
 	int type;
 	rgb_color_t color;
-	float line_width;
+	double line_width;
 	int line_type;
-	float x;
-	float y;
+	double x;
+	double y;
 } cursor_t;
 
 typedef struct plot_t {
@@ -149,7 +149,7 @@ static double get_text_width(cairo_t *cr, char *text, double font_size);
 static int set_major_tic_values(axis_t *a, double min, double max);
 static int set_major_tic_labels(axis_t *a);
 static double get_widest_label_width(axis_t *a, cairo_t *cr);
-static void get_float_parts(double f, double *mantissa, int *exponent);
+static void get_double_parts(double f, double *mantissa, int *exponent);
 static double round_to_nearest(double num, double nearest);
 static double round_up_to_nearest(double num, double nearest);
 static double round_down_to_nearest(double num, double nearest);
@@ -558,7 +558,7 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 }
 
 
-static void zoom_in (jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax) {
+static void zoom_in (jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	printf("got zoom_in event\n");
 	printf("xmin = %g, xmax = %g\n", xmin, xmax);
@@ -592,10 +592,10 @@ static void jbplot_class_init (jbplotClass *class) {
 		G_SIGNAL_RUN_FIRST,
 		G_STRUCT_OFFSET(jbplotClass, zoom_in),
 		NULL, NULL,
-		_plot_marshal_VOID__FLOAT_FLOAT_FLOAT_FLOAT,
+		_plot_marshal_VOID__DOUBLE_DOUBLE_DOUBLE_DOUBLE,
 		G_TYPE_NONE, 4,
-		G_TYPE_FLOAT, G_TYPE_FLOAT,
-		G_TYPE_FLOAT, G_TYPE_FLOAT);
+		G_TYPE_DOUBLE, G_TYPE_DOUBLE,
+		G_TYPE_DOUBLE, G_TYPE_DOUBLE);
 
 	jbplot_signals[ZOOM_ALL] = g_signal_new (
 		"zoom-all",
@@ -858,7 +858,7 @@ static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, an
 }
 
 
-void draw_marker(cairo_t *cr, int type, float size) {
+void draw_marker(cairo_t *cr, int type, double size) {
 	double x, y;
 	cairo_get_current_point(cr, &x, &y);
 	if(type == MARKER_POINT) {
@@ -1438,13 +1438,13 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		if(t->lossless_decimation) {
 			for(j = 0; j < t->length; j += dd) {
 				int last_x_px, last_y_px;
-				float min_y, max_y;
+				double min_y, max_y;
 				int n = t->start_index + j;
 				if(n >= t->capacity) {
 					n -= t->capacity;
 				}
-				float x_px = x_m * t->x_data[n] + x_b;
-				float y_px = y_m * t->y_data[n] + y_b;
+				double x_px = x_m * t->x_data[n] + x_b;
+				double y_px = y_m * t->y_data[n] + y_b;
 				if(first_pt) {
 					cairo_move_to(cr,	x_px,	y_px);
 					first_pt = 0;
@@ -1481,8 +1481,8 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 					last_was_NAN = 1;
 					continue;
 				}
-				float x_px = x_m * t->x_data[n] + x_b;
-				float y_px = y_m * t->y_data[n] + y_b;
+				double x_px = x_m * t->x_data[n] + x_b;
+				double y_px = y_m * t->y_data[n] + y_b;
 				if(first_pt) {
 					cairo_move_to(cr,	x_px,	y_px);
 					first_pt = 0;
@@ -1637,8 +1637,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		else if(c->line_type == LINETYPE_DOTTED) {
 			cairo_set_dash(cr, dot_pattern, 2, 0);
 		}
-		float x_px = x_m * c->x + x_b;	
-		float y_px = y_m * c->y + y_b;	
+		double x_px = x_m * c->x + x_b;	
+		double y_px = y_m * c->y + y_b;	
 		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
 			if(x_px >= p->plot_area.left_edge && x_px <= p->plot_area.right_edge) {
 				cairo_move_to(cr, x_px, p->plot_area.top_edge);
@@ -1707,7 +1707,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			int i, j;
 			int closest_point_index = 0;
 			int closest_trace_index = 0;
-			float min_dist = FLT_MAX;
+			double min_dist = FLT_MAX;
 			is_in_plot_area = TRUE;
 			for(j=0; j < p->num_traces; j++) {
 				for(i=0; i<(p->traces[0])->length; i++) {
@@ -1786,8 +1786,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			char x_str[100], y_str[100];
 			double x_w, x_h, y_w, y_h;
 			double box_w, box_h;
-			sprintf(x_str, "%g", ((float)x-x_b)/x_m);
-			sprintf(y_str, "%g", ((float)y-y_b)/y_m);
+			sprintf(x_str, "%g", ((double)x-x_b)/x_m);
+			sprintf(y_str, "%g", ((double)y-y_b)/y_m);
 			x_w = get_text_width(cr, x_str, 10);
 			y_w = get_text_width(cr, y_str, 10);
 			x_h = get_text_height(cr, x_str, 10);
@@ -1825,7 +1825,7 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 	double raw_tic_delta = raw_range / (a->num_request_major_tics - 1);
 	double mantissa;
 	int exponent;
-	get_float_parts(raw_tic_delta, &mantissa, &exponent);
+	get_double_parts(raw_tic_delta, &mantissa, &exponent);
 	double actual_tic_delta;
 
 	if(mantissa <= 1.0) {
@@ -1936,7 +1936,7 @@ static double get_widest_label_width(axis_t *a, cairo_t *cr) {
 }
       
 
-static void get_float_parts(double f, double *mantissa, int *exponent) {
+static void get_double_parts(double f, double *mantissa, int *exponent) {
   int neg = 0;
   if(f == 0.0) {  
     *mantissa = 0.0;
@@ -1969,7 +1969,7 @@ static double round_down_to_nearest(double num, double nearest) {
 static data_range get_y_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  float min = FLT_MAX, max = FLT_MIN;
+  double min = FLT_MAX, max = FLT_MIN;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
@@ -1989,7 +1989,7 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
 static data_range get_x_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  float min = FLT_MAX, max = FLT_MIN;
+  double min = FLT_MAX, max = FLT_MIN;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
@@ -2020,7 +2020,7 @@ int jbplot_set_y_axis_format(jbplot *plot, char *str) {
 	return 0;
 }
 
-int jbplot_set_cursor_pos(jbplot *plot, float x, float y) {
+int jbplot_set_cursor_pos(jbplot *plot, double x, double y) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.cursor.x = x;
 	priv->plot.cursor.y = y;
@@ -2032,7 +2032,7 @@ int jbplot_set_cursor_props(
 	jbplot *plot, 
 	cursor_type_t type, 
 	rgb_color_t color,
-	float line_width, 
+	double line_width, 
 	int line_type)
 {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
@@ -2119,7 +2119,7 @@ int jbplot_trace_set_decimation(trace_handle th, int divisor) {
 
 
 
-int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length) {
+int jbplot_trace_set_data(trace_handle th, double *x_start, double *y_start, int length) {
 	if(th->is_data_owner) {
 		free(th->x_data);
 		free(th->y_data);
@@ -2140,9 +2140,9 @@ int jbplot_trace_resize(trace_handle th, int new_size) {
 	}
 	else {
 		if(new_size >= th->capacity) {
-			float *px, *py;
-			px = realloc(th->x_data, new_size * sizeof(float));
-			py = realloc(th->y_data, new_size * sizeof(float));
+			double *px, *py;
+			px = realloc(th->x_data, new_size * sizeof(double));
+			py = realloc(th->y_data, new_size * sizeof(double));
 			if(px==NULL || py==NULL) {
 				return -1;
 			} 
@@ -2177,7 +2177,7 @@ int jbplot_legend_refresh(jbplot *plot) {
 }
 	
 
-int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position) {
+int jbplot_set_legend_props(jbplot *plot, double border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.legend.position = position;
 	if(position == LEGEND_POS_NONE) {
@@ -2227,7 +2227,7 @@ int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible) {
 	return 0;
 }
 
-int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color) {
+int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.major_gridline_width = width;	
 	if(color != NULL) {
@@ -2239,7 +2239,7 @@ int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width
 	return 0;
 }
 
-int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color) {
+int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.y_axis.major_gridline_width = width;	
 	if(color != NULL) {
@@ -2271,7 +2271,7 @@ int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color) {
 	return 0;
 }
 
-int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t *color) {
+int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.plot_area.bounding_box_width = width;
 	if(color != NULL) {
@@ -2288,7 +2288,7 @@ int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t *color) {
 	return 0;
 }
 
-int jbplot_set_plot_area_margins(jbplot *plot, float left, float right, float top, float bottom) {
+int jbplot_set_plot_area_margins(jbplot *plot, double left, double right, double top, double bottom) {
 	// TODO
 	return 0;
 }
@@ -2332,14 +2332,14 @@ int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 	return 0;
 }
 
-int jbplot_get_x_axis_range(jbplot *plot, float *min, float *max) {
+int jbplot_get_x_axis_range(jbplot *plot, double *min, double *max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	*min = priv->plot.x_axis.min_val;
 	*max = priv->plot.x_axis.max_val;
 	return 0;
 }
 
-int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
+int jbplot_set_x_axis_range(jbplot *plot, double min, double max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.x_axis.do_autoscale = 0;
 	priv->plot.x_axis.min_val = min;
@@ -2350,7 +2350,7 @@ int jbplot_set_x_axis_range(jbplot *plot, float min, float max) {
 	return 0;
 }
 	
-int jbplot_get_y_axis_range(jbplot *plot, float *min, float *max) {
+int jbplot_get_y_axis_range(jbplot *plot, double *min, double *max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	*min = priv->plot.y_axis.min_val;
 	*max = priv->plot.y_axis.max_val;
@@ -2358,7 +2358,7 @@ int jbplot_get_y_axis_range(jbplot *plot, float *min, float *max) {
 }
 
 
-int jbplot_set_y_axis_range(jbplot *plot, float min, float max) {
+int jbplot_set_y_axis_range(jbplot *plot, double min, double max) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->plot.y_axis.do_autoscale = 0;
 	priv->plot.y_axis.min_val = min;
@@ -2376,7 +2376,7 @@ void jbplot_refresh(jbplot *plot) {
 	return;
 }
 
-int jbplot_trace_set_line_props(trace_t *t, line_type_t type, float width, rgb_color_t *color) {
+int jbplot_trace_set_line_props(trace_t *t, line_type_t type, double width, rgb_color_t *color) {
 	t->line_type = type;
 	t->line_width = width;
 	if(color != NULL) {
@@ -2385,7 +2385,7 @@ int jbplot_trace_set_line_props(trace_t *t, line_type_t type, float width, rgb_c
 	return 0;
 }
 
-int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rgb_color_t *color) {
+int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, double size, rgb_color_t *color) {
 	t->marker_type = type;
 	t->marker_size = size;
 	if(color != NULL) {
@@ -2394,7 +2394,7 @@ int jbplot_trace_set_marker_props(trace_t *t, marker_type_t type, float size, rg
 	return 0;
 }
 
-trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, int capacity) {
+trace_t *jbplot_create_trace_with_external_data(double *x, double *y, int length, int capacity) {
 	trace_t *t;
 	t = malloc(sizeof(trace_t));
 	if(t==NULL) {
@@ -2414,7 +2414,7 @@ trace_t *jbplot_create_trace_with_external_data(float *x, float *y, int length, 
 	return t;
 }
 
-int jbplot_trace_add_point(trace_t *t, float x, float y) {
+int jbplot_trace_add_point(trace_t *t, double x, double y) {
 	if(!t->is_data_owner) {
 		return -1;
 	}
@@ -2451,12 +2451,12 @@ trace_t *jbplot_create_trace(int capacity) {
 		return NULL;
 	}	
 	if(capacity > 0) {
-		t->x_data = malloc(sizeof(float)*capacity);
+		t->x_data = malloc(sizeof(double)*capacity);
 		if(t->x_data==NULL) {
 			free(t);
 			return NULL;
 		}
-		t->y_data = malloc(sizeof(float)*capacity);
+		t->y_data = malloc(sizeof(double)*capacity);
 		if(t->y_data==NULL) {
 			free(t);
 			free(t->x_data);

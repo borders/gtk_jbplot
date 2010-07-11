@@ -54,11 +54,11 @@ static int line_count = 0;
 static int is_cmd = 0;
 
 
-gint zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax) {
+gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
 	int i;
 	printf("Zoomed In!\n");
-	printf("x-range: (%g, %g)\n", xmin, xmax);
-	printf("y-range: (%g, %g)\n", ymin, ymax);
+	printf("x-range: (%lg, %lg)\n", xmin, xmax);
+	printf("y-range: (%lg, %lg)\n", ymin, ymax);
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
@@ -97,7 +97,7 @@ static int add_plot() {
 		return -1;
 	}
 	GtkWidget *p = jbplot_new ();
-	gtk_widget_set_size_request(p, 300, 200);
+	gtk_widget_set_size_request(p, 700, 150);
 	gtk_box_pack_start (GTK_BOX(v_box), p, TRUE, TRUE, 0);
 
 	g_signal_connect(p, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
@@ -166,7 +166,9 @@ gboolean update_data(gpointer data) {
 					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
 				}
 				if(!strcmp(cmd,"newplot")) {
-					add_plot();
+					if(charts[chart_count-1].num_points > 0) {
+						add_plot();
+					}
 				}
 				if(!strcmp(cmd,"xlabel")) {
 					jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, cmd+7, 1);
@@ -252,6 +254,7 @@ gboolean update_data(gpointer data) {
 					charts[chart_count-1].num_points++;
 					int i;
 					for(i=1; i<valid_fields; i++) {
+						//printf("adding point: (%lg, %lg)\n", data[0], data[i]); 
 						jbplot_trace_add_point(charts[chart_count-1].traces[i-1], data[0], data[i]); 
 					}
 				}

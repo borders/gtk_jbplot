@@ -20,9 +20,9 @@ G_BEGIN_DECLS
  * Type used to specify colors
  */
 typedef struct rgb_color_t {
-	float red;
-	float green;
-	float blue;
+	double red;
+	double green;
+	double blue;
 } rgb_color_t;
 
 
@@ -92,7 +92,7 @@ struct _jbplotClass
 {
 	GtkDrawingAreaClass parent_class;
 
-	void (* zoom_in) (jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax);
+	void (* zoom_in) (jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax);
 	void (* zoom_all) (jbplot *plot);
 };
 
@@ -112,10 +112,10 @@ int jbplot_set_bg_color(jbplot *plot, rgb_color_t *color);
 int jbplot_set_x_axis_format(jbplot *plot, char *str);
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
-int jbplot_set_x_axis_range(jbplot *plot, float min, float max);
-int jbplot_get_x_axis_range(jbplot *plot, float *min, float *max);
+int jbplot_set_x_axis_range(jbplot *plot, double min, double max);
+int jbplot_get_x_axis_range(jbplot *plot, double *min, double *max);
 int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode);
-int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color);
+int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color);
 int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 
 
@@ -123,18 +123,18 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 int jbplot_set_y_axis_format(jbplot *plot, char *str);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
-int jbplot_set_y_axis_range(jbplot *plot, float min, float max);
-int jbplot_get_y_axis_range(jbplot *plot, float *min, float *max);
+int jbplot_set_y_axis_range(jbplot *plot, double min, double max);
+int jbplot_get_y_axis_range(jbplot *plot, double *min, double *max);
 int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode);
-int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, float width, rgb_color_t *color);
+int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color);
 int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible);
 
 /* Plot-Area functions */
 int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color);
-int jbplot_set_plot_area_border(jbplot *plot, float width, rgb_color_t *color);
-int jbplot_set_plot_area_margins(jbplot *plot, float left, float right, float top, float bottom);
+int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color);
+int jbplot_set_plot_area_margins(jbplot *plot, double left, double right, double top, double bottom);
 
-int jbplot_set_legend_props(jbplot *plot, float border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position);
+int jbplot_set_legend_props(jbplot *plot, double border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position);
 int jbplot_legend_refresh(jbplot *plot);
 
 /* Trace-related functions */
@@ -143,23 +143,23 @@ int jbplot_add_trace(jbplot *plot, trace_handle th);
 int jbplot_remove_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
-int jbplot_trace_set_data(trace_handle th, float *x_start, float *y_start, int length);
+int jbplot_trace_set_data(trace_handle th, double *x_start, double *y_start, int length);
 int jbplot_trace_set_decimation(trace_handle th, int divisor);
 
-trace_handle jbplot_create_trace_with_external_data(float *x, float *y, int length, int capacity);
-int jbplot_trace_add_point(trace_handle th, float x, float y);
-int jbplot_trace_set_line_props(trace_handle th, line_type_t type, float width, rgb_color_t *color);
-int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, float size, rgb_color_t *color);
+trace_handle jbplot_create_trace_with_external_data(double *x, double *y, int length, int capacity);
+int jbplot_trace_add_point(trace_handle th, double x, double y);
+int jbplot_trace_set_line_props(trace_handle th, line_type_t type, double width, rgb_color_t *color);
+int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, double size, rgb_color_t *color);
 int jbplot_trace_set_name(trace_handle th, char *name);
 int jbplot_trace_clear_data(trace_handle th);
 
 /* cursor related functions */
-int jbplot_set_cursor_pos(jbplot *plot, float x, float y);
+int jbplot_set_cursor_pos(jbplot *plot, double x, double y);
 int jbplot_set_cursor_props(
 	jbplot *plot, 
 	cursor_type_t type, 
 	rgb_color_t color,
-	float line_width, 
+	double line_width, 
 	int line_type);
 
 int jbplot_capture_png(jbplot *plot, char *filename);
