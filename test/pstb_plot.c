@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <cairo/cairo-svg.h>
 
 #include "../jbplot.h"
 
@@ -54,6 +55,40 @@ static char line[LINE_SIZE];
 static char line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
+
+
+void save_png(GtkButton *b, gpointer user_data) {
+
+	GtkWidget *dialog;
+	dialog = gtk_file_chooser_dialog_new ("Save File As...",
+						(GtkWindow *)window,
+						GTK_FILE_CHOOSER_ACTION_SAVE,
+						GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+						GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+						NULL);
+	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
+	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), "test.png");
+	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
+		char *filename;
+		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
+
+#if 0
+		int i;
+		for(i=0; i<1; i++) {
+			jbplot_capture_png((jbplot *)charts[i].plot, filename);
+		}
+#else
+		GdkPixmap *pm = gtk_widget_get_snapshot(v_box, NULL);
+		GdkPixbuf *pb = gdk_pixbuf_get_from_drawable(NULL, pm, NULL, 0, 0, 0, 0, -1, -1);
+		gdk_pixbuf_save(pb, filename, "png", NULL, NULL);
+		g_object_unref(pm);
+#endif
+
+		g_free (filename);
+	}
+	gtk_widget_destroy (dialog);
+
+}
 
 
 gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
@@ -288,7 +323,9 @@ gboolean update_data(gpointer data) {
 }
 
 int main (int argc, char **argv) {
-	GtkWidget *button;
+	GtkWidget *top_v_box;
+	GtkWidget *h_box;
+	GtkWidget *save_button;
 
 	gtk_init (&argc, &argv);
 
@@ -298,6 +335,15 @@ int main (int argc, char **argv) {
   fcntl(0, F_SETFL, flags);
 
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
+	top_v_box = gtk_vbox_new(FALSE, 1);
+	gtk_container_add (GTK_CONTAINER (window), top_v_box);
+
+	h_box = gtk_hbox_new(FALSE, 1);
+	gtk_box_pack_start (GTK_BOX(top_v_box), h_box, FALSE, FALSE, 0);
+
+	save_button = gtk_button_new_with_label("Save PNG");
+	gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
+	g_signal_connect(save_button, "clicked", G_CALLBACK(save_png), NULL);
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
 	gtk_widget_set_size_request(plot_scroll_win, 750, 600);
@@ -306,9 +352,10 @@ int main (int argc, char **argv) {
 		GTK_POLICY_NEVER,
 		GTK_POLICY_AUTOMATIC
 	);
-	gtk_container_add (GTK_CONTAINER (window), plot_scroll_win);
+	gtk_box_pack_start (GTK_BOX(top_v_box), plot_scroll_win, TRUE, TRUE, 0);
 
 	v_box = gtk_vbox_new(FALSE, 1);
+	printf("v_box has window: %d\n", gtk_widget_get_has_window(v_box));
 	gtk_scrolled_window_add_with_viewport(
 		GTK_SCROLLED_WINDOW(plot_scroll_win),
 		v_box
