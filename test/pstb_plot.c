@@ -67,15 +67,23 @@ void save_png(GtkButton *b, gpointer user_data) {
 						GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 						NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
-	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), "test.png");
+	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), "test.svg");
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename;
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 
-#if 0
+#if 1
 		int i;
-		for(i=0; i<1; i++) {
-			jbplot_capture_png((jbplot *)charts[i].plot, filename);
+		char *per = strrchr(filename, '.');
+		int base_len = per - filename;
+		char *f_base = malloc(base_len + 1);
+		strncpy(f_base, filename, base_len);
+		f_base[base_len] = '\0';
+		//printf("basename: %s\n", f_base);
+		char *f = malloc(strlen(filename) + 10);
+		for(i=0; i<chart_count; i++) {
+			sprintf(f, "%s_%02d%s", f_base, i, per);
+			jbplot_capture_svg((jbplot *)charts[i].plot, f);
 		}
 #else
 		GdkPixmap *pm = gtk_widget_get_snapshot(v_box, NULL);
@@ -85,6 +93,8 @@ void save_png(GtkButton *b, gpointer user_data) {
 #endif
 
 		g_free (filename);
+		free(f_base);
+		free(f);
 	}
 	gtk_widget_destroy (dialog);
 
@@ -355,7 +365,6 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(top_v_box), plot_scroll_win, TRUE, TRUE, 0);
 
 	v_box = gtk_vbox_new(FALSE, 1);
-	printf("v_box has window: %d\n", gtk_widget_get_has_window(v_box));
 	gtk_scrolled_window_add_with_viewport(
 		GTK_SCROLLED_WINDOW(plot_scroll_win),
 		v_box
