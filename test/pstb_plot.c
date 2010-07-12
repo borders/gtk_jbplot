@@ -300,7 +300,7 @@ int main (int argc, char **argv) {
 	window = gtk_window_new (GTK_WINDOW_TOPLEVEL);
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
-	gtk_widget_set_size_request(plot_scroll_win, 700, 600);
+	gtk_widget_set_size_request(plot_scroll_win, 750, 600);
 	gtk_scrolled_window_set_policy(
 		GTK_SCROLLED_WINDOW(plot_scroll_win),
 		GTK_POLICY_NEVER,
