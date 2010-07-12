@@ -25,6 +25,15 @@ typedef struct rgb_color_t {
 	double blue;
 } rgb_color_t;
 
+/**
+ * Supported plot area margin mode
+ */
+typedef enum {
+	MARGIN_AUTO,
+	MARGIN_PX,
+	MARGIN_PERCENT
+} margin_mode_t;
+
 
 /**
  * Supported axis scaling modes
@@ -132,7 +141,7 @@ int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible);
 /* Plot-Area functions */
 int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color);
 int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color);
-int jbplot_set_plot_area_margins(jbplot *plot, double left, double right, double top, double bottom);
+int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double left, double right);
 
 int jbplot_set_legend_props(jbplot *plot, double border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position);
 int jbplot_legend_refresh(jbplot *plot);

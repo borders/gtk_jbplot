@@ -80,6 +80,9 @@ typedef struct plot_area_t {
 	double right_edge;
 	double top_edge;
 	double bottom_edge;
+	margin_mode_t LR_margin_mode;
+	double lmargin;
+	double rmargin;
 	rgb_color_t bg_color;
 	rgb_color_t border_color;
 } plot_area_t;
@@ -655,6 +658,7 @@ static int init_plot_area(plot_area_t *area) {
   area->do_show_bounding_box = 1;
   area->bounding_box_width = 2.0;
 	area->border_color = color;
+	area->LR_margin_mode = MARGIN_AUTO;
 	color.red = color.green = color.blue = 1.0;
 	area->bg_color = color;
 	return 0;
@@ -1145,9 +1149,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	else {
 		title_bottom_edge = title_top_edge;
 	}
-  double y_label_left_edge = 0.01 * width;
-  double y_label_right_edge = y_label_left_edge + 
-                              get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
   double x_label_bottom_edge = height - 0.01*height;
   double x_label_top_edge = x_label_bottom_edge - 
                              get_text_height(cr, x_axis->axis_label , x_axis->axis_label_font_size);
@@ -1211,34 +1212,61 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
   set_major_tic_labels(y_axis);
   double max_y_label_width = get_widest_label_width(y_axis, cr);
   double y_tic_labels_left_edge;
-	if(y_axis->do_show_axis_label) {
-  	y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
-	}
-	else {
-  	y_tic_labels_left_edge = 0.01 * width;
-	}
-
-  double y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
-  double plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
-	priv->plot.plot_area.left_edge = plot_area_left_edge;
-
+  double y_tic_labels_right_edge;
+  double plot_area_left_edge;
   double plot_area_right_edge;
-	if(l->position == LEGEND_POS_RIGHT) {
-		plot_area_right_edge = legend_left_edge - 10;
+	double y_label_left_edge;
+	double y_label_right_edge; 
+
+	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO) {
+		y_label_left_edge = 0.01 * width;
+		y_label_right_edge = y_label_left_edge + 
+    	get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
+		if(y_axis->do_show_axis_label) {
+			y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
+		}
+		else {
+			y_tic_labels_left_edge = 0.01 * width;
+		}
+
+		y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
+		plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
+		priv->plot.plot_area.left_edge = plot_area_left_edge;
+
+		if(l->position == LEGEND_POS_RIGHT) {
+			plot_area_right_edge = legend_left_edge - 10;
+		}
+		else {
+			plot_area_right_edge = width - 0.06 * width;
+		}
+
+		double right_side_x_tic_label_width = 
+			get_text_width(cr, 
+			x_axis->major_tic_labels[x_axis->num_actual_major_tics-1], 
+			x_axis->tic_label_font_size);
+		if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
+			plot_area_right_edge = width - right_side_x_tic_label_width;
+		}
+		priv->plot.plot_area.right_edge = plot_area_right_edge;
 	}
 	else {
-	  plot_area_right_edge = width - 0.06 * width;
+		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
+			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
+			plot_area_right_edge = width - priv->plot.plot_area.rmargin * width;
+		}
+		else { // pixels
+			plot_area_left_edge = priv->plot.plot_area.lmargin;
+			plot_area_right_edge = width - priv->plot.plot_area.rmargin;
+		}
+		priv->plot.plot_area.left_edge = plot_area_left_edge;
+		priv->plot.plot_area.right_edge = plot_area_right_edge;
+		y_tic_labels_right_edge = plot_area_left_edge - 0.01 * width;
+		y_tic_labels_left_edge = y_tic_labels_right_edge - max_y_label_width;
+		y_label_right_edge = y_tic_labels_left_edge - 0.01*width;
+		y_label_left_edge = y_label_right_edge - 
+			get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
 	}
 
-	double right_side_x_tic_label_width = 
-	  get_text_width(cr, 
-	  x_axis->major_tic_labels[x_axis->num_actual_major_tics-1], 
-	  x_axis->tic_label_font_size);
-	if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
-		plot_area_right_edge = width - right_side_x_tic_label_width;
-	}
-
-	priv->plot.plot_area.right_edge = plot_area_right_edge;
 	double plot_area_top_edge;
 	if(l->position == LEGEND_POS_TOP) {
 		plot_area_top_edge = legend_top_edge + legend_height + 0.02 * height;
@@ -2294,8 +2322,23 @@ int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color) 
 	return 0;
 }
 
-int jbplot_set_plot_area_margins(jbplot *plot, double left, double right, double top, double bottom) {
-	// TODO
+int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double left, double right) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	switch(mode) {
+		case MARGIN_AUTO:
+			priv->plot.plot_area.LR_margin_mode = MARGIN_AUTO;
+			break;
+		case MARGIN_PERCENT:
+		case MARGIN_PX:
+			priv->plot.plot_area.LR_margin_mode = mode;
+			priv->plot.plot_area.lmargin = left;
+			priv->plot.plot_area.rmargin = right;
+			break;
+		default:
+			priv->plot.plot_area.LR_margin_mode = MARGIN_AUTO;
+	}
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
 
