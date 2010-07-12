@@ -646,7 +646,7 @@ static int init_axis(axis_t *axis) {
   axis->min_val = 0.0;
   axis->max_val = 10.0;
   strcpy(axis->tic_label_format_string, "%g");
-  axis->num_request_major_tics = 10;
+  axis->num_request_major_tics = 8;
   axis->num_minor_tics_per_major = 5;
   axis->tic_label_font_size = 10.;
   axis->axis_label_font_size = 10.;
