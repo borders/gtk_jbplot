@@ -43,6 +43,7 @@ struct chart {
 
 static int t = 0;
 static trace_handle t1;
+static GtkWidget *window;
 static GtkWidget *v_box;
 static GtkWidget *plot_scroll_win;
 static struct chart charts[MAX_CHARTS];
@@ -111,6 +112,8 @@ static int add_plot() {
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
+	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, 75, 100);
+
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
 	jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
@@ -166,12 +169,15 @@ gboolean update_data(gpointer data) {
 					jbplot_trace_set_name(charts[chart_count-1].traces[i], c);
 					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
 				}
-				if(!strcmp(cmd,"newplot")) {
+				else if(!strcmp(cmd,"wintitle")) {
+					gtk_window_set_title((GtkWindow *)window, cmd+9);
+				}
+				else if(!strcmp(cmd,"newplot")) {
 					if(charts[chart_count-1].num_points > 0) {
 						add_plot();
 					}
 				}
-				if(!strcmp(cmd,"xlabel")) {
+				else if(!strcmp(cmd,"xlabel")) {
 					//printf("setting xlabel to '%s'\n", cmd+7);
 					jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, cmd+7, 1);
 				}
@@ -282,7 +288,6 @@ gboolean update_data(gpointer data) {
 }
 
 int main (int argc, char **argv) {
-	GtkWidget *window;
 	GtkWidget *button;
 
 	gtk_init (&argc, &argv);
