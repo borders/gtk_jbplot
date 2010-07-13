@@ -43,6 +43,8 @@ struct chart {
 };
 
 static int t = 0;
+static int stack = 1;
+static int stack_count =0;
 static trace_handle t1;
 static GtkWidget *window;
 static GtkWidget *v_box;
@@ -214,6 +216,19 @@ gboolean update_data(gpointer data) {
 					jbplot_trace_set_name(charts[chart_count-1].traces[i], c);
 					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
 				}
+				else if(!strcmp(cmd,"stack")) {
+					if(!strcmp("yes",cmd+6) || !strcmp("Yes",cmd+6) || !strcmp("YES",cmd+6) || !strcmp("1",cmd+6)) {
+						stack = 1;
+						printf("Stacked mode ON\n");
+					}
+					else if(!strcmp("no",cmd+6) || !strcmp("No",cmd+6) || !strcmp("NO",cmd+6) || !strcmp("0",cmd+6)) {
+						stack = 0;
+						printf("Stacked mode OFF\n");
+					}
+					else {
+						printf("stack usage: #stack (yes|no|1|0)\n");
+					}  
+				}
 				else if(!strcmp(cmd,"wintitle")) {
 					gtk_window_set_title((GtkWindow *)window, cmd+9);
 				}
@@ -265,29 +280,63 @@ gboolean update_data(gpointer data) {
 						}
 					}
 					if(num_fields < 2) {
+						printf("Incomplete data row.  Skipping...\n");
 						continue;
-					}			
-					printf("Got %d fields (%d traces)\n", num_fields, num_fields-1);
-					// first column is shared among all traces
-					charts[chart_count-1].num_traces = num_fields - 1;
-
-					// create the traces
-					int i;
-					for(i=0; i<num_fields-1; i++) {
-						trace_handle t1 = jbplot_create_trace(20000);
-						if(t1==NULL) {
-							printf("error creating trace!\n");
-							return 0;
-						}
-						rgb_color_t color = {0.0, 1.0, 0.0};
-						jbplot_trace_set_line_props(t1, ltypes[i%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
-						color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-						color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
-						//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
-						charts[chart_count-1].traces[i] = t1;
-						jbplot_add_trace((jbplot *)charts[chart_count-1].plot, t1);
 					}
-					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
+
+					if(stack) {
+						int i;
+						printf("Got %d fields (%d plots)\n", num_fields, num_fields-1);
+						stack_count = num_fields - 1;
+
+						// add more plots if needed
+						if(stack_count > 1) {
+							for(i=0; i<stack_count-1; i++) {
+								add_plot();
+							}
+						}
+					
+						// add 1 trace per plot
+						for(i=chart_count-stack_count; i<chart_count; i++) {
+							trace_handle t1 = jbplot_create_trace(20000);
+							if(t1==NULL) {
+								printf("error creating trace!\n");
+								return 0;
+							}
+							rgb_color_t color = {0.0, 1.0, 0.0};
+							jbplot_trace_set_line_props(t1, ltypes[0], 1.0, &(colors[0]) );
+							color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
+							color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
+							//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+							charts[i].traces[0] = t1;
+							charts[i].num_traces = 1;
+							jbplot_add_trace((jbplot *)charts[i].plot, t1);
+						}
+					}
+					else {	
+						printf("Got %d fields (%d traces)\n", num_fields, num_fields-1);
+
+						// first column is shared among all traces
+						charts[chart_count-1].num_traces = num_fields - 1;
+
+						// create the traces
+						int i;
+						for(i=0; i<num_fields-1; i++) {
+							trace_handle t1 = jbplot_create_trace(20000);
+							if(t1==NULL) {
+								printf("error creating trace!\n");
+								return 0;
+							}
+							rgb_color_t color = {0.0, 1.0, 0.0};
+							jbplot_trace_set_line_props(t1, ltypes[i%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
+							color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
+							color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
+							//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+							charts[chart_count-1].traces[i] = t1;
+							jbplot_add_trace((jbplot *)charts[chart_count-1].plot, t1);
+						}
+						jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
+					}
 
 				}
 
@@ -298,22 +347,47 @@ gboolean update_data(gpointer data) {
 				while(sscanf(p, "%lf%n", data+valid_fields, &n) == 1) {
 					p += n;
 					valid_fields++;
-					if(valid_fields > charts[chart_count-1].num_traces) {
-						break;
+					if(stack) {
+						if(valid_fields > stack_count) {
+							break;
+						}
+					}
+					else {
+						if(valid_fields > charts[chart_count-1].num_traces) {
+							break;
+						}
 					}
 				}
-				if(valid_fields == charts[chart_count-1].num_traces + 1) {
-					got_one = 1;
-					charts[chart_count-1].num_points++;
-					int i;
-					for(i=1; i<valid_fields; i++) {
-						//printf("adding point: (%lg, %lg)\n", data[0], data[i]); 
-						jbplot_trace_add_point(charts[chart_count-1].traces[i-1], data[0], data[i]); 
+
+				if(stack) {
+					if(valid_fields == stack_count + 1) {
+						int i;
+						got_one = 1;
+						for(i=1; i<valid_fields; i++) {
+							int ci = i - 1 + chart_count - stack_count;
+							charts[ci].num_points++;
+							jbplot_trace_add_point(charts[ci].traces[0], data[0], data[i]); 
+						}
+					}
+					else {
+						printf("error parsing data on line %d\n", line_count);
 					}
 				}
 				else {
-					printf("error parsing data on line %d\n", line_count);
+					if(valid_fields == charts[chart_count-1].num_traces + 1) {
+						got_one = 1;
+						charts[chart_count-1].num_points++;
+						int i;
+						for(i=1; i<valid_fields; i++) {
+							//printf("adding point: (%lg, %lg)\n", data[0], data[i]); 
+							jbplot_trace_add_point(charts[chart_count-1].traces[i-1], data[0], data[i]); 
+						}
+					}
+					else {
+						printf("error parsing data on line %d\n", line_count);
+					}
 				}
+
 
 			}
 		}
@@ -326,7 +400,15 @@ gboolean update_data(gpointer data) {
 	}		
 
 	if(got_one) {
-		jbplot_refresh((jbplot *)plot);
+		if(stack) {
+			int i;
+			for(i=chart_count-stack_count; i<chart_count; i++) {
+				jbplot_refresh((jbplot *)charts[i].plot);
+			}
+		}
+		else {
+			jbplot_refresh((jbplot *)plot);
+		}
 	}
 	//printf("** end update_data()\n");
 	return TRUE;
