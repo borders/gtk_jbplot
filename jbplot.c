@@ -30,6 +30,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 #define MAJOR_TIC_LABEL_SIZE  100
 #define MAX_NUM_TRACES    100
 
+#define MED_GAP 6
 
 
 double dash_pattern[] = {4.0, 4.0};
@@ -1218,19 +1219,20 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	double y_label_left_edge;
 	double y_label_right_edge; 
 
+
 	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO) {
-		y_label_left_edge = 0.01 * width;
+		y_label_left_edge = MED_GAP;
 		y_label_right_edge = y_label_left_edge + 
     	get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
 		if(y_axis->do_show_axis_label) {
-			y_tic_labels_left_edge = y_label_right_edge + 0.01 * width;
+			y_tic_labels_left_edge = y_label_right_edge + MED_GAP;
 		}
 		else {
-			y_tic_labels_left_edge = 0.01 * width;
+			y_tic_labels_left_edge = MED_GAP;
 		}
 
 		y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
-		plot_area_left_edge = y_tic_labels_right_edge + 0.01 * width;
+		plot_area_left_edge = y_tic_labels_right_edge + MED_GAP;
 		priv->plot.plot_area.left_edge = plot_area_left_edge;
 
 		if(l->position == LEGEND_POS_RIGHT) {
@@ -1260,32 +1262,32 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		}
 		priv->plot.plot_area.left_edge = plot_area_left_edge;
 		priv->plot.plot_area.right_edge = plot_area_right_edge;
-		y_tic_labels_right_edge = plot_area_left_edge - 0.01 * width;
+		y_tic_labels_right_edge = plot_area_left_edge - MED_GAP;
 		y_tic_labels_left_edge = y_tic_labels_right_edge - max_y_label_width;
-		y_label_right_edge = y_tic_labels_left_edge - 0.01*width;
+		y_label_right_edge = y_tic_labels_left_edge - MED_GAP;
 		y_label_left_edge = y_label_right_edge - 
 			get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
 	}
 
 	double plot_area_top_edge;
 	if(l->position == LEGEND_POS_TOP) {
-		plot_area_top_edge = legend_top_edge + legend_height + 0.02 * height;
+		plot_area_top_edge = legend_top_edge + legend_height + 2*MED_GAP;
 	}
 	else {
-		plot_area_top_edge = title_bottom_edge + 0.02 * height;
+		plot_area_top_edge = title_bottom_edge + 2*MED_GAP;
 	}
 	priv->plot.plot_area.top_edge = plot_area_top_edge;
   double x_tic_labels_bottom_edge;
 	if(x_axis->do_show_axis_label) {
-		x_tic_labels_bottom_edge = x_label_top_edge - 0.01 * height;
+		x_tic_labels_bottom_edge = x_label_top_edge - MED_GAP;
 	}
 	else {
-		x_tic_labels_bottom_edge = height - 0.01 * height;
+		x_tic_labels_bottom_edge = height - MED_GAP;
 	}
 
   double x_tic_labels_height = get_text_height(cr, x_axis->major_tic_labels[0], x_axis->tic_label_font_size);
   double x_tic_labels_top_edge = x_tic_labels_bottom_edge - x_tic_labels_height;
-  double plot_area_bottom_edge = x_tic_labels_top_edge - 0.01 * height;
+  double plot_area_bottom_edge = x_tic_labels_top_edge - MED_GAP;
 	priv->plot.plot_area.bottom_edge = plot_area_bottom_edge;
   double plot_area_height = plot_area_bottom_edge - plot_area_top_edge;
   double plot_area_width = plot_area_right_edge - plot_area_left_edge;
