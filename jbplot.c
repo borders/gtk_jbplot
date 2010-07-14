@@ -1867,7 +1867,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 					draw_horiz_text_at_point(cr, y_str, x+5+3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
 				}
 				else { // top left quadrant
-					draw_horiz_text_at_point(cr, x_str, x+5+3, y+5+3, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point(cr, x_str, x+5+3, y+6, ANCHOR_TOP_LEFT);
 					draw_horiz_text_at_point(cr, y_str, x+5+3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
 				}
 			}
@@ -1877,7 +1877,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 					draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
 				}
 				else { // top right quadrant
-					draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y+5+3, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y+6, ANCHOR_TOP_LEFT);
 					draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
 				}
 			}
