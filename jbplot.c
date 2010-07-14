@@ -1829,10 +1829,29 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			box_w = 10 + ((x_w > y_w) ? x_w : y_w);
 			box_h = 10 + (x_h + y_h);
 
+			gint mid_x = (priv->plot.plot_area.left_edge + priv->plot.plot_area.right_edge)/2.;
+			gint mid_y = (priv->plot.plot_area.top_edge + priv->plot.plot_area.bottom_edge)/2.;
+
 			cairo_save(cr);
+
 			// draw white rectangle
 			cairo_set_source_rgb (cr, 1, 1, 1);
-			cairo_rectangle(cr, x-box_w-3, y-box_h-3, box_w, box_h);
+			if(x < mid_x) { // left half
+				if(y > mid_y) { // bottom left quadrant
+					cairo_rectangle(cr, x+3, y-box_h-3, box_w, box_h);
+				}
+				else { // top left quadrant
+					cairo_rectangle(cr, x+3, y+3, box_w, box_h);
+				}
+			}
+			else { // right half
+				if(y > mid_y) { // bottom right quadrant
+					cairo_rectangle(cr, x-box_w-3, y-box_h-3, box_w, box_h);
+				}
+				else { // top right quadrant
+					cairo_rectangle(cr, x-box_w-3, y+3, box_w, box_h);
+				}
+			}
 			cairo_fill_preserve(cr);
 			cairo_set_source_rgb (cr, 0, 0, 0);
 			cairo_set_line_width (cr, 1.0);
@@ -1840,8 +1859,27 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 			// draw coordinates...
 			cairo_set_source_rgb (cr, 0, 0, 0);
-			draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
-			draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+			if(x < mid_x) { // left half
+				if(y > mid_y) { // bottom left quadrant
+					draw_horiz_text_at_point(cr, x_str, x+5+3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+					draw_horiz_text_at_point(cr, y_str, x+5+3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+				}
+				else { // top left quadrant
+					draw_horiz_text_at_point(cr, x_str, x+5+3, y+5+3, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point(cr, y_str, x+5+3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
+				}
+			}
+			else { // right half
+				if(y > mid_y) { // bottom right quadrant
+					draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+					draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+				}
+				else { // top right quadrant
+					draw_horiz_text_at_point(cr, x_str, x-box_w+5-3, y+5+3, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point(cr, y_str, x-box_w+5-3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
+				}
+			}
+
 			cairo_restore(cr);
 		}
 			
