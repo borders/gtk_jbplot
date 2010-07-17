@@ -158,7 +158,9 @@ static double round_to_nearest(double num, double nearest);
 static double round_up_to_nearest(double num, double nearest);
 static double round_down_to_nearest(double num, double nearest);
 static data_range get_y_range(trace_t **traces, int num_traces);
+static data_range get_y_range_within_x_range(trace_t **traces, int num_traces, data_range xr);
 static data_range get_x_range(trace_t **traces, int num_traces);
+static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, data_range yr);
 
 
 typedef struct _jbplotPrivate jbplotPrivate;
@@ -1194,14 +1196,30 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	// calculate data ranges and tic labels
   data_range x_range, y_range;
 	if(x_axis->do_autoscale) {
-	  x_range = get_x_range(p->traces, p->num_traces);
+		if(y_axis->do_autoscale) {
+	  	x_range = get_x_range(p->traces, p->num_traces);
+		}
+		else {
+			data_range yr;
+			yr.min = x_axis->min_val;
+			yr.max = y_axis->max_val;
+			x_range = get_x_range_within_y_range(p->traces, p->num_traces, yr);
+		}
 	}
 	else {
 		x_range.min = x_axis->min_val;
 		x_range.max = x_axis->max_val;
 	}
 	if(y_axis->do_autoscale) {
-		y_range = get_y_range(p->traces, p->num_traces);
+		if(x_axis->do_autoscale) {
+			y_range = get_y_range(p->traces, p->num_traces);
+		}
+		else {
+			data_range xr;
+			xr.min = x_axis->min_val;
+			xr.max = x_axis->max_val;
+			y_range = get_y_range_within_x_range(p->traces, p->num_traces, xr);
+		}
 	}
 	else {
 		y_range.min = y_axis->min_val;
@@ -2070,6 +2088,38 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
   return r;
 }
 
+static data_range get_y_range_within_x_range(trace_t **traces, int num_traces, data_range xr) {
+  data_range r;
+  int i, j;
+  double min = DBL_MAX, max = -DBL_MAX;
+  for(i = 0; i < num_traces; i++) {
+    trace_t *t = traces[i];
+    for(j = 0; j< t->length; j++) {
+			if(t->x_data[j] >= xr.min && t->x_data[j] <= xr.max) {
+				if(t->y_data[j] > max) {
+					max = t->y_data[j];
+				}
+				if(t->y_data[j] < min) {
+					min = t->y_data[j];
+				}
+			}
+    }
+  }
+	if(min == max) {
+		if(min == 0) {
+			min = -1.0;
+			max = +1.0;
+		}
+		else {
+			min = min - 0.1 * min;
+			max = max + 0.1 * max;
+		}
+	}
+  r.min = min;
+  r.max = max;
+  return r;
+}
+
 static data_range get_x_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
@@ -2083,6 +2133,38 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
       if(t->x_data[j] < min) {
         min = t->x_data[j];
       }
+    }
+  }
+	if(min == max) {
+		if(min == 0) {
+			min = -1.0;
+			max = +1.0;
+		}
+		else {
+			min = min - 0.1 * min;
+			max = max + 0.1 * max;
+		}
+	}
+  r.min = min;
+  r.max = max;
+  return r;
+}
+
+static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, data_range yr) {
+  data_range r;
+  int i, j;
+  double min = DBL_MAX, max = -DBL_MAX;
+  for(i = 0; i < num_traces; i++) {
+    trace_t *t = traces[i];
+    for(j = 0; j< t->length; j++) {
+			if(t->y_data[j] >= yr.min && t->y_data[j] <= yr.max) {
+				if(t->x_data[j] > max) {
+					max = t->x_data[j];
+				}
+				if(t->x_data[j] < min) {
+					min = t->x_data[j];
+				}
+			}
     }
   }
 	if(min == max) {
