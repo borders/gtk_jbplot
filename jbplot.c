@@ -2043,7 +2043,7 @@ static double round_down_to_nearest(double num, double nearest) {
 static data_range get_y_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  double min = DBL_MAX, max = DBL_MIN;
+  double min = DBL_MAX, max = -DBL_MAX;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
@@ -2055,6 +2055,16 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
       }
     }
   }
+	if(min == max) {
+		if(min == 0) {
+			min = -1.0;
+			max = +1.0;
+		}
+		else {
+			min = min - 0.1 * min;
+			max = max + 0.1 * max;
+		}
+	}
   r.min = min;
   r.max = max;
   return r;
@@ -2063,7 +2073,7 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
 static data_range get_x_range(trace_t **traces, int num_traces) {
   data_range r;
   int i, j;
-  double min = DBL_MAX, max = DBL_MIN;
+  double min = DBL_MAX, max = -DBL_MAX;
   for(i = 0; i < num_traces; i++) {
     trace_t *t = traces[i];
     for(j = 0; j< t->length; j++) {
@@ -2075,6 +2085,16 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
       }
     }
   }
+	if(min == max) {
+		if(min == 0) {
+			min = -1.0;
+			max = +1.0;
+		}
+		else {
+			min = min - 0.1 * min;
+			max = max + 0.1 * max;
+		}
+	}
   r.min = min;
   r.max = max;
   return r;
