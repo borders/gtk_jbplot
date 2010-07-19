@@ -305,9 +305,7 @@ gboolean update_data(gpointer data) {
 							}
 							rgb_color_t color = {0.0, 1.0, 0.0};
 							jbplot_trace_set_line_props(t1, ltypes[0], 1.0, &(colors[0]) );
-							color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-							color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
-							//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+							jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 1.0, &(colors[i%NUM_COLORS]));
 							charts[i].traces[0] = t1;
 							charts[i].num_traces = 1;
 							jbplot_add_trace((jbplot *)charts[i].plot, t1);
@@ -329,9 +327,7 @@ gboolean update_data(gpointer data) {
 							}
 							rgb_color_t color = {0.0, 1.0, 0.0};
 							jbplot_trace_set_line_props(t1, ltypes[i%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
-							color.red = 1.0; color.green = 0.0;	color.blue = 0.0;
-							color.red = 0.0; color.green = 0.0;	color.blue = 1.0;
-							//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &color);
+							jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 1.0, &(colors[i%NUM_COLORS]));
 							charts[chart_count-1].traces[i] = t1;
 							jbplot_add_trace((jbplot *)charts[chart_count-1].plot, t1);
 						}
