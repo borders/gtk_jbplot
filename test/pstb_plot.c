@@ -281,8 +281,24 @@ gboolean update_data(gpointer data) {
 					}
 				}
 				else if(!strcmp(cmd,"title")) {
-					char *c = strtok(NULL, "");
-					jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
+					if(stack) {
+						if(charts[chart_count-1].num_points < 1) {
+							printf("title must be run after at least one data record (when in stacked mode)\n");
+							continue;
+						}
+						char *c;
+						int i;
+						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
+								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
+							printf("title usage: #title <index (1-based)> <label_text>\n");
+							continue;
+						}
+						jbplot_set_plot_title((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
+					}
+					else {
+						char *c = strtok(NULL, "");
+						jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
+					}
 				}
 				else if(!strcmp(cmd,"xformat")) {
 					char *c = strtok(NULL, " \t");
@@ -463,6 +479,7 @@ more plots of the data in a separate window.  The plots are interactive, meaning
 that the user can zoom, pan and even track data coordinates using the mouse. \n\
 \n\
 INPUT FORMAT\n\
+------------\n\
 Data is entered using a simple whitespace-delimited text format.  The simplest example \n\
 of a single (x,y) data set would look like this, with one x,y point per line: \n\
   0 0\n\
@@ -471,7 +488,7 @@ of a single (x,y) data set would look like this, with one x,y point per line: \n
   3 6\n\
   4 8\n\
 Multiple data series may be plotted too.  If the series are all the same length and also \n\
-share common x values, they may be supplied as follows: \n\
+share common x values, they may be supplied as follows (see the STACK command below): \n\
   0 0 0\n\
   1 2 1\n\
   2 4 4\n\
@@ -479,6 +496,46 @@ share common x values, they may be supplied as follows: \n\
   4 8 16\n\
 In this case, two data sets will be plotted.  First column 1 vs column 2, and then column 1 \n\
 vs column 3. \n\
+\n\
+COMMANDS\n\
+--------\n\
+Commands are denoted by a '#' character at the beginning of a line.  Commands lines may be \n\
+interlaced with lines of data. A list of available commands and their usage follows:\n\
+\n\
+  WINTITLE\n\
+    Usage: #wintitle <window_title_string> \n\
+\n\
+    Set the window title text.  This command can be run at any time. \n\
+\n\
+  NEWPLOT\n\
+    Usage: #newplot \n\
+\n\
+    Create a new plot. \n\
+\n\
+  STACK\n\
+    Usage: #stack <stack_mode=(yes|no|1|0)> \n\
+\n\
+    Set stacked plot mode. When stacked mode is ON (specified by 'yes' or '1'), multiple data \n\
+    series (specified by data lines with more than 2 columns) are plotted one series per plot. \n\
+    The first column is used for the x-axis of all data series in stacked mode.  With stacked \n\
+    mode OFF, multiple data series are all plotted on the same graph, with each series being a \n\
+    different trace on the plot and having its own legend entry.  By DEFAULT, stacked mode is ON. \n\
+\n\
+  XLABEL\n\
+    Usage (stacked mode ON): #xlabel <plot_index> <x_axis_label_string> \n\
+    Usage (stacked mode OFF): #xlabel <x_axis_label_string> \n\
+\n\
+    Set a plot's x-axis label.  With stacked mode OFF, this command takes only one argument \n\
+    (the text itself), and can be run at any time to label the current plot.  With stacked \n\
+    mode ON, the plot index (1-based) must be specified, and the command cannot be run until at \n\
+    least one line of data has been read (so the program can know how many stacked plots to be \n\
+    create. \n\
+\n\
+  YLABEL\n\
+    Set a plot's y-axis label.  Similar to XLABEL. \n\
+\n\
+  TITLE\n\
+    Set a plot's title text.  Similar to XLABEL. \n\
 	\n");
 	return;
 }
