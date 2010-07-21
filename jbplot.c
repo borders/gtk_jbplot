@@ -1201,7 +1201,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		}
 		else {
 			data_range yr;
-			yr.min = x_axis->min_val;
+			yr.min = y_axis->min_val;
 			yr.max = y_axis->max_val;
 			x_range = get_x_range_within_y_range(p->traces, p->num_traces, yr);
 		}
