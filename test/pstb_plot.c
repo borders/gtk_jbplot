@@ -131,6 +131,18 @@ gint zoom_all_cb(jbplot *plot) {
 	return 0;
 }
 
+gint pan_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
+	int i;
+	//printf("Panning!\n");
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(p != plot) {
+			jbplot_set_x_axis_range(p, xmin, xmax);
+		}
+	}
+	return 0;
+}
+
 
 char *strip_leading_ws(char *s) {
 	int i=0;
@@ -151,6 +163,7 @@ static int add_plot() {
 
 	g_signal_connect(p, "zoom-in", G_CALLBACK (zoom_in_cb), NULL);
 	g_signal_connect(p, "zoom-all", G_CALLBACK (zoom_all_cb), NULL);
+	g_signal_connect(p, "pan", G_CALLBACK (pan_cb), NULL);
 
 	//jbplot_set_plot_title((jbplot *)p, "PSTB plot", 1);
 	jbplot_set_plot_title_visible((jbplot *)p, 0);
