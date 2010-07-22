@@ -13,8 +13,8 @@ static trace_handle t1;
 GtkWidget *plot;
 
 
-float x[] = {1,2,3,4,5,6,7,8,9};
-float y[] = {1,3,2,4,5,7,6,8,9};
+double x[] = {1,2,3,4,5,6,7,8,9};
+double y[] = {1,3,2,4,5,7,6,8,9};
 
 int main (int argc, char **argv) {
 	GtkWidget *window;
