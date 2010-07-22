@@ -208,6 +208,7 @@ enum
 {
 	ZOOM_IN,
 	ZOOM_ALL,
+	PAN,
 	LAST_SIGNAL
 };
 
@@ -555,10 +556,16 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 		gtk_widget_queue_draw(w);
 	}
 	if(priv->panning) {
-		jbplot_set_x_axis_range((jbplot *)w, priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m , priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m);
-		jbplot_set_y_axis_range((jbplot *)w, priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m, priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m);
+		double xmin, xmax, ymin, ymax;
+		xmin = priv->pan_start_x_range.min - (event->x - priv->pan_start_x)/priv->x_m;
+		xmax = priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m;
+		ymin = priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m;
+		ymax = priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m;
+		jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
+		jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
 		priv->needs_redraw = TRUE;
 		gtk_widget_queue_draw(w);
+		g_signal_emit_by_name((gpointer *)w, "pan", xmin, xmax, ymin, ymax);
 	}
 	if(priv->do_show_coords) {
 		gtk_widget_queue_draw(w);
@@ -617,6 +624,17 @@ static void jbplot_class_init (jbplotClass *class) {
 		NULL, NULL,
 		g_cclosure_marshal_VOID__VOID,
 		G_TYPE_NONE, 0);
+
+	jbplot_signals[PAN] = g_signal_new (
+		"pan",
+		G_OBJECT_CLASS_TYPE(obj_class),
+		G_SIGNAL_RUN_FIRST,
+		G_STRUCT_OFFSET(jbplotClass, zoom_in),
+		NULL, NULL,
+		_plot_marshal_VOID__DOUBLE_DOUBLE_DOUBLE_DOUBLE,
+		G_TYPE_NONE, 4,
+		G_TYPE_DOUBLE, G_TYPE_DOUBLE,
+		G_TYPE_DOUBLE, G_TYPE_DOUBLE);
 
 	/* default handlers for signals */
 	//class->zoom_in = zoom_in;
@@ -1447,10 +1465,10 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		cairo_set_line_width(cr, pa->bounding_box_width);
 		cairo_rectangle(
 			cr, 
-			plot_area_left_edge, 
-			plot_area_top_edge,
-			plot_area_right_edge - plot_area_left_edge,
-			plot_area_bottom_edge - plot_area_top_edge
+			plot_area_left_edge - pa->bounding_box_width, 
+			plot_area_top_edge - pa->bounding_box_width,
+			plot_area_right_edge - plot_area_left_edge + 2*pa->bounding_box_width,
+			plot_area_bottom_edge - plot_area_top_edge + 2*pa->bounding_box_width
 		);
 		cairo_stroke(cr);	
 	}
