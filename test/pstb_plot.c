@@ -123,10 +123,10 @@ gint zoom_all_cb(jbplot *plot) {
 	printf("Zoom All!\n");
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
-		if(p != plot) {
-			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_TIGHT);
-			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT);
-		}
+		//if(p != plot) {
+			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_LOOSE);
+			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_LOOSE);
+		//}
 	}
 	return 0;
 }
@@ -566,7 +566,7 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(top_v_box), h_box, FALSE, FALSE, 0);
 
 	save_button = gtk_button_new_with_label("Save PNG");
-	gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
+	//gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
 	g_signal_connect(save_button, "clicked", G_CALLBACK(save_png), NULL);
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
