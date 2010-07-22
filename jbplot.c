@@ -1752,6 +1752,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	/********** find closest data point if showing coords or cross-hair *****/
 	double x_px = 0.0;
 	double y_px = 0.0;
+	int closest_point_index = 0;
+	int closest_trace_index = 0;
 	gboolean is_in_plot_area = FALSE;
 	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
 		gint x,y;
@@ -1759,8 +1761,6 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		if(x >= priv->plot.plot_area.left_edge && x <= priv->plot.plot_area.right_edge &&
 		   y >= priv->plot.plot_area.top_edge &&  y <= priv->plot.plot_area.bottom_edge) {
 			int i, j;
-			int closest_point_index = 0;
-			int closest_trace_index = 0;
 			double min_dist = DBL_MAX;
 			is_in_plot_area = TRUE;
 			for(j=0; j < p->num_traces; j++) {
@@ -1832,16 +1832,23 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			x = x_px;
 			y = y_px;
 		}
-		if(x >= priv->plot.plot_area.left_edge &&
-		   x <= priv->plot.plot_area.right_edge &&
-		   y >= priv->plot.plot_area.top_edge &&
-		   y <= priv->plot.plot_area.bottom_edge
+		if(x >= (priv->plot.plot_area.left_edge-1) &&
+		   x <= (priv->plot.plot_area.right_edge+1) &&
+		   y >= (priv->plot.plot_area.top_edge-1) &&
+		   y <= (priv->plot.plot_area.bottom_edge+1)
 		  ) {
 			char x_str[100], y_str[100];
 			double x_w, x_h, y_w, y_h;
 			double box_w, box_h;
-			sprintf(x_str, "%g", ((double)x-x_b)/x_m);
-			sprintf(y_str, "%g", ((double)y-y_b)/y_m);
+
+			if(priv->do_snap_to_data) {
+				sprintf(x_str, "x=%g", (p->traces[closest_trace_index])->x_data[closest_point_index]);
+				sprintf(y_str, "y=%g", (p->traces[closest_trace_index])->y_data[closest_point_index]);
+			}
+			else {
+				sprintf(x_str, "x=%g", ((double)x-x_b)/x_m);
+				sprintf(y_str, "y=%g", ((double)y-y_b)/y_m);
+			}
 			x_w = get_text_width(cr, x_str, 10);
 			y_w = get_text_width(cr, y_str, 10);
 			x_h = get_text_height(cr, x_str, 10);
