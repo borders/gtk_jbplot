@@ -17,6 +17,15 @@ G_BEGIN_DECLS
 #define JBPLOT_GET_CLASS	(G_TYPE_INSTANCE_GET_CLASS ((obj), JBPLOT_TYPE, jbplotClass))
 
 /**
+ * Supported crosshair modes
+ */
+typedef enum {
+	CROSSHAIR_NONE,
+	CROSSHAIR_FREE,
+	CROSSHAIR_SNAP
+} crosshair_t;
+
+/**
  * Type used to specify colors
  */
 typedef struct rgb_color_t {
@@ -139,6 +148,8 @@ int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, double widt
 int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible);
 
 /* Plot-Area functions */
+int jbplot_set_coords_visible(jbplot *plot, int vis);
+int jbplot_set_crosshair_mode(jbplot *plot, crosshair_t mode);
 int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color);
 int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color);
 int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double left, double right);

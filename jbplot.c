@@ -2208,6 +2208,50 @@ static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, d
 }
 
 /******************** Public Functions *******************************/
+int jbplot_set_coords_visible(jbplot *plot, int vis) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	priv->do_show_coords = vis;
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}	
+
+int jbplot_get_crosshair_mode(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	if(priv->do_show_cross_hair) {
+		if(priv->do_snap_to_data) {
+			return CROSSHAIR_SNAP;
+		}
+		else {
+			return CROSSHAIR_FREE;
+		}
+	}
+	else {
+		return CROSSHAIR_NONE;
+	}
+}
+
+int jbplot_set_crosshair_mode(jbplot *plot, crosshair_t mode) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	switch(mode) {
+		case CROSSHAIR_NONE:
+			priv->do_show_cross_hair = 0;
+			break;
+		case CROSSHAIR_FREE:
+			priv->do_show_cross_hair = 1;
+			priv->do_snap_to_data = 0;
+			break;
+		case CROSSHAIR_SNAP:
+			priv->do_show_cross_hair = 1;
+			priv->do_snap_to_data = 1;
+			break;
+		default:
+			break;
+	}
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
 
 int jbplot_set_x_axis_format(jbplot *plot, char *str) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
