@@ -46,6 +46,9 @@ static int t = 0;
 static int stack = 1;
 static int stack_count =0;
 static trace_handle t1;
+static GtkWidget *cursor_button;
+static GtkWidget *coords_button;
+static GtkWidget *snap_button;
 static GtkWidget *window;
 static GtkWidget *v_box;
 static GtkWidget *plot_scroll_win;
@@ -57,6 +60,61 @@ static char line[LINE_SIZE];
 static char line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
+
+void cursor_cb(GtkToggleButton *b, gpointer user_data) {
+	int i;
+	int state = gtk_toggle_button_get_active(b);
+	int snap = gtk_toggle_button_get_active((GtkToggleButton *)snap_button);
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(state) {
+			if(snap) {
+				jbplot_set_crosshair_mode(p, CROSSHAIR_SNAP);
+			}
+			else {
+				jbplot_set_crosshair_mode(p, CROSSHAIR_FREE);
+			}
+		}
+		else {
+			jbplot_set_crosshair_mode(p, CROSSHAIR_NONE);
+		}
+	}
+}
+
+void coords_cb(GtkToggleButton *b, gpointer user_data) {
+	int i;
+	int state = gtk_toggle_button_get_active(b);
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(state) {
+			jbplot_set_coords_visible(p, 1);
+		}
+		else {
+			jbplot_set_coords_visible(p, 0);
+		}
+	}
+}
+
+void snap_cb(GtkToggleButton *b, gpointer user_data) {
+	int i;
+	int state = gtk_toggle_button_get_active(b);
+	int ch = gtk_toggle_button_get_active((GtkToggleButton *)cursor_button);
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(state) {
+			jbplot_set_crosshair_mode(p, CROSSHAIR_SNAP);
+			if(ch == CROSSHAIR_NONE) {
+				jbplot_set_crosshair_mode(p, CROSSHAIR_NONE);
+			}
+		}
+		else {
+			jbplot_set_crosshair_mode(p, CROSSHAIR_FREE);
+			if(ch == CROSSHAIR_NONE) {
+				jbplot_set_crosshair_mode(p, CROSSHAIR_NONE);
+			}
+		}
+	}
+}
 
 
 void save_png(GtkButton *b, gpointer user_data) {
@@ -581,6 +639,18 @@ int main (int argc, char **argv) {
 	save_button = gtk_button_new_with_label("Save PNG");
 	//gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
 	g_signal_connect(save_button, "clicked", G_CALLBACK(save_png), NULL);
+
+	cursor_button = gtk_toggle_button_new_with_label("Cursor");
+	gtk_box_pack_start (GTK_BOX(h_box), cursor_button, FALSE, FALSE, 0);
+	g_signal_connect(cursor_button, "toggled", G_CALLBACK(cursor_cb), NULL);
+
+	coords_button = gtk_toggle_button_new_with_label("Coordinates");
+	gtk_box_pack_start (GTK_BOX(h_box), coords_button, FALSE, FALSE, 0);
+	g_signal_connect(coords_button, "toggled", G_CALLBACK(coords_cb), NULL);
+
+	snap_button = gtk_toggle_button_new_with_label("Snap to Data");
+	gtk_box_pack_start (GTK_BOX(h_box), snap_button, FALSE, FALSE, 0);
+	g_signal_connect(snap_button, "toggled", G_CALLBACK(snap_cb), NULL);
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
 	gtk_widget_set_size_request(plot_scroll_win, 750, 600);
