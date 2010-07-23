@@ -230,7 +230,7 @@ static int add_plot() {
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
-	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, 75, 100);
+	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, 75, 110);
 
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
