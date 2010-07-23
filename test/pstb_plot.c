@@ -643,14 +643,17 @@ int main (int argc, char **argv) {
 	cursor_button = gtk_toggle_button_new_with_label("Cursor");
 	gtk_box_pack_start (GTK_BOX(h_box), cursor_button, FALSE, FALSE, 0);
 	g_signal_connect(cursor_button, "toggled", G_CALLBACK(cursor_cb), NULL);
+	gtk_widget_set_tooltip_text(cursor_button, "Show crosshair when cursor is in plot area");
 
 	coords_button = gtk_toggle_button_new_with_label("Coordinates");
 	gtk_box_pack_start (GTK_BOX(h_box), coords_button, FALSE, FALSE, 0);
 	g_signal_connect(coords_button, "toggled", G_CALLBACK(coords_cb), NULL);
+	gtk_widget_set_tooltip_text(coords_button, "Show (x,y) coordinates when cursor is in plot area");
 
 	snap_button = gtk_toggle_button_new_with_label("Snap to Data");
 	gtk_box_pack_start (GTK_BOX(h_box), snap_button, FALSE, FALSE, 0);
 	g_signal_connect(snap_button, "toggled", G_CALLBACK(snap_cb), NULL);
+	gtk_widget_set_tooltip_text(snap_button, "Snap crosshair and/or coordinates to nearest data point");
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
 	gtk_widget_set_size_request(plot_scroll_win, 750, 600);
