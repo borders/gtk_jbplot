@@ -175,6 +175,7 @@ struct _jbplotPrivate
 	gboolean do_show_coords;
 	gboolean do_show_cross_hair;
 	gboolean do_snap_to_data;
+	gboolean cross_hair_is_visible;
 	gdouble drag_start_x;
 	gdouble drag_start_y;
 	gdouble drag_end_x;
@@ -534,6 +535,16 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 	return FALSE;
 }
 
+
+static gboolean jbplot_leave_notify(GtkWidget *w, GdkEventCrossing *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
+	if(priv->cross_hair_is_visible) {
+		priv->needs_redraw = TRUE;
+		gtk_widget_queue_draw(w);
+	}
+	return FALSE;
+}
+
 static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 	GTimeVal t_now;
@@ -603,6 +614,7 @@ static void jbplot_class_init (jbplotClass *class) {
 	widget_class->button_press_event = jbplot_button_press;
 	widget_class->button_release_event = jbplot_button_release;
 	widget_class->motion_notify_event = jbplot_motion_notify;
+	widget_class->leave_notify_event = jbplot_leave_notify;
 
 	/* jbplot signals */
 	jbplot_signals[ZOOM_IN] = g_signal_new (
@@ -726,7 +738,7 @@ static int init_plot(plot_t *plot) {
 static void jbplot_init (jbplot *plot) {
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			GDK_POINTER_MOTION_MASK);
+			GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
@@ -735,6 +747,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->v_zoom = FALSE;
 	priv->panning = FALSE;
 	priv->do_show_coords = FALSE;
+	priv->cross_hair_is_visible = FALSE;
 	priv->do_show_cross_hair = FALSE;
 	priv->do_snap_to_data = FALSE;
 	priv->antialias = 0;
@@ -1803,43 +1816,54 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	/************** draw crosshair if active ****************************/
 	if(priv->do_show_cross_hair) {
 		gint x,y;
+		int inhibit_ch = 0;
 		gtk_widget_get_pointer(plot, &x, &y);
 		if(x < priv->plot.plot_area.left_edge) {
 			x = priv->plot.plot_area.left_edge;
+			inhibit_ch = 1;
 		}
 		if(x > priv->plot.plot_area.right_edge) {
 			x = priv->plot.plot_area.right_edge;
+			inhibit_ch = 1;
 		}
 		if(y < priv->plot.plot_area.top_edge) {
 			y = priv->plot.plot_area.top_edge;
+			inhibit_ch = 1;
 		}
 		if(y > priv->plot.plot_area.bottom_edge) {
 			y = priv->plot.plot_area.bottom_edge;
+			inhibit_ch = 1;
 		}
 		if(priv->do_snap_to_data && is_in_plot_area) {
 			x = x_px;
 			y = y_px;
 		}
-		cairo_save(cr);
-		//cairo_set_source_rgb (cr, 1.0, 1.0, 0.0); // yellow
-		cairo_set_source_rgb (cr, 0.0, 0.0, 1.0); // blue
-		cairo_set_line_width (cr, 1.0);
+		if(!inhibit_ch) {
+			cairo_save(cr);
+			//cairo_set_source_rgb (cr, 1.0, 1.0, 0.0); // yellow
+			cairo_set_source_rgb (cr, 0.0, 0.0, 1.0); // blue
+			cairo_set_line_width (cr, 1.0);
 
-		cairo_move_to(cr, priv->plot.plot_area.left_edge, y);
-		cairo_line_to(cr, x-10, y);
-		cairo_move_to(cr, x-5, y);
-		cairo_line_to(cr, x+5, y);
-		cairo_move_to(cr, x+10, y);
-		cairo_line_to(cr, priv->plot.plot_area.right_edge, y);
+			cairo_move_to(cr, priv->plot.plot_area.left_edge, y);
+			cairo_line_to(cr, x-10, y);
+			cairo_move_to(cr, x-5, y);
+			cairo_line_to(cr, x+5, y);
+			cairo_move_to(cr, x+10, y);
+			cairo_line_to(cr, priv->plot.plot_area.right_edge, y);
 
-		cairo_move_to(cr, x, priv->plot.plot_area.top_edge);
-		cairo_line_to(cr, x, y-10);
-		cairo_move_to(cr, x, y-5);
-		cairo_line_to(cr, x, y+5);
-		cairo_move_to(cr, x, y+10);
-		cairo_line_to(cr, x, priv->plot.plot_area.bottom_edge);
-		cairo_stroke(cr);	
-		cairo_restore(cr);
+			cairo_move_to(cr, x, priv->plot.plot_area.top_edge);
+			cairo_line_to(cr, x, y-10);
+			cairo_move_to(cr, x, y-5);
+			cairo_line_to(cr, x, y+5);
+			cairo_move_to(cr, x, y+10);
+			cairo_line_to(cr, x, priv->plot.plot_area.bottom_edge);
+			cairo_stroke(cr);	
+			cairo_restore(cr);
+			priv->cross_hair_is_visible = TRUE;
+		}
+		else {
+			priv->cross_hair_is_visible = FALSE;
+		}
 	}
 
 	/**************** draw coordinates if active (whether zooming or not) *************/
