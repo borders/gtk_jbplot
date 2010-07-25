@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <string.h>
+#include <ctype.h>
 #include <cairo/cairo-svg.h>
 
 #include "../jbplot.h"
@@ -268,6 +269,20 @@ int add_trace(struct chart *chart) {
 	return 0;
 }
 
+char *strtolower(char *str) {
+	static char s[255];
+	int len = strlen(str);
+	if(len >= sizeof(s)) {
+		return NULL;
+	}
+	int i;
+	for(i=0; i<len; i++) {
+		s[i] = tolower(str[i]);
+	}
+	s[i] = '\0';
+	return s;
+}
+
 gboolean update_data(gpointer data) {
 	int i;
 	int ret;
@@ -290,7 +305,7 @@ gboolean update_data(gpointer data) {
 				is_cmd = 0;
 				char *cmd;
 				cmd = strtok(strip_leading_ws(line), " \t"); 
-				printf("Got command: %s\n", cmd);
+				//printf("Got command: %s\n", cmd);
 				if(!strcmp(cmd,"tracename")) {
 					char *c;
 					int i;
@@ -305,28 +320,32 @@ gboolean update_data(gpointer data) {
 					}
 					jbplot_trace_set_name(charts[chart_count-1].traces[i-1], c);
 					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
+					printf("Setting name of trace %d to '%s'\n", i, c);
 				}
 				else if(!strcmp(cmd,"stack")) {
 					char *c = strtok(NULL, " \t");
-					if(!strcmp("yes",c) || !strcmp("Yes",c) || !strcmp("YES",c) || !strcmp("1",c)) {
+					char *d = strtolower(c);
+					if(!strcmp("yes",d) || !strcmp("1",d) || !strcmp("on",d)) {
 						stack = 1;
 						printf("Stacked mode ON\n");
 					}
-					else if(!strcmp("no",c) || !strcmp("No",c) || !strcmp("NO",c) || !strcmp("0",c)) {
+					else if(!strcmp("no",d) || !strcmp("0",d) || !strcmp("off",d)) {
 						stack = 0;
 						printf("Stacked mode OFF\n");
 					}
 					else {
-						printf("stack usage: #stack (yes|no|1|0)\n");
+						printf("stack usage: #stack (yes|no|1|0|on|off)\n");
 					}  
 				}
 				else if(!strcmp(cmd,"wintitle")) {
 					char *c = strtok(NULL, "");
 					gtk_window_set_title((GtkWindow *)window, c);
+					printf("Setting window title to '%s'\n", c);
 				}
 				else if(!strcmp(cmd,"newplot")) {
 					if(charts[chart_count-1].num_points > 0) {
 						add_plot();
+						printf("Creating new plot\n");
 					}
 				}
 				else if(!strcmp(cmd,"newtrace")) {
@@ -336,6 +355,7 @@ gboolean update_data(gpointer data) {
 					else {
 						// setting num_points to zero will create a new trace(s) upon next valid data row
 						charts[chart_count-1].num_points = 0;
+						printf("Creating new trace(s)\n");
 					}
 				}
 				else if(!strcmp(cmd,"xlabel")) {
@@ -352,10 +372,12 @@ gboolean update_data(gpointer data) {
 							continue;
 						}
 						jbplot_set_x_axis_label((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
+						printf("Setting x-axis label for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
+						printf("Setting x-axis label to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"ylabel")) {
@@ -372,10 +394,12 @@ gboolean update_data(gpointer data) {
 							continue;
 						}
 						jbplot_set_y_axis_label((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
+						printf("Setting y-axis label for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_y_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
+						printf("Setting y-axis label to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"title")) {
@@ -392,27 +416,69 @@ gboolean update_data(gpointer data) {
 							continue;
 						}
 						jbplot_set_plot_title((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
+						printf("Setting title for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
+						printf("Setting title to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"xformat")) {
-					char *c = strtok(NULL, " \t");
-					if(c != NULL) {
-						//printf("setting x format string to '%s'\n", c);
-						jbplot_set_x_axis_format((jbplot *)charts[chart_count-1].plot, c);
-						got_one = 1;
+					if(stack) {
+						if(charts[chart_count-1].num_points < 1) {
+							printf("xformat must be run after at least one data record (when in stacked mode)\n");
+							continue;
+						}
+						char *c;
+						int i;
+						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
+								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
+							printf("title usage: #xformat <index (1-based)> <label_text>\n");
+							continue;
+						}
+						jbplot_set_x_axis_format((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c);
+						printf("Setting x-axis format string for plot %d to '%s'\n", i, c);
 					}
+					else {
+						char *c = strtok(NULL, " \t");
+						if(c != NULL) {
+							//printf("setting x format string to '%s'\n", c);
+							jbplot_set_x_axis_format((jbplot *)charts[chart_count-1].plot, c);
+							printf("Setting x-axis format string to '%s'\n", c);
+							got_one = 1;
+						}
+					}
+
 				}
 				else if(!strcmp(cmd,"yformat")) {
-					char *c = strtok(NULL, " \t");
-					if(c != NULL) {
-						//printf("setting y format string to '%s'\n", c);
-						jbplot_set_y_axis_format((jbplot *)charts[chart_count-1].plot, c);
-						got_one = 1;
+					if(stack) {
+						if(charts[chart_count-1].num_points < 1) {
+							printf("yformat must be run after at least one data record (when in stacked mode)\n");
+							continue;
+						}
+						char *c;
+						int i;
+						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
+								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
+							printf("title usage: #yformat <index (1-based)> <label_text>\n");
+							continue;
+						}
+						jbplot_set_y_axis_format((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c);
+						printf("Setting y-axis format string for plot %d to '%s'\n", i, c);
 					}
+					else {
+						char *c = strtok(NULL, " \t");
+						if(c != NULL) {
+							//printf("setting y format string to '%s'\n", c);
+							jbplot_set_y_axis_format((jbplot *)charts[chart_count-1].plot, c);
+							printf("Setting y-axis format string to '%s'\n", c);
+							got_one = 1;
+						}
+					}
+				}
+				else {
+					printf("Invalid command: %s\n", cmd);
 				}
 			}
 			else {
@@ -557,7 +623,7 @@ that the user can zoom, pan and even track data coordinates using the mouse. \n\
 INPUT FORMAT\n\
 ------------\n\
 Data is entered using a simple whitespace-delimited text format.  The simplest example \n\
-of a single (x,y) data set would look like this, with one x,y point per line: \n\
+of a single (x,y) data set would look like this, with one (x,y) point per line: \n\
   0 0\n\
   1 2\n\
   2 4\n\
@@ -575,7 +641,7 @@ vs column 3. \n\
 \n\
 COMMANDS\n\
 --------\n\
-Commands are denoted by a '#' character at the beginning of a line.  Commands lines may be \n\
+Commands are denoted by a '#' character at the beginning of a line.  Command lines may be \n\
 interlaced with lines of data. A list of available commands and their usage follows:\n\
 \n\
   WINTITLE\n\
@@ -596,7 +662,7 @@ interlaced with lines of data. A list of available commands and their usage foll
     a number of new traces if the data row has more than 2 columns). \n\
 \n\
   STACK\n\
-    Usage: #stack <stack_mode=(yes|no|1|0)> \n\
+    Usage: #stack <stack_mode=(yes|no|1|0|on|off)> \n\
 \n\
     Set stacked plot mode. When stacked mode is ON (specified by 'yes' or '1'), multiple data \n\
     series (specified by data lines with more than 2 columns) are plotted one series per plot. \n\
@@ -615,10 +681,10 @@ interlaced with lines of data. A list of available commands and their usage foll
     create. \n\
 \n\
   YLABEL\n\
-    Set a plot's y-axis label.  Similar to XLABEL. \n\
+    Set a plot's y-axis label.  Usage similar to XLABEL. \n\
 \n\
   TITLE\n\
-    Set a plot's title text.  Similar to XLABEL. \n\
+    Set a plot's title text.  Usage similar to XLABEL. \n\
 	\n");
 	return;
 }
