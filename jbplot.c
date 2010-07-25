@@ -187,6 +187,8 @@ struct _jbplotPrivate
 	GTimeVal last_mouse_motion;
 	gboolean rt_mode;
 	gboolean needs_redraw;
+	gboolean needs_h_zoom_signal;
+	gboolean needs_v_zoom_signal;
 
 	/* antialias mode */
 	char antialias;
@@ -489,7 +491,8 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				double ymax = (y_min - priv->y_b)/priv->y_m;
 				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
 				priv->needs_redraw = TRUE;
-				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
+				priv->needs_h_zoom_signal = TRUE;
+				//g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
 			else if(priv->v_zoom) {
 				priv->drag_start_x = priv->plot.plot_area.left_edge;
@@ -506,7 +509,8 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				double ymax = (y_min - priv->y_b)/priv->y_m;
 				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
 				priv->needs_redraw = TRUE;
-				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
+				priv->needs_v_zoom_signal = TRUE;
+				//g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
 			else if(x_now != priv->drag_start_x && y_now != priv->drag_start_y) {
 				x_min = (x_now < priv->drag_start_x) ? x_now : priv->drag_start_x;
@@ -753,6 +757,8 @@ static void jbplot_init (jbplot *plot) {
 	priv->antialias = 0;
 	priv->rt_mode = TRUE;
 	priv->needs_redraw = TRUE;
+	priv->needs_h_zoom_signal = FALSE;
+	priv->needs_v_zoom_signal = FALSE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -1256,6 +1262,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		y_range.min = y_axis->min_val;
 		y_range.max = y_axis->max_val;
 	}
+
   set_major_tic_values(x_axis, x_range.min, x_range.max);
   set_major_tic_values(y_axis, y_range.min, y_range.max);
   set_major_tic_labels(x_axis);
@@ -1267,6 +1274,13 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
   double plot_area_right_edge;
 	double y_label_left_edge;
 	double y_label_right_edge; 
+
+	// fire a zoom signal if needed
+	if(priv->needs_h_zoom_signal || priv->needs_v_zoom_signal) {
+		g_signal_emit_by_name((gpointer *)plot, "zoom-in", x_axis->min_val, x_axis->max_val, y_axis->min_val, y_axis->max_val);
+		priv->needs_h_zoom_signal = FALSE;
+		priv->needs_v_zoom_signal = FALSE;
+	}
 
 
 	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO) {
