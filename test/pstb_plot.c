@@ -10,6 +10,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include <cairo/cairo-svg.h>
 
 #include "../jbplot.h"
@@ -60,6 +61,18 @@ static char line[LINE_SIZE];
 static char line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
+static int quiet = 0;
+
+void myprintf(const char *fmt, ...) {
+	if(!quiet) {
+		va_list arg;
+		va_start(arg, fmt);
+		vprintf(fmt, arg);
+		va_end(arg);
+	}
+	return;
+}
+
 
 void cursor_cb(GtkToggleButton *b, gpointer user_data) {
 	int i;
@@ -139,7 +152,7 @@ void save_png(GtkButton *b, gpointer user_data) {
 		char *f_base = malloc(base_len + 1);
 		strncpy(f_base, filename, base_len);
 		f_base[base_len] = '\0';
-		//printf("basename: %s\n", f_base);
+		//myprintf("basename: %s\n", f_base);
 		char *f = malloc(strlen(filename) + 10);
 		for(i=0; i<chart_count; i++) {
 			sprintf(f, "%s_%02d%s", f_base, i, per);
@@ -163,9 +176,9 @@ void save_png(GtkButton *b, gpointer user_data) {
 
 gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
 	int i;
-	printf("Zoomed In!\n");
-	printf("x-range: (%lg, %lg)\n", xmin, xmax);
-	printf("y-range: (%lg, %lg)\n", ymin, ymax);
+	myprintf("Zoomed In!\n");
+	myprintf("x-range: (%lg, %lg)\n", xmin, xmax);
+	myprintf("y-range: (%lg, %lg)\n", ymin, ymax);
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
@@ -178,7 +191,7 @@ gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble 
 
 gint zoom_all_cb(jbplot *plot) {
 	int i;
-	printf("Zoom All!\n");
+	myprintf("Zoom All!\n");
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		//if(p != plot) {
@@ -191,7 +204,7 @@ gint zoom_all_cb(jbplot *plot) {
 
 gint pan_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
 	int i;
-	//printf("Panning!\n");
+	//myprintf("Panning!\n");
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
@@ -260,7 +273,7 @@ int add_trace(struct chart *chart) {
 		printf("error creating trace!\n");
 		return 0;
 	}
-	jbplot_trace_set_line_props(t1, ltypes[i%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
+	jbplot_trace_set_line_props(t1, ltypes[(i/NUM_COLORS)%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
 	jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
 	chart->traces[i] = t1;
 	jbplot_add_trace((jbplot *)chart->plot, t1);
@@ -288,164 +301,164 @@ gboolean update_data(gpointer data) {
 	int ret;
 	char c;
 	int got_one = 0;
-	//printf("** start update_data()\n");
+	//myprintf("** start update_data()\n");
 	if(!run) {
 		return TRUE;
 	}
 
 	GtkWidget *plot = charts[chart_count-1].plot;
 	while((ret = read(0, &c, 1)) > 0) {
-		//printf("got char: %c\n", c);
+		//myprintf("got char: %c\n", c);
 		if(c == '\n') {
 			line[line_index] = '\0';
-			//printf("got line: '%s'\n", line);
+			//myprintf("got line: '%s'\n", line);
 			line_count++;
 			line_index = 0;
 			if(is_cmd) {
 				is_cmd = 0;
 				char *cmd;
 				cmd = strtok(strip_leading_ws(line), " \t"); 
-				//printf("Got command: %s\n", cmd);
+				//myprintf("Got command: %s\n", cmd);
 				if(!strcmp(cmd,"tracename")) {
 					char *c;
 					int i;
 					if(charts[chart_count-1].num_points < 1) {
-						printf("tracename must be run after at least one data record\n");
+						myprintf("tracename must be run after at least one data record\n");
 						continue;
 					}
 					if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 							i < 1 || i > charts[chart_count-1].num_traces || (c = strtok(NULL, "")) == NULL) {
-						printf("tracename usage: #tracename <trace_index (1-based)> <trace_name>\n");
+						myprintf("tracename usage: #tracename <trace_index (1-based)> <trace_name>\n");
 						continue;
 					}
 					jbplot_trace_set_name(charts[chart_count-1].traces[i-1], c);
 					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
-					printf("Setting name of trace %d to '%s'\n", i, c);
+					myprintf("Setting name of trace %d to '%s'\n", i, c);
 				}
 				else if(!strcmp(cmd,"stack")) {
 					char *c = strtok(NULL, " \t");
 					char *d = strtolower(c);
 					if(!strcmp("yes",d) || !strcmp("1",d) || !strcmp("on",d)) {
 						stack = 1;
-						printf("Stacked mode ON\n");
+						myprintf("Stacked mode ON\n");
 					}
 					else if(!strcmp("no",d) || !strcmp("0",d) || !strcmp("off",d)) {
 						stack = 0;
-						printf("Stacked mode OFF\n");
+						myprintf("Stacked mode OFF\n");
 					}
 					else {
-						printf("stack usage: #stack (yes|no|1|0|on|off)\n");
+						myprintf("stack usage: #stack (yes|no|1|0|on|off)\n");
 					}  
 				}
 				else if(!strcmp(cmd,"wintitle")) {
 					char *c = strtok(NULL, "");
 					gtk_window_set_title((GtkWindow *)window, c);
-					printf("Setting window title to '%s'\n", c);
+					myprintf("Setting window title to '%s'\n", c);
 				}
 				else if(!strcmp(cmd,"newplot")) {
 					if(charts[chart_count-1].num_points > 0) {
 						add_plot();
-						printf("Creating new plot\n");
+						myprintf("Creating new plot\n");
 					}
 				}
 				else if(!strcmp(cmd,"newtrace")) {
 					if(stack) {
-						printf("#newtrace not supported in stacked mode\n");
+						myprintf("#newtrace not supported in stacked mode\n");
 					}
 					else {
 						// setting num_points to zero will create a new trace(s) upon next valid data row
 						charts[chart_count-1].num_points = 0;
-						printf("Creating new trace(s)\n");
+						myprintf("Creating new trace(s)\n");
 					}
 				}
 				else if(!strcmp(cmd,"xlabel")) {
 					if(stack) {
 						if(charts[chart_count-1].num_points < 1) {
-							printf("xlabel must be run after at least one data record (when in stacked mode)\n");
+							myprintf("xlabel must be run after at least one data record (when in stacked mode)\n");
 							continue;
 						}
 						char *c;
 						int i;
 						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
-							printf("xlabel usage: #xlabel <index (1-based)> <label_text>\n");
+							myprintf("xlabel usage: #xlabel <index (1-based)> <label_text>\n");
 							continue;
 						}
 						jbplot_set_x_axis_label((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
-						printf("Setting x-axis label for plot %d to '%s'\n", i, c);
+						myprintf("Setting x-axis label for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
-						printf("Setting x-axis label to '%s'\n", c);
+						myprintf("Setting x-axis label to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"ylabel")) {
 					if(stack) {
 						if(charts[chart_count-1].num_points < 1) {
-							printf("ylabel must be run after at least one data record (when in stacked mode)\n");
+							myprintf("ylabel must be run after at least one data record (when in stacked mode)\n");
 							continue;
 						}
 						char *c;
 						int i;
 						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
-							printf("ylabel usage: #ylabel <index (1-based)> <label_text>\n");
+							myprintf("ylabel usage: #ylabel <index (1-based)> <label_text>\n");
 							continue;
 						}
 						jbplot_set_y_axis_label((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
-						printf("Setting y-axis label for plot %d to '%s'\n", i, c);
+						myprintf("Setting y-axis label for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_y_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
-						printf("Setting y-axis label to '%s'\n", c);
+						myprintf("Setting y-axis label to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"title")) {
 					if(stack) {
 						if(charts[chart_count-1].num_points < 1) {
-							printf("title must be run after at least one data record (when in stacked mode)\n");
+							myprintf("title must be run after at least one data record (when in stacked mode)\n");
 							continue;
 						}
 						char *c;
 						int i;
 						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
-							printf("title usage: #title <index (1-based)> <label_text>\n");
+							myprintf("title usage: #title <index (1-based)> <label_text>\n");
 							continue;
 						}
 						jbplot_set_plot_title((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c, 1);
-						printf("Setting title for plot %d to '%s'\n", i, c);
+						myprintf("Setting title for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, "");
 						jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
-						printf("Setting title to '%s'\n", c);
+						myprintf("Setting title to '%s'\n", c);
 					}
 				}
 				else if(!strcmp(cmd,"xformat")) {
 					if(stack) {
 						if(charts[chart_count-1].num_points < 1) {
-							printf("xformat must be run after at least one data record (when in stacked mode)\n");
+							myprintf("xformat must be run after at least one data record (when in stacked mode)\n");
 							continue;
 						}
 						char *c;
 						int i;
 						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
-							printf("title usage: #xformat <index (1-based)> <label_text>\n");
+							myprintf("title usage: #xformat <index (1-based)> <label_text>\n");
 							continue;
 						}
 						jbplot_set_x_axis_format((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c);
-						printf("Setting x-axis format string for plot %d to '%s'\n", i, c);
+						myprintf("Setting x-axis format string for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, " \t");
 						if(c != NULL) {
-							//printf("setting x format string to '%s'\n", c);
+							//myprintf("setting x format string to '%s'\n", c);
 							jbplot_set_x_axis_format((jbplot *)charts[chart_count-1].plot, c);
-							printf("Setting x-axis format string to '%s'\n", c);
+							myprintf("Setting x-axis format string to '%s'\n", c);
 							got_one = 1;
 						}
 					}
@@ -454,31 +467,31 @@ gboolean update_data(gpointer data) {
 				else if(!strcmp(cmd,"yformat")) {
 					if(stack) {
 						if(charts[chart_count-1].num_points < 1) {
-							printf("yformat must be run after at least one data record (when in stacked mode)\n");
+							myprintf("yformat must be run after at least one data record (when in stacked mode)\n");
 							continue;
 						}
 						char *c;
 						int i;
 						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
 								i < 1 || i > stack_count ||	(c = strtok(NULL, "")) == NULL ) {
-							printf("title usage: #yformat <index (1-based)> <label_text>\n");
+							myprintf("title usage: #yformat <index (1-based)> <label_text>\n");
 							continue;
 						}
 						jbplot_set_y_axis_format((jbplot *)charts[i - 1 + chart_count - stack_count].plot, c);
-						printf("Setting y-axis format string for plot %d to '%s'\n", i, c);
+						myprintf("Setting y-axis format string for plot %d to '%s'\n", i, c);
 					}
 					else {
 						char *c = strtok(NULL, " \t");
 						if(c != NULL) {
-							//printf("setting y format string to '%s'\n", c);
+							//myprintf("setting y format string to '%s'\n", c);
 							jbplot_set_y_axis_format((jbplot *)charts[chart_count-1].plot, c);
-							printf("Setting y-axis format string to '%s'\n", c);
+							myprintf("Setting y-axis format string to '%s'\n", c);
 							got_one = 1;
 						}
 					}
 				}
 				else {
-					printf("Invalid command: %s\n", cmd);
+					myprintf("Invalid command: %s\n", cmd);
 				}
 			}
 			else {
@@ -497,13 +510,13 @@ gboolean update_data(gpointer data) {
 						}
 					}
 					if(num_fields < 2) {
-						printf("Incomplete data row.  Skipping...\n");
+						myprintf("Incomplete data row.  Skipping...\n");
 						continue;
 					}
 
 					if(stack) {
 						int i;
-						printf("Got %d fields (%d plots)\n", num_fields, num_fields-1);
+						myprintf("Got %d fields (%d plots)\n", num_fields, num_fields-1);
 						stack_count = num_fields - 1;
 
 						// add more plots if needed
@@ -519,7 +532,7 @@ gboolean update_data(gpointer data) {
 						}
 					}
 					else { // no stack
-						printf("Got %d fields (%d traces)\n", num_fields, num_fields-1);
+						myprintf("Got %d fields (%d traces)\n", num_fields, num_fields-1);
 
 						// create the traces
 						int i;
@@ -560,7 +573,7 @@ gboolean update_data(gpointer data) {
 						}
 					}
 					else {
-						printf("error parsing data on line %d\n", line_count);
+						myprintf("error parsing data on line %d\n", line_count);
 					}
 				}
 				else {
@@ -570,12 +583,12 @@ gboolean update_data(gpointer data) {
 						int i;
 						for(i=1; i<valid_fields; i++) {
 							int j = i - 1 + charts[chart_count-1].num_traces - (num_fields-1);
-							//printf("adding point: (%lg, %lg)\n", data[0], data[i]); 
+							//myprintf("adding point: (%lg, %lg)\n", data[0], data[i]); 
 							jbplot_trace_add_point(charts[chart_count-1].traces[j], data[0], data[i]); 
 						}
 					}
 					else {
-						printf("error parsing data on line %d\n", line_count);
+						myprintf("error parsing data on line %d\n", line_count);
 					}
 				}
 
@@ -601,7 +614,7 @@ gboolean update_data(gpointer data) {
 			jbplot_refresh((jbplot *)plot);
 		}
 	}
-	//printf("** end update_data()\n");
+	//myprintf("** end update_data()\n");
 	return TRUE;
 }
 
@@ -619,6 +632,10 @@ void usage(char *str) {
 "This program reads data (and optionally commands) from STDIN and displays one or \n\
 more plots of the data in a separate window.  The plots are interactive, meaning \n\
 that the user can zoom, pan and even track data coordinates using the mouse. \n\
+\n\
+OPTIONS\n\
+------------\n\
+  -q  : Quiet mode. Inhibit printing status stuff to STDOUT.\n\
 \n\
 INPUT FORMAT\n\
 ------------\n\
@@ -689,17 +706,24 @@ interlaced with lines of data. A list of available commands and their usage foll
 	return;
 }
 
+
+
 int main (int argc, char **argv) {
+	int i;
 	GtkWidget *top_v_box;
 	GtkWidget *h_box;
 	GtkWidget *save_button;
 
-	if(argc > 1) {
-		if(!strcmp(argv[1],"-h") || !strcmp(argv[1],"--help")) {
+	for(i=1; i<argc; i++) {
+		if(!strcmp(argv[i],"-h")) {
 			usage(argv[0]);
 			return 0;
 		}
+		else if(!strcmp(argv[i],"-q")) {
+			quiet = 1;
+		}
 	}
+
 	gtk_init (&argc, &argv);
 
 	int flags;
