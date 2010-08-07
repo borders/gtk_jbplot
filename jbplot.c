@@ -262,7 +262,9 @@ static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	priv->plot.x_axis.do_autoscale = !(priv->plot.x_axis.do_autoscale);
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
-	g_signal_emit_by_name((gpointer *)data, "zoom-all");
+	if(priv->plot.x_axis.do_autoscale) {
+		g_signal_emit_by_name((gpointer *)data, "zoom-all");
+	}
 	return FALSE;
 }
 
@@ -281,7 +283,9 @@ static gboolean popup_callback_y_autoscale(GtkWidget *w, GdkEvent *e, gpointer d
 	priv->plot.y_axis.do_autoscale = !(priv->plot.y_axis.do_autoscale);
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)data);
-	g_signal_emit_by_name((gpointer *)data, "zoom-all");
+	if(priv->plot.y_axis.do_autoscale) {
+		g_signal_emit_by_name((gpointer *)data, "zoom-all");
+	}
 	return FALSE;
 }
 
