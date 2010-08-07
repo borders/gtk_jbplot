@@ -2309,13 +2309,25 @@ int jbplot_set_crosshair_mode(jbplot *plot, crosshair_t mode) {
 
 int jbplot_set_x_axis_format(jbplot *plot, char *str) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-  strcpy(priv->plot.x_axis.tic_label_format_string, str);
+	if(strlen(str)==0) { // empty string -> do auto formatting
+		priv->plot.x_axis.do_auto_tic_format = 1;
+	}
+	else {
+		priv->plot.x_axis.do_auto_tic_format = 0;
+  	strcpy(priv->plot.x_axis.tic_label_format_string, str);
+	}
 	return 0;
 }
 
 int jbplot_set_y_axis_format(jbplot *plot, char *str) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-  strcpy(priv->plot.y_axis.tic_label_format_string, str);
+	if(strlen(str)==0) { // empty string -> do auto formatting
+		priv->plot.y_axis.do_auto_tic_format = 1;
+	}
+	else {
+		priv->plot.y_axis.do_auto_tic_format = 0;
+		strcpy(priv->plot.y_axis.tic_label_format_string, str);
+	}
 	return 0;
 }
 
