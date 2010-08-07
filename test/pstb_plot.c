@@ -58,7 +58,7 @@ static GtkWidget *plot_scroll_win;
 static struct chart charts[MAX_CHARTS];
 static int chart_count = 0;
 static int run = 1;
-#define LINE_SIZE 1000
+#define LINE_SIZE 50000
 static char line[LINE_SIZE];
 static char line_index = 0;
 static int line_count = 0;
