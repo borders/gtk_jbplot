@@ -62,7 +62,9 @@ typedef struct axis_t {
   char is_tic_label_owner;
   double min_val;
   double max_val;
+  double major_tic_delta;
   char tic_label_format_string[100];
+	char do_auto_tic_format;
   double tic_label_font_size;
   int num_actual_major_tics;
   int num_request_major_tics;
@@ -682,7 +684,9 @@ static int init_axis(axis_t *axis) {
   axis->is_tic_label_owner = 1;
   axis->min_val = 0.0;
   axis->max_val = 10.0;
+  axis->major_tic_delta = 1.0;
   strcpy(axis->tic_label_format_string, "%g");
+	axis->do_auto_tic_format = 1;
   axis->num_request_major_tics = 8;
   axis->num_minor_tics_per_major = 5;
   axis->tic_label_font_size = 10.;
@@ -1895,13 +1899,18 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			double x_w, x_h, y_w, y_h;
 			double box_w, box_h;
 
+			char x_fs[200]="x=";
+			char y_fs[200]="y=";
+			strcat(x_fs, p->x_axis.tic_label_format_string);
+			strcat(y_fs, p->y_axis.tic_label_format_string);
+
 			if(priv->do_snap_to_data) {
-				sprintf(x_str, "x=%g", (p->traces[closest_trace_index])->x_data[closest_point_index]);
-				sprintf(y_str, "y=%g", (p->traces[closest_trace_index])->y_data[closest_point_index]);
+				sprintf(x_str, x_fs, (p->traces[closest_trace_index])->x_data[closest_point_index]);
+				sprintf(y_str, y_fs, (p->traces[closest_trace_index])->y_data[closest_point_index]);
 			}
 			else {
-				sprintf(x_str, "x=%g", ((double)x-x_b)/x_m);
-				sprintf(y_str, "y=%g", ((double)y-y_b)/y_m);
+				sprintf(x_str, x_fs, ((double)x-x_b)/x_m);
+				sprintf(y_str, y_fs, ((double)y-y_b)/y_m);
 			}
 			x_w = get_text_width(cr, x_str, 10);
 			y_w = get_text_width(cr, y_str, 10);
@@ -2032,7 +2041,7 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 		a->max_val = max;		
 		a->num_actual_major_tics = i;		
 	}
-	
+	a->major_tic_delta = actual_tic_delta;
 	return 0;
 }
 
@@ -2040,8 +2049,23 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 static int set_major_tic_labels(axis_t *a) {
 	int i, ret;
 	int err = 0;
-	for(i=0; i<a->num_actual_major_tics; i++) {
-		ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+	if(a->do_auto_tic_format) { // do automagic formatting...
+		double dd = log10( fabs(a->major_tic_delta) );
+		double d1 = log10(fabs(a->major_tic_values[0]));
+		double d2 = log10(fabs(a->major_tic_values[a->num_actual_major_tics-1]));
+		double d = (d2>d1) ? d2 : d1;
+		int sigs = ceil(d) - floor(dd) + 1.5;
+		if(sigs < 1) 
+			sigs = 1;
+		sprintf(a->tic_label_format_string, "%%.%dg", sigs);
+		for(i=0; i<a->num_actual_major_tics; i++) { 
+			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+		}
+	}
+	else { // otherwise, use standard fprintf type of format string
+		for(i=0; i<a->num_actual_major_tics; i++) { 
+			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+		}
 	}
 	return err;
 }
