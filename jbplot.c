@@ -27,7 +27,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event);
 static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 
 #define MAX_NUM_MAJOR_TICS    50
-#define MAJOR_TIC_LABEL_SIZE  100
+#define MAJOR_TIC_LABEL_SIZE  150
 #define MAX_NUM_TRACES    100
 
 #define MED_GAP 6
@@ -69,6 +69,7 @@ typedef struct axis_t {
   int num_actual_major_tics;
   int num_request_major_tics;
   int num_minor_tics_per_major;
+	char do_manual_tics;
 } axis_t;
 
 typedef struct data_range {
@@ -695,6 +696,7 @@ static int init_axis(axis_t *axis) {
   axis->num_minor_tics_per_major = 5;
   axis->tic_label_font_size = 10.;
   axis->axis_label_font_size = 10.;
+	axis->do_manual_tics = 0;
 	return 0;
 }
 
@@ -1271,10 +1273,16 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		y_range.max = y_axis->max_val;
 	}
 
-  set_major_tic_values(x_axis, x_range.min, x_range.max);
-  set_major_tic_values(y_axis, y_range.min, y_range.max);
-  set_major_tic_labels(x_axis);
-  set_major_tic_labels(y_axis);
+	set_major_tic_values(x_axis, x_range.min, x_range.max);
+	set_major_tic_values(y_axis, y_range.min, y_range.max);
+
+	if(!x_axis->do_manual_tics) {
+		set_major_tic_labels(x_axis);
+	}
+	if(!y_axis->do_manual_tics) {
+		set_major_tic_labels(y_axis);
+	}
+
   double max_y_label_width = get_widest_label_width(y_axis, cr);
   double y_tic_labels_left_edge;
   double y_tic_labels_right_edge;
@@ -2028,7 +2036,9 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 		if(fabs(tic_val / actual_tic_delta) < 0.5) {
 			tic_val = 0.0;
 		}
-		a->major_tic_values[i] = tic_val;
+		if(!a->do_manual_tics) {
+			a->major_tic_values[i] = tic_val;
+		}
 		i++;
 	}
 	if(i >= MAX_NUM_MAJOR_TICS) {
@@ -2037,13 +2047,17 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 	}
 	
 	if(a->do_autoscale && a->do_loose_fit) {
-		a->major_tic_values[i] = tic_val;
 		a->max_val = tic_val;	
-		a->num_actual_major_tics = i+1;
+		if(!a->do_manual_tics) {
+			a->major_tic_values[i] = tic_val;
+			a->num_actual_major_tics = i+1;
+		}
 	}
 	else {
 		a->max_val = max;		
-		a->num_actual_major_tics = i;		
+		if(!a->do_manual_tics) {
+			a->num_actual_major_tics = i;		
+		}
 	}
 	a->major_tic_delta = actual_tic_delta;
 	return 0;
@@ -2266,6 +2280,56 @@ static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, d
 }
 
 /******************** Public Functions *******************************/
+int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	int ret = 0;
+	if(n < 2) { // must specify at least 2 values, otherwise use auto mode
+		priv->plot.x_axis.do_manual_tics = 0;
+	}
+	else if(n > MAX_NUM_MAJOR_TICS) { // if too many, just reject it...
+		priv->plot.x_axis.do_manual_tics = 0;
+		ret = -1;
+	}
+	else {
+		priv->plot.x_axis.num_actual_major_tics = n;		
+		priv->plot.x_axis.do_manual_tics = 1;
+		int i;
+		for(i=0; i<n; i++) {
+			priv->plot.x_axis.major_tic_values[i] = values[i];
+			strncpy(priv->plot.x_axis.major_tic_labels[i], labels[i], MAJOR_TIC_LABEL_SIZE-1);
+		}
+	}
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return ret;
+}
+
+int jbplot_set_y_axis_tics(jbplot *plot, int n, double *values, char **labels) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	int ret = 0;
+	if(n < 2) { // must specify at least 2 values, otherwise use auto mode
+		priv->plot.y_axis.do_manual_tics = 0;
+	}
+	else if(n > MAX_NUM_MAJOR_TICS) { // if too many, just reject it...
+		priv->plot.y_axis.do_manual_tics = 0;
+		ret = -1;
+	}
+	else {
+		priv->plot.y_axis.num_actual_major_tics = n;		
+		priv->plot.y_axis.do_manual_tics = 1;
+		int i;
+		for(i=0; i<n; i++) {
+			priv->plot.y_axis.major_tic_values[i] = values[i];
+			strncpy(priv->plot.y_axis.major_tic_labels[i], labels[i], MAJOR_TIC_LABEL_SIZE-1);
+		}
+	}
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return ret;
+}
+
+
+
 int jbplot_set_coords_visible(jbplot *plot, int vis) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
 	priv->do_show_coords = vis;

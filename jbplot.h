@@ -127,6 +127,7 @@ int jbplot_set_bg_color(jbplot *plot, rgb_color_t *color);
 
 
 /********************** X-axis functions *********************************************/
+int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_x_axis_format(jbplot *plot, char *str);
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
@@ -138,6 +139,7 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 
 
 /********************* Y-axis functions *******************************************/
+int jbplot_set_y_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_y_axis_format(jbplot *plot, char *str);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
