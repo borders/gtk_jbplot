@@ -42,6 +42,8 @@ struct chart {
 	int num_traces;
 };
 
+static lmargin = 75;
+static rmargin = 110;
 static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
@@ -243,7 +245,7 @@ static int add_plot() {
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
-	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, 75, 110);
+	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, lmargin, rmargin);
 
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
@@ -376,6 +378,97 @@ gboolean update_data(gpointer data) {
 						// setting num_points to zero will create a new trace(s) upon next valid data row
 						charts[chart_count-1].num_points = 0;
 						myprintf("Creating new trace(s)\n");
+					}
+				}
+				else if(!strcmp(cmd,"xmargins")) {
+					if(stack) {
+						myprintf("#xmargins command not currently supported in stacked mode\n");
+						continue;
+					}
+					else {
+						char *usage = "xmargins usage: #xmargins <left_px> <right_px>\n";
+						char *dat;
+						if( (dat = strtok(NULL, "")) == NULL) {
+							myprintf(usage);
+							continue;
+						}
+						if(sscanf(dat, "%d %d", &lmargin, &rmargin) != 2) {
+							myprintf(usage);
+							continue;
+						}
+						int i;
+						for(i=0; i<chart_count; i++) {
+							jbplot_set_plot_area_LR_margins((jbplot *)charts[i].plot, MARGIN_PX, lmargin, rmargin);
+						}
+					}
+				}
+				else if(!strcmp(cmd,"xtics")) {
+					if(stack) {
+						myprintf("#xtics command not currently supported in stacked mode\n");
+						continue;
+					}
+					else {
+						char *dat;
+						if( (dat = strtok(NULL, "")) == NULL) {
+							myprintf("xtics usage: #xtics <val1> <label1> <val2> <label2> ...\n");
+							continue;
+						}
+						double values[20];
+						int i;
+						char *labels[20];
+						for(i=0; i<20; i++) {
+							labels[i] = malloc(150);
+						}
+						for(i=0; i<20; i++) {
+							int nr;
+							if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
+								break;
+							}
+							printf("%g, %s\n", values[i], labels[i]);
+							dat = dat + nr;
+						}
+						if(i >= 2) {
+							jbplot_set_x_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
+							printf("setting x tics\n");
+						}
+						for(i=0; i<20; i++) {
+							free(labels[i]);
+						}
+					}
+				}
+				else if(!strcmp(cmd,"ytics")) {
+					if(stack) {
+						myprintf("#ytics command not currently supported in stacked mode\n");
+						continue;
+					}
+					else {
+						char *dat;
+						if( (dat = strtok(NULL, "")) == NULL) {
+							myprintf("ytics usage: #ytics <val1> <label1> <val2> <label2> ...\n");
+							continue;
+						}
+						double values[20];
+						int i;
+						char *labels[20];
+						for(i=0; i<20; i++) {
+							labels[i] = malloc(150);
+						}
+						for(i=0; i<20; i++) {
+							int nr;
+							if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
+								break;
+							}
+							printf("%g, %s\n", values[i], labels[i]);
+							dat = dat + nr;
+						}
+						printf("i=%d\n", i);
+						if(i >= 2) {
+							jbplot_set_y_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
+							printf("setting y tics\n");
+						}
+						for(i=0; i<20; i++) {
+							free(labels[i]);
+						}
 					}
 				}
 				else if(!strcmp(cmd,"xlabel")) {
@@ -706,6 +799,18 @@ interlaced with lines of data. A list of available commands and their usage foll
 \n\
   YLABEL\n\
     Set a plot's y-axis label.  Usage similar to XLABEL. \n\
+\n\
+  XTICS\n\
+    Usage (stacked mode ON): not yet supported \n\
+    Usage (stacked mode OFF): #xtics <val1> <label1> <val2> <lab2> ... \n\
+\n\
+    Allows user-specified tic values-label pairs.\n\
+\n\
+  XMARGINS\n\
+    Usage (stacked mode ON): not yet supported \n\
+    Usage (stacked mode OFF): #xmargins <left_px> <right_px> \n\
+\n\
+    Sets left and right plot area margins for all plots.\n\
 \n\
   TITLE\n\
     Set a plot's title text.  Usage similar to XLABEL. \n\
