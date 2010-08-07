@@ -2042,15 +2042,9 @@ static int set_major_tic_labels(axis_t *a) {
 	int err = 0;
 	for(i=0; i<a->num_actual_major_tics; i++) {
 		ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
-		if(ret > MAJOR_TIC_LABEL_SIZE) {
-			err = -1;
-		}
 	}
 	return err;
 }
-
-
-
 
 
 static double get_text_height(cairo_t *cr, char *text, double font_size) {
