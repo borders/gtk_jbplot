@@ -1586,11 +1586,9 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 					cairo_move_to(cr,	x_px,	y_px);
 					first_pt = 0;
 				}
-#if 0
 				else if(last_was_NAN) {
 					cairo_move_to(cr,	x_px,	y_px);
 				}
-#endif
 				else {
 					cairo_line_to(cr,	x_px,	y_px);
 				}
