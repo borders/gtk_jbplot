@@ -336,19 +336,26 @@ gboolean update_data(gpointer data) {
 					myprintf("Setting name of trace %d to '%s'\n", i, c);
 				}
 				else if(!strcmp(cmd,"stack")) {
+					char *usage = "stack usage: #stack (yes|no|1|0|on|off)\n";
 					char *c = strtok(NULL, " \t");
-					char *d = strtolower(c);
-					if(!strcmp("yes",d) || !strcmp("1",d) || !strcmp("on",d)) {
-						stack = 1;
-						myprintf("Stacked mode ON\n");
-					}
-					else if(!strcmp("no",d) || !strcmp("0",d) || !strcmp("off",d)) {
-						stack = 0;
-						myprintf("Stacked mode OFF\n");
+					if(c != NULL) {
+						char *d = strtolower(c);
+						if(!strcmp("yes",d) || !strcmp("1",d) || !strcmp("on",d)) {
+							stack = 1;
+							myprintf("Stacked mode ON\n");
+						}
+						else if(!strcmp("no",d) || !strcmp("0",d) || !strcmp("off",d)) {
+							stack = 0;
+							myprintf("Stacked mode OFF\n");
+						}
+						else {
+							myprintf(usage);
+						}  
 					}
 					else {
-						myprintf("stack usage: #stack (yes|no|1|0|on|off)\n");
-					}  
+						myprintf(usage);
+					}
+
 				}
 				else if(!strcmp(cmd,"wintitle")) {
 					char *c = strtok(NULL, "");
