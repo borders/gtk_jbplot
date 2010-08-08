@@ -60,7 +60,7 @@ static int chart_count = 0;
 static int run = 1;
 #define LINE_SIZE 50000
 static char line[LINE_SIZE];
-static char line_index = 0;
+static int line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
 static int quiet = 0;
