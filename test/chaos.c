@@ -24,7 +24,7 @@ int zoom_all = 1;
 void init_trace_with_data(trace_handle th) {
 	int i, j;
 	double r;
-	float y_min, y_max;
+	double y_min, y_max;
 	jbplot_get_y_axis_range((jbplot *)plot, &y_min, &y_max);
 	printf("y_min = %g, max = %g\n", y_min, y_max);
 	for(r=r_min; r<r_max; r+=(r_max-r_min)/NUM_STEPS) {
@@ -65,7 +65,9 @@ void init_trace_with_data(trace_handle th) {
 	return;
 }
 
-void zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax, gpointer data) {
+//gboolean zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax, gpointer data) {
+//gint zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax, gpointer data) {
+gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax) {
 	printf("Zoomed In!\n");
 	printf("x-range: (%g, %g)\n", xmin, xmax);
 	printf("y-range: (%g, %g)\n", ymin, ymax);
@@ -75,10 +77,13 @@ void zoom_in_cb(jbplot *plot, gfloat xmin, gfloat xmax, gfloat ymin, gfloat ymax
 	y_0 = 0.5*(ymin+ymax);
 	init_trace_with_data(t1);
 	jbplot_refresh(plot);
-	return;
+	//return TRUE;
+	return 0;
 }
 
-void zoom_all_cb(jbplot *plot, gpointer data) {
+//gboolean zoom_all_cb(jbplot *plot, gpointer data) {
+//gint zoom_all_cb(jbplot *plot, gpointer data) {
+gint zoom_all_cb(jbplot *plot) {
 	printf("Zoom All!\n");
 	zoom_all = 1;
 	jbplot_trace_clear_data(t1);
@@ -87,7 +92,7 @@ void zoom_all_cb(jbplot *plot, gpointer data) {
 	y_0 = 0.5;
 	init_trace_with_data(t1);
 	jbplot_refresh(plot);
-	return;
+	return 0;
 }
 
 
