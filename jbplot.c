@@ -1400,13 +1400,28 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	cairo_set_source_rgb (cr, 0., 0., 0.);
 	cairo_save(cr);
 	cairo_set_font_size(cr, y_axis->tic_label_font_size);
-	for(i=0; i<y_axis->num_actual_major_tics; i++) {
-		draw_horiz_text_at_point(	cr, 
-															y_axis->major_tic_labels[i], 
-															y_tic_labels_right_edge, 
-															y_m * y_axis->major_tic_values[i] + y_b, 
-															ANCHOR_MIDDLE_RIGHT
-														);
+	if(y_axis->do_manual_tics) {
+		for(i=0; i<y_axis->num_actual_major_tics; i++) {
+			double val = y_axis->major_tic_values[i];
+			if(val <= y_axis->max_val && val >= y_axis->min_val) {
+				draw_horiz_text_at_point(	cr, 
+																	y_axis->major_tic_labels[i], 
+																	y_tic_labels_right_edge, 
+																	y_m * y_axis->major_tic_values[i] + y_b, 
+																	ANCHOR_MIDDLE_RIGHT
+																);
+			}
+		}
+	}
+	else {
+		for(i=0; i<y_axis->num_actual_major_tics; i++) {
+			draw_horiz_text_at_point(	cr, 
+																y_axis->major_tic_labels[i], 
+																y_tic_labels_right_edge, 
+																y_m * y_axis->major_tic_values[i] + y_b, 
+																ANCHOR_MIDDLE_RIGHT
+															);
+		}
 	}
 	cairo_restore(cr);
 
@@ -1428,12 +1443,25 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		                     y_axis->major_gridline_color.blue
 		);
 		cairo_set_line_width(cr, y_axis->major_gridline_width);
-		for(i=0; i<y_axis->num_actual_major_tics; i++) {
-			double y = y_m * y_axis->major_tic_values[i] + y_b;
-			cairo_move_to(cr, plot_area_left_edge, y);
-			cairo_line_to(cr, plot_area_right_edge, y);
-			cairo_stroke(cr);
+		if(y_axis->do_manual_tics) {
+			for(i=0; i<y_axis->num_actual_major_tics; i++) {
+				double val = y_axis->major_tic_values[i];
+				if(val <= y_axis->max_val && val >= y_axis->min_val) {
+					double y = y_m * y_axis->major_tic_values[i] + y_b;
+					cairo_move_to(cr, plot_area_left_edge, y);
+					cairo_line_to(cr, plot_area_right_edge, y);
+					cairo_stroke(cr);
+				}
+			}
 		}	
+		else {
+			for(i=0; i<y_axis->num_actual_major_tics; i++) {
+				double y = y_m * y_axis->major_tic_values[i] + y_b;
+				cairo_move_to(cr, plot_area_left_edge, y);
+				cairo_line_to(cr, plot_area_right_edge, y);
+				cairo_stroke(cr);
+			}
+		}
 		cairo_restore(cr);
 	}
 	
@@ -1441,13 +1469,28 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	cairo_set_source_rgb (cr, 0., 0., 0.);
 	cairo_save(cr);
 	cairo_set_font_size(cr, x_axis->tic_label_font_size);
-	for(i=0; i<x_axis->num_actual_major_tics; i++) {
-		draw_horiz_text_at_point(	cr, 
-															x_axis->major_tic_labels[i], 
-															x_m * x_axis->major_tic_values[i] + x_b, 
-															x_tic_labels_top_edge, 
-															ANCHOR_TOP_MIDDLE
-														);
+	if(x_axis->do_manual_tics) {
+		for(i=0; i<x_axis->num_actual_major_tics; i++) {
+			double val = x_axis->major_tic_values[i];
+			if(val <= x_axis->max_val && val >= x_axis->min_val) {
+				draw_horiz_text_at_point(	cr, 
+																	x_axis->major_tic_labels[i], 
+																	x_m * val + x_b, 
+																	x_tic_labels_top_edge, 
+																	ANCHOR_TOP_MIDDLE
+																);
+			}
+		}
+	}
+	else {
+		for(i=0; i<x_axis->num_actual_major_tics; i++) {
+			draw_horiz_text_at_point(	cr, 
+																x_axis->major_tic_labels[i], 
+																x_m * x_axis->major_tic_values[i] + x_b, 
+																x_tic_labels_top_edge, 
+																ANCHOR_TOP_MIDDLE
+															);
+		}
 	}
 	cairo_restore(cr);
 
@@ -1469,12 +1512,25 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		                     x_axis->major_gridline_color.blue
 		);
 		cairo_set_line_width(cr, x_axis->major_gridline_width);
-		for(i=0; i<x_axis->num_actual_major_tics; i++) {
-			double x = x_m * x_axis->major_tic_values[i] + x_b;		
-			cairo_move_to(cr, x, plot_area_bottom_edge);
-			cairo_line_to(cr, x, plot_area_top_edge);
-			cairo_stroke(cr);
-		}	
+		if(x_axis->do_manual_tics) {
+			for(i=0; i<x_axis->num_actual_major_tics; i++) {
+				double val = x_axis->major_tic_values[i];
+				if(val <= x_axis->max_val && val >= x_axis->min_val) {
+					double x = x_m * val + x_b;		
+					cairo_move_to(cr, x, plot_area_bottom_edge);
+					cairo_line_to(cr, x, plot_area_top_edge);
+					cairo_stroke(cr);
+				}
+			}
+		}
+		else {
+			for(i=0; i<x_axis->num_actual_major_tics; i++) {
+				double x = x_m * x_axis->major_tic_values[i] + x_b;		
+				cairo_move_to(cr, x, plot_area_bottom_edge);
+				cairo_line_to(cr, x, plot_area_top_edge);
+				cairo_stroke(cr);
+			}
+		}
 		cairo_restore(cr);
 	}
 			
