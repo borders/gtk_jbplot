@@ -2129,8 +2129,8 @@ static int set_major_tic_labels(axis_t *a) {
 		double d2 = log10(fabs(a->major_tic_values[a->num_actual_major_tics-1]));
 		double d = (d2>d1) ? d2 : d1;
 		int sigs = ceil(d) - floor(dd) + 1.5;
-		if(sigs < 1) 
-			sigs = 1;
+		if(sigs < 4) 
+			sigs = 4;
 		sprintf(a->tic_label_format_string, "%%.%dg", sigs);
 		for(i=0; i<a->num_actual_major_tics; i++) { 
 			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
