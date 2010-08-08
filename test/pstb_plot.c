@@ -445,12 +445,12 @@ gboolean update_data(gpointer data) {
 							if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
 								break;
 							}
-							printf("%g, %s\n", values[i], labels[i]);
+							myprintf("%g, %s\n", values[i], labels[i]);
 							dat = dat + nr;
 						}
 						if(i >= 2) {
 							jbplot_set_x_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
-							printf("setting x tics\n");
+							myprintf("setting x tics listed above...\n");
 						}
 						for(i=0; i<20; i++) {
 							free(labels[i]);
@@ -479,13 +479,12 @@ gboolean update_data(gpointer data) {
 							if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
 								break;
 							}
-							printf("%g, %s\n", values[i], labels[i]);
+							myprintf("%g, %s\n", values[i], labels[i]);
 							dat = dat + nr;
 						}
-						printf("i=%d\n", i);
 						if(i >= 2) {
 							jbplot_set_y_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
-							printf("setting y tics\n");
+							myprintf("setting y tics listed above...\n");
 						}
 						for(i=0; i<20; i++) {
 							free(labels[i]);
