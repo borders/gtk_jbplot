@@ -1589,6 +1589,7 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	for(i = 0; i < p->num_traces; i++) {
 		char first_pt = 1;
 		char last_was_NAN = 0;
+		char last_was_out = 0;
 		trace_t *t = p->traces[i];
 		if(t->line_type == LINETYPE_NONE) {
 			continue;
@@ -1652,19 +1653,37 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 					last_was_NAN = 1;
 					continue;
 				}
+				char this_is_out = 0;
+				if(t->x_data[n] < x_axis->min_val ||
+					 t->x_data[n] > x_axis->max_val ||
+					 t->y_data[n] < y_axis->min_val || 
+					 t->y_data[n] > y_axis->max_val
+				) {
+					this_is_out = 1;
+				}
 				double x_px = x_m * t->x_data[n] + x_b;
 				double y_px = y_m * t->y_data[n] + y_b;
 				if(first_pt) {
 					cairo_move_to(cr,	x_px,	y_px);
 					first_pt = 0;
 				}
-				else if(last_was_NAN) {
+				else if(!this_is_out && last_was_NAN) {
+					cairo_move_to(cr,	x_px,	y_px);
+				}
+				else if(!this_is_out && last_was_out) {
+					cairo_line_to(cr,	x_px,	y_px);
+				}
+				else if(this_is_out && !last_was_out) {
+					cairo_line_to(cr,	x_px,	y_px);
+				}
+				else if(this_is_out && last_was_out) {
 					cairo_move_to(cr,	x_px,	y_px);
 				}
 				else {
 					cairo_line_to(cr,	x_px,	y_px);
 				}
 				last_was_NAN = 0;
+				last_was_out = this_is_out;
 			}
 		}
 		cairo_stroke(cr);
