@@ -42,8 +42,9 @@ struct chart {
 	int num_traces;
 };
 
-static lmargin = 75;
-static rmargin = 110;
+static int save_count = 1;
+static int lmargin = 75;
+static int rmargin = 110;
 static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
@@ -131,8 +132,37 @@ void snap_cb(GtkToggleButton *b, gpointer user_data) {
 	}
 }
 
+int save_png(char *filename) {
+	int i;
+	char *per = strrchr(filename, '.');
+	int base_len = per - filename;
+	char *f_base = malloc(base_len + 1);
+	strncpy(f_base, filename, base_len);
+	f_base[base_len] = '\0';
+	//myprintf("basename: %s\n", f_base);
+	char *f = malloc(strlen(filename) + 10);
+	char *cmd = malloc(1000 + chart_count * (strlen(filename)+10));
+	cmd[0] = '\0';
+	strcat(cmd, "montage -mode concatenate -tile 1x ");
+	for(i=0; i<chart_count; i++) {
+		sprintf(f, "%s_%02d%s", f_base, i, per);
+		jbplot_capture_png((jbplot *)charts[i].plot, f);
+		strcat(cmd, f);
+		strcat(cmd, " ");
+	}
+	strcat(cmd, filename);
+	system(cmd);
+	for(i=0; i<chart_count; i++) {
+		sprintf(f, "%s_%02d%s", f_base, i, per);
+		remove(f);
+	}
+	free(f_base);
+	free(f);
+	free(cmd);
+	return 0;
+}
 
-void save_png(GtkButton *b, gpointer user_data) {
+void save_png_cb(GtkButton *b, gpointer user_data) {
 
 	GtkWidget *dialog;
 	dialog = gtk_file_chooser_dialog_new ("Save File As...",
@@ -142,34 +172,33 @@ void save_png(GtkButton *b, gpointer user_data) {
 						GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
 						NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
-	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), "test.svg");
+	const char *wt = gtk_window_get_title((GtkWindow *)window);
+	char *default_fname;
+	if(strlen(wt) > 0) {
+		default_fname = malloc(strlen(wt) + 1000);
+		default_fname[0] = '\0';
+		strcpy(default_fname, wt);
+		/* replace all whitespace chars with underscores */
+		int i;
+		for(i=0; i<strlen(default_fname); i++) {
+			if(isspace(default_fname[i])) {
+				default_fname[i] = '_';
+			}
+		}
+		sprintf(default_fname+strlen(default_fname), "_plot%02d.png", save_count);
+	}
+	else {
+		default_fname = malloc(100);
+		sprintf(default_fname, "plot%02d.png", save_count);
+	}
+	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), default_fname);
+	free(default_fname);
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename;
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-
-#if 1
-		int i;
-		char *per = strrchr(filename, '.');
-		int base_len = per - filename;
-		char *f_base = malloc(base_len + 1);
-		strncpy(f_base, filename, base_len);
-		f_base[base_len] = '\0';
-		//myprintf("basename: %s\n", f_base);
-		char *f = malloc(strlen(filename) + 10);
-		for(i=0; i<chart_count; i++) {
-			sprintf(f, "%s_%02d%s", f_base, i, per);
-			jbplot_capture_svg((jbplot *)charts[i].plot, f);
-		}
-#else
-		GdkPixmap *pm = gtk_widget_get_snapshot(v_box, NULL);
-		GdkPixbuf *pb = gdk_pixbuf_get_from_drawable(NULL, pm, NULL, 0, 0, 0, 0, -1, -1);
-		gdk_pixbuf_save(pb, filename, "png", NULL, NULL);
-		g_object_unref(pm);
-#endif
-
+		save_png(filename);
 		g_free (filename);
-		free(f_base);
-		free(f);
+		save_count++;
 	}
 	gtk_widget_destroy (dialog);
 
@@ -883,8 +912,8 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(top_v_box), h_box, FALSE, FALSE, 0);
 
 	save_button = gtk_button_new_with_label("Save PNG");
-	//gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
-	g_signal_connect(save_button, "clicked", G_CALLBACK(save_png), NULL);
+	gtk_box_pack_start (GTK_BOX(h_box), save_button, FALSE, FALSE, 0);
+	g_signal_connect(save_button, "clicked", G_CALLBACK(save_png_cb), NULL);
 
 	cursor_button = gtk_toggle_button_new_with_label("Cursor");
 	gtk_box_pack_start (GTK_BOX(h_box), cursor_button, FALSE, FALSE, 0);
