@@ -2554,6 +2554,14 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 
 int jbplot_capture_png(jbplot *plot, char *filename) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	priv->needs_redraw = TRUE;
+	priv->plot.legend.needs_redraw = 1;
+	draw_plot( 
+		(GtkWidget *)plot, 
+	  priv->plot_context, 
+	  ((GtkWidget *)plot)->allocation.width, 
+	  ((GtkWidget *)plot)->allocation.height
+	);
 	cairo_surface_write_to_png(priv->plot_buffer, filename);
 	return 0;
 }
