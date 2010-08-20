@@ -162,6 +162,10 @@ int save_png(char *filename) {
 	return 0;
 }
 
+int is_valid_fname(char *str) {
+	return (strpbrk(str, "()&") == NULL);
+}
+
 void save_png_cb(GtkButton *b, gpointer user_data) {
 
 	GtkWidget *dialog;
@@ -196,7 +200,12 @@ void save_png_cb(GtkButton *b, gpointer user_data) {
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename;
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
-		save_png(filename);
+		if(is_valid_fname(filename)) {
+			save_png(filename);
+		}
+		else {
+			printf("Invalid filename: %s\n", filename);
+		}
 		g_free (filename);
 		save_count++;
 	}
