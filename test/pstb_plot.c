@@ -135,6 +135,10 @@ void snap_cb(GtkToggleButton *b, gpointer user_data) {
 int save_png(char *filename) {
 	int i;
 	char *per = strrchr(filename, '.');
+	if(per == NULL) { // no extension
+		printf("Filename must have .png extension\n");
+		return -1;
+	}
 	int base_len = per - filename;
 	char *f_base = malloc(base_len + 1);
 	strncpy(f_base, filename, base_len);
@@ -196,19 +200,23 @@ void save_png_cb(GtkButton *b, gpointer user_data) {
 		sprintf(default_fname, "plot%02d.png", save_count);
 	}
 	gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER (dialog), default_fname);
-	free(default_fname);
 	if (gtk_dialog_run (GTK_DIALOG (dialog)) == GTK_RESPONSE_ACCEPT) {
 		char *filename;
 		filename = gtk_file_chooser_get_filename (GTK_FILE_CHOOSER (dialog));
 		if(is_valid_fname(filename)) {
 			save_png(filename);
+			//printf("filename: '%s'\n", filename);
+			//printf("default filename: '%s'\n", default_fname);
+			if(strstr(filename, default_fname) != NULL) {
+				save_count++;
+			}
 		}
 		else {
 			printf("Invalid filename: %s\n", filename);
 		}
 		g_free (filename);
-		save_count++;
 	}
+	free(default_fname);
 	gtk_widget_destroy (dialog);
 
 }
