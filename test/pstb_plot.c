@@ -49,7 +49,6 @@ static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
 static int stack_count =0;
-static trace_handle t1;
 static GtkWidget *cursor_button;
 static GtkWidget *coords_button;
 static GtkWidget *snap_button;
@@ -58,7 +57,6 @@ static GtkWidget *v_box;
 static GtkWidget *plot_scroll_win;
 static struct chart charts[MAX_CHARTS];
 static int chart_count = 0;
-static int run = 1;
 #define LINE_SIZE 50000
 static char line[LINE_SIZE];
 static int line_index = 0;
@@ -155,6 +153,7 @@ int save_png(char *filename) {
 		strcat(cmd, " ");
 	}
 	strcat(cmd, filename);
+	myprintf("executing: \"%s\"\n", cmd);
 	system(cmd);
 	for(i=0; i<chart_count; i++) {
 		sprintf(f, "%s_%02d%s", f_base, i, per);
@@ -273,6 +272,7 @@ char *strip_leading_ws(char *s) {
 
 
 static int add_plot() {
+	//printf("adding plot\n");
 	if(chart_count >= MAX_CHARTS) {
 		return -1;
 	}
@@ -316,7 +316,7 @@ int add_trace(struct chart *chart) {
 		exit(1);
 	}
 	int i = chart->num_traces;
-	trace_handle t1 = jbplot_create_trace(20000);
+	trace_handle t1 = jbplot_create_trace(200000);
 	if(t1==NULL) {
 		printf("error creating trace!\n");
 		return 0;
@@ -350,11 +350,7 @@ gboolean update_data(gpointer data) {
 	char c;
 	int got_one = 0;
 	//myprintf("** start update_data()\n");
-	if(!run) {
-		return TRUE;
-	}
 
-	GtkWidget *plot = charts[chart_count-1].plot;
 	while((ret = read(0, &c, 1)) > 0) {
 		//myprintf("got char: %c\n", c);
 		if(c == '\n') {
@@ -757,8 +753,6 @@ gboolean update_data(gpointer data) {
 						myprintf("error parsing data on line %d\n", line_count);
 					}
 				}
-
-
 			}
 		}
 		else if(line_index==0 && c=='#') {
@@ -777,10 +771,14 @@ gboolean update_data(gpointer data) {
 			}
 		}
 		else {
-			jbplot_refresh((jbplot *)plot);
+			int i;
+			for(i=0; i<chart_count; i++) {
+				jbplot_refresh((jbplot *)charts[i].plot);
+			}
 		}
 	}
 	//myprintf("** end update_data()\n");
+
 	return TRUE;
 }
 
@@ -964,11 +962,11 @@ int main (int argc, char **argv) {
 
 	add_plot();
 
-	gtk_widget_show_all(window);
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
-	g_timeout_add(50, update_data, t1);
+	g_timeout_add(50, update_data, NULL);
+	gtk_widget_show_all(window);
 
 	gtk_main ();
 
