@@ -295,8 +295,13 @@ static int add_plot() {
 
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
-	jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
-	jbplot_legend_refresh((jbplot *)p);
+	if(stack) {
+		jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_NONE);
+	}
+	else {
+		jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
+		jbplot_legend_refresh((jbplot *)p);
+	}
 
 	rgb_color_t gridline_color = {0.7, 0.7, 0.7};
 	jbplot_set_x_axis_gridline_props((jbplot *)p, LINETYPE_DASHED, 1.0, &gridline_color);
