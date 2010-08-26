@@ -302,6 +302,7 @@ static int add_plot() {
 
 	if(stack) {
 		jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_NONE);
+		jbplot_legend_refresh((jbplot *)p);
 	}
 	else {
 		jbplot_set_legend_props((jbplot *)p, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
@@ -421,6 +422,11 @@ gboolean update_data(gpointer data) {
 						}
 						else if(!strcmp("no",d) || !strcmp("0",d) || !strcmp("off",d)) {
 							stack = 0;
+							// special case: make legend visible on first chart
+							if(chart_count==1 && charts[0].num_points == 0) {
+								jbplot_set_legend_props((jbplot *)charts[0].plot, 1.0, NULL, NULL, LEGEND_POS_RIGHT);
+								jbplot_legend_refresh((jbplot *)charts[0].plot);
+							}
 							myprintf("Stacked mode OFF\n");
 						}
 						else {
