@@ -1977,10 +1977,10 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			x = x_px;
 			y = y_px;
 		}
-		if(x >= (priv->plot.plot_area.left_edge-1) &&
-		   x <= (priv->plot.plot_area.right_edge+1) &&
-		   y >= (priv->plot.plot_area.top_edge-1) &&
-		   y <= (priv->plot.plot_area.bottom_edge+1)
+		if(x >= (priv->plot.plot_area.left_edge) &&
+		   x <= (priv->plot.plot_area.right_edge) &&
+		   y >= (priv->plot.plot_area.top_edge) &&
+		   y <= (priv->plot.plot_area.bottom_edge)
 		  ) {
 			char x_str[100], y_str[100];
 			double x_w, x_h, y_w, y_h;
