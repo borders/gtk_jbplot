@@ -170,8 +170,6 @@ int is_valid_fname(char *str) {
 }
 
 void save_png_cb(GtkButton *b, gpointer user_data) {
-	printf("got here\n");
-
 	GtkWidget *dialog;
 	dialog = gtk_file_chooser_dialog_new ("Save File As...",
 						(GtkWindow *)window,
@@ -181,11 +179,8 @@ void save_png_cb(GtkButton *b, gpointer user_data) {
 						NULL);
 	gtk_file_chooser_set_do_overwrite_confirmation (GTK_FILE_CHOOSER (dialog), TRUE);
 	const char *wt = gtk_window_get_title((GtkWindow *)window);
-	printf("got here 2\n");
 	char *default_fname;
-	printf("got here 2a\n");
 	if(wt!=NULL && strlen(wt) > 0) {
-		printf("got here 3a\n");
 		default_fname = malloc(strlen(wt) + 1000);
 		default_fname[0] = '\0';
 		strcpy(default_fname, wt);
@@ -199,7 +194,6 @@ void save_png_cb(GtkButton *b, gpointer user_data) {
 		sprintf(default_fname+strlen(default_fname), "_plot%02d.png", save_count);
 	}
 	else {
-		printf("got here 3b\n");
 		default_fname = malloc(100);
 		sprintf(default_fname, "plot%02d.png", save_count);
 	}
