@@ -42,6 +42,8 @@ struct chart {
 	int num_traces;
 };
 
+static char *cmd_line_png_fname = NULL;
+static int cmd_line_png = 0;
 static int save_count = 1;
 static int lmargin = 75;
 static int rmargin = 110;
@@ -133,9 +135,15 @@ void snap_cb(GtkToggleButton *b, gpointer user_data) {
 int save_png(char *filename) {
 	int i;
 	char *per = strrchr(filename, '.');
-	if(per == NULL) { // no extension
-		printf("Filename must have .png extension\n");
+	int fl = strlen(filename);
+	if(fl < 5 || strcmp(filename+fl-1-3,".png")) {	
+		printf("Filename must have \".png\" extension\n");
 		return -1;
+	}
+	int w=0, h=0;
+	if(cmd_line_png) {
+		w = 700;
+		h = 125;
 	}
 	int base_len = per - filename;
 	char *f_base = malloc(base_len + 1);
@@ -148,7 +156,7 @@ int save_png(char *filename) {
 	strcat(cmd, "montage -mode concatenate -tile 1x ");
 	for(i=0; i<chart_count; i++) {
 		sprintf(f, "%s_%02d%s", f_base, i, per);
-		jbplot_capture_png((jbplot *)charts[i].plot, f);
+		jbplot_capture_png((jbplot *)charts[i].plot, f, w, h);
 		strcat(cmd, f);
 		strcat(cmd, " ");
 	}
@@ -354,7 +362,6 @@ gboolean update_data(gpointer data) {
 	int ret;
 	char c;
 	int got_one = 0;
-	//myprintf("** start update_data()\n");
 
 	while((ret = read(0, &c, 1)) > 0) {
 		//myprintf("got char: %c\n", c);
@@ -787,7 +794,13 @@ gboolean update_data(gpointer data) {
 			}
 		}
 	}
-	//myprintf("** end update_data()\n");
+
+	// if using cmd_line_png option, and STDIN is closed, then create the PNG now
+	// and then exit.
+	if(cmd_line_png && ret==0) {
+		save_png(cmd_line_png_fname);
+		exit(0);
+	}
 
 	return TRUE;
 }
@@ -809,7 +822,14 @@ that the user can zoom, pan and even track data coordinates using the mouse. \n\
 \n\
 OPTIONS\n\
 ------------\n\
-  -q  : Quiet mode. Inhibit printing status stuff to STDOUT.\n\
+ -q \n\
+   Quiet mode. Inhibit printing status stuff to STDOUT.\n\
+\n\
+ -h \n\
+   Display this help and exit. \n\
+\n\
+ -p <fname> \n\
+   Save to png and immediately exit. \n\
 \n\
 INPUT FORMAT\n\
 ------------\n\
@@ -917,6 +937,16 @@ int main (int argc, char **argv) {
 			usage(argv[0]);
 			return 0;
 		}
+		else if(!strcmp(argv[i],"-p")) {
+			if((argc-i) >= 2 && argv[i+1][0] != '-') {
+				cmd_line_png_fname = argv[++i];
+				cmd_line_png = 1;
+			}
+			else {
+				usage(argv[0]);
+				return 0;
+			}
+		}
 		else if(!strcmp(argv[i],"-q")) {
 			quiet = 1;
 		}
@@ -976,7 +1006,10 @@ int main (int argc, char **argv) {
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
 	g_timeout_add(50, update_data, NULL);
-	gtk_widget_show_all(window);
+
+	if(!cmd_line_png) {
+		gtk_widget_show_all(window);
+	}
 
 	gtk_main ();
 
