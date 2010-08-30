@@ -977,7 +977,8 @@ static int draw_legend(jbplot *plot) {
 	if(priv->legend_buffer != NULL) {
 		cairo_surface_destroy(priv->legend_buffer);
 	}
-	priv->legend_buffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ((GtkWidget *)plot)->allocation.width, ((GtkWidget *)plot)->allocation.height);
+	//priv->legend_buffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, ((GtkWidget *)plot)->allocation.width, ((GtkWidget *)plot)->allocation.height);
+	priv->legend_buffer = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 2000, 2000);
 	cairo_status_t stat = cairo_surface_status(priv->legend_buffer);
 	if(stat != CAIRO_STATUS_SUCCESS) {
 		printf("Error creating cairo image surface: %s\n", cairo_status_to_string(stat));
@@ -2552,17 +2553,27 @@ int jbplot_capture_svg(jbplot *plot, char *filename) {
 }
 
 
-int jbplot_capture_png(jbplot *plot, char *filename) {
+int jbplot_capture_png(jbplot *plot, char *filename, int width, int height) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 	priv->needs_redraw = TRUE;
 	priv->plot.legend.needs_redraw = 1;
-	draw_plot( 
-		(GtkWidget *)plot, 
-	  priv->plot_context, 
-	  ((GtkWidget *)plot)->allocation.width, 
-	  ((GtkWidget *)plot)->allocation.height
-	);
-	cairo_surface_write_to_png(priv->plot_buffer, filename);
+	if(width<1 || height<1) { // draw at present size
+		draw_plot( 
+			(GtkWidget *)plot, 
+			priv->plot_context, 
+			((GtkWidget *)plot)->allocation.width, 
+			((GtkWidget *)plot)->allocation.height
+		);
+		cairo_surface_write_to_png(priv->plot_buffer, filename);
+	}
+	else { // user-specified size 
+		cairo_surface_t *png_surf = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
+		cairo_t *cr = cairo_create(png_surf);
+		draw_plot((GtkWidget *)plot, cr, width, height);
+		cairo_surface_write_to_png(png_surf, filename);
+		cairo_destroy(priv->plot_context);
+		cairo_surface_destroy(priv->plot_buffer);
+	}
 	return 0;
 }
 

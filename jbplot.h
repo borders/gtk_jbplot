@@ -184,7 +184,7 @@ int jbplot_set_cursor_props(
 	double line_width, 
 	int line_type);
 
-int jbplot_capture_png(jbplot *plot, char *filename);
+int jbplot_capture_png(jbplot *plot, char *filename, int width, int height);
 int jbplot_capture_svg(jbplot *plot, char *filename);
 
 void jbplot_refresh(jbplot *plot);
