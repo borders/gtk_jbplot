@@ -612,8 +612,10 @@ gboolean update_data(gpointer data) {
 					}
 					else {
 						char *c = strtok(NULL, "");
-						jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
-						myprintf("Setting title to '%s'\n", c);
+						if(c != NULL && strlen(c) > 0) {
+							jbplot_set_plot_title((jbplot *)charts[chart_count-1].plot, c, 1);
+							myprintf("Setting title to '%s'\n", c);
+						}
 					}
 				}
 				else if(!strcmp(cmd,"xformat")) {
