@@ -142,7 +142,7 @@ int save_png(char *filename) {
 	}
 	int w=0, h=0;
 	if(cmd_line_png) {
-		w = 700;
+		w = 900;
 		h = 125;
 	}
 	int base_len = per - filename;
