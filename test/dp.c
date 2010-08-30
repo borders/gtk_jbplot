@@ -176,7 +176,7 @@ void button_activate(GtkButton *b, gpointer data) {
 }
 
 void save_button_activate(GtkButton *b, gpointer data) {
-	jbplot_capture_png((jbplot *)plot, "capture.png");
+	jbplot_capture_png((jbplot *)plot, "capture.png", 0,0);
 	//printf("save button activated!\n");
 	return;
 }
