@@ -45,8 +45,6 @@ struct chart {
 static char *cmd_line_png_fname = NULL;
 static int cmd_line_png = 0;
 static int save_count = 1;
-static int lmargin = 75;
-static int rmargin = 110;
 static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
@@ -72,6 +70,35 @@ void myprintf(const char *fmt, ...) {
 		va_start(arg, fmt);
 		vprintf(fmt, arg);
 		va_end(arg);
+	}
+	return;
+}
+
+
+void lineup_margins(void) {
+	int i;
+	double max_left = 0.0;
+	double max_right = 0.0;
+	int valid = 1;
+	for(i=0; i<chart_count; i++) {
+		double left, right;
+		jbplot *p = (jbplot *)(charts[i].plot);
+		if(jbplot_get_ideal_LR_margins(p, &left, &right) < 0) {
+			valid = 0;
+			break;
+		}
+		myprintf("left: %g; right: %g\n", left, right);
+		if(left > max_left) max_left = left;
+		if(right > max_right) max_right = right;
+	}
+	if(!valid) {
+		myprintf("invalid ideal margins\n");
+		return;
+	}
+	myprintf("max_left: %g; max_right: %g\n", max_left, max_right);
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		jbplot_set_plot_area_LR_margins(p, MARGIN_PX, max_left, max_right);
 	}
 	return;
 }
@@ -239,6 +266,7 @@ gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble 
 			jbplot_set_x_axis_range(p, xmin, xmax);
 		}
 	}
+	lineup_margins();
 	return 0;
 }
 
@@ -253,6 +281,7 @@ gint zoom_all_cb(jbplot *plot) {
 			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT);
 		//}
 	}
+	lineup_margins();
 	return 0;
 }
 
@@ -298,8 +327,6 @@ static int add_plot() {
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
-	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, lmargin, rmargin);
-
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
 	if(stack) {
@@ -342,6 +369,7 @@ int add_trace(struct chart *chart) {
 	chart->num_traces++;
 	return 0;
 }
+
 
 char *strtolower(char *str) {
 	static char s[255];
@@ -458,28 +486,6 @@ gboolean update_data(gpointer data) {
 						// setting num_points to zero will create a new trace(s) upon next valid data row
 						charts[chart_count-1].num_points = 0;
 						myprintf("Creating new trace(s)\n");
-					}
-				}
-				else if(!strcmp(cmd,"xmargins")) {
-					if(stack) {
-						myprintf("#xmargins command not currently supported in stacked mode\n");
-						continue;
-					}
-					else {
-						char *usage = "xmargins usage: #xmargins <left_px> <right_px>\n";
-						char *dat;
-						if( (dat = strtok(NULL, "")) == NULL) {
-							myprintf(usage);
-							continue;
-						}
-						if(sscanf(dat, "%d %d", &lmargin, &rmargin) != 2) {
-							myprintf(usage);
-							continue;
-						}
-						int i;
-						for(i=0; i<chart_count; i++) {
-							jbplot_set_plot_area_LR_margins((jbplot *)charts[i].plot, MARGIN_PX, lmargin, rmargin);
-						}
 					}
 				}
 				else if(!strcmp(cmd,"xtics")) {
@@ -795,6 +801,7 @@ gboolean update_data(gpointer data) {
 				jbplot_refresh((jbplot *)charts[i].plot);
 			}
 		}
+		lineup_margins();
 	}
 
 	// if using cmd_line_png option, and STDIN is closed, then create the PNG now
@@ -902,10 +909,6 @@ interlaced with lines of data. A list of available commands and their usage foll
 \n\
     Allows user-specified tic values-label pairs.\n\
 \n\
-  XMARGINS\n\
-    Usage (stacked mode ON): not yet supported \n\
-    Usage (stacked mode OFF): #xmargins <left_px> <right_px> \n\
-\n\
   TRACENAME\n\
     Usage: #tracename <trace_index> <name> \n\
 \n\
@@ -1003,7 +1006,6 @@ int main (int argc, char **argv) {
 	);
 
 	add_plot();
-
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
 
