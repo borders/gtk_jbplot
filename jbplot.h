@@ -155,6 +155,7 @@ int jbplot_set_crosshair_mode(jbplot *plot, crosshair_t mode);
 int jbplot_set_plot_area_color(jbplot *plot, rgb_color_t *color);
 int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color);
 int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double left, double right);
+int jbplot_get_ideal_LR_margins(jbplot *plot, double *left, double *right);
 
 int jbplot_set_legend_props(jbplot *plot, double border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position);
 int jbplot_legend_refresh(jbplot *plot);

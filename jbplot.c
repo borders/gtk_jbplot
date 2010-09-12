@@ -82,6 +82,8 @@ typedef struct plot_area_t {
   double bounding_box_width;
 	double left_edge;
 	double right_edge;
+	double ideal_left_margin;
+	double ideal_right_margin;
 	double top_edge;
 	double bottom_edge;
 	margin_mode_t LR_margin_mode;
@@ -192,6 +194,7 @@ struct _jbplotPrivate
 	gboolean needs_redraw;
 	gboolean needs_h_zoom_signal;
 	gboolean needs_v_zoom_signal;
+	gboolean get_ideal_lr;
 
 	/* antialias mode */
 	char antialias;
@@ -769,6 +772,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->needs_redraw = TRUE;
 	priv->needs_h_zoom_signal = FALSE;
 	priv->needs_v_zoom_signal = FALSE;
+	priv->get_ideal_lr = FALSE;
 
 	// initialize the plot struct elements
 	init_plot(&(priv->plot));
@@ -1293,14 +1297,14 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 	double y_label_right_edge; 
 
 	// fire a zoom signal if needed
-	if(priv->needs_h_zoom_signal || priv->needs_v_zoom_signal) {
+	if((priv->needs_h_zoom_signal || priv->needs_v_zoom_signal) && !priv->get_ideal_lr) {
 		g_signal_emit_by_name((gpointer *)plot, "zoom-in", x_axis->min_val, x_axis->max_val, y_axis->min_val, y_axis->max_val);
 		priv->needs_h_zoom_signal = FALSE;
 		priv->needs_v_zoom_signal = FALSE;
 	}
 
 
-	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO) {
+	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO || priv->get_ideal_lr) {
 		y_label_left_edge = MED_GAP;
 		y_label_right_edge = y_label_left_edge + 
     	get_text_height(cr, y_axis->axis_label, y_axis->axis_label_font_size);
@@ -1313,7 +1317,6 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 
 		y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
 		plot_area_left_edge = y_tic_labels_right_edge + MED_GAP;
-		priv->plot.plot_area.left_edge = plot_area_left_edge;
 
 		if(l->position == LEGEND_POS_RIGHT) {
 			plot_area_right_edge = legend_left_edge - 10;
@@ -1329,9 +1332,12 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
 			plot_area_right_edge = width - right_side_x_tic_label_width;
 		}
+		priv->plot.plot_area.left_edge = plot_area_left_edge;
+		priv->plot.plot_area.ideal_left_margin = plot_area_left_edge;
 		priv->plot.plot_area.right_edge = plot_area_right_edge;
+		priv->plot.plot_area.ideal_right_margin = width - plot_area_right_edge;
 	}
-	else {
+	if(priv->plot.plot_area.LR_margin_mode != MARGIN_AUTO) {
 		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
 			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
 			plot_area_right_edge = width - priv->plot.plot_area.rmargin * width;
@@ -2758,6 +2764,20 @@ int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color) 
 	}
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_get_ideal_LR_margins(jbplot *plot, double *left, double *right) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(((GtkWidget *)plot)->allocation.width <= 0) {
+		return -1;
+	}
+	priv->get_ideal_lr = TRUE;
+	priv->needs_redraw = TRUE;
+	draw_plot((GtkWidget *)plot, priv->plot_context, ((GtkWidget *)plot)->allocation.width, ((GtkWidget *)plot)->allocation.height);
+	priv->get_ideal_lr = FALSE;
+	*left = priv->plot.plot_area.ideal_left_margin;
+	*right = priv->plot.plot_area.ideal_right_margin;
 	return 0;
 }
 
