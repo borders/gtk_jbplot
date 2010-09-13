@@ -2772,7 +2772,11 @@ int jbplot_set_plot_area_border(jbplot *plot, double width, rgb_color_t *color) 
 
 int jbplot_get_ideal_LR_margins(jbplot *plot, double *left, double *right) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
-	if(((GtkWidget *)plot)->allocation.width <= 0) {
+	if (
+		priv->plot_context == NULL || 
+		cairo_status(priv->plot_context) != CAIRO_STATUS_SUCCESS || 
+		((GtkWidget *)plot)->allocation.width <= 0
+	) {
 		return -1;
 	}
 	priv->get_ideal_lr = TRUE;
