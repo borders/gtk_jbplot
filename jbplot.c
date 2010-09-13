@@ -1337,6 +1337,9 @@ static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double hei
 		priv->plot.plot_area.right_edge = plot_area_right_edge;
 		priv->plot.plot_area.ideal_right_margin = width - plot_area_right_edge;
 	}
+	if(priv->get_ideal_lr) {
+		return FALSE;
+	}
 	if(priv->plot.plot_area.LR_margin_mode != MARGIN_AUTO) {
 		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
 			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
