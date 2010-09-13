@@ -64,6 +64,7 @@ typedef struct axis_t {
   double max_val;
   double major_tic_delta;
   char tic_label_format_string[100];
+  char coord_label_format_string[100];
 	char do_auto_tic_format;
   double tic_label_font_size;
   int num_actual_major_tics;
@@ -694,6 +695,7 @@ static int init_axis(axis_t *axis) {
   axis->max_val = 10.0;
   axis->major_tic_delta = 1.0;
   strcpy(axis->tic_label_format_string, "%g");
+  strcpy(axis->coord_label_format_string, "%g");
 	axis->do_auto_tic_format = 1;
   axis->num_request_major_tics = 8;
   axis->num_minor_tics_per_major = 5;
@@ -1902,8 +1904,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
 		gint x,y;
 		gtk_widget_get_pointer(plot, &x, &y);
-		if(x >= priv->plot.plot_area.left_edge && x <= priv->plot.plot_area.right_edge &&
-		   y >= priv->plot.plot_area.top_edge &&  y <= priv->plot.plot_area.bottom_edge) {
+		if(x >= priv->plot.plot_area.left_edge-1 && x <= priv->plot.plot_area.right_edge+1 &&
+		   y >= priv->plot.plot_area.top_edge-1 &&  y <= priv->plot.plot_area.bottom_edge+1) {
 			int i, j;
 			double min_dist = DBL_MAX;
 			is_in_plot_area = TRUE;
@@ -1931,19 +1933,19 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		gint x,y;
 		int inhibit_ch = 0;
 		gtk_widget_get_pointer(plot, &x, &y);
-		if(x < priv->plot.plot_area.left_edge) {
+		if(x < priv->plot.plot_area.left_edge-1) {
 			x = priv->plot.plot_area.left_edge;
 			inhibit_ch = 1;
 		}
-		if(x > priv->plot.plot_area.right_edge) {
+		if(x > priv->plot.plot_area.right_edge+1) {
 			x = priv->plot.plot_area.right_edge;
 			inhibit_ch = 1;
 		}
-		if(y < priv->plot.plot_area.top_edge) {
+		if(y < priv->plot.plot_area.top_edge-1) {
 			y = priv->plot.plot_area.top_edge;
 			inhibit_ch = 1;
 		}
-		if(y > priv->plot.plot_area.bottom_edge) {
+		if(y > priv->plot.plot_area.bottom_edge+1) {
 			y = priv->plot.plot_area.bottom_edge;
 			inhibit_ch = 1;
 		}
@@ -1987,10 +1989,10 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 			x = x_px;
 			y = y_px;
 		}
-		if(x >= (priv->plot.plot_area.left_edge) &&
-		   x <= (priv->plot.plot_area.right_edge) &&
-		   y >= (priv->plot.plot_area.top_edge) &&
-		   y <= (priv->plot.plot_area.bottom_edge)
+		if(x >= (priv->plot.plot_area.left_edge-1) &&
+		   x <= (priv->plot.plot_area.right_edge+1) &&
+		   y >= (priv->plot.plot_area.top_edge-1) &&
+		   y <= (priv->plot.plot_area.bottom_edge+1)
 		  ) {
 			char x_str[100], y_str[100];
 			double x_w, x_h, y_w, y_h;
@@ -1998,8 +2000,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 
 			char x_fs[200]="x=";
 			char y_fs[200]="y=";
-			strcat(x_fs, p->x_axis.tic_label_format_string);
-			strcat(y_fs, p->y_axis.tic_label_format_string);
+			strcat(x_fs, p->x_axis.coord_label_format_string);
+			strcat(y_fs, p->y_axis.coord_label_format_string);
 
 			if(priv->do_snap_to_data) {
 				sprintf(x_str, x_fs, (p->traces[closest_trace_index])->x_data[closest_point_index]);
@@ -2161,6 +2163,7 @@ static int set_major_tic_labels(axis_t *a) {
 		if(sigs < 4) 
 			sigs = 4;
 		sprintf(a->tic_label_format_string, "%%.%dg", sigs);
+		sprintf(a->coord_label_format_string, "%%.%dg", sigs+2);
 		for(i=0; i<a->num_actual_major_tics; i++) { 
 			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
 		}
