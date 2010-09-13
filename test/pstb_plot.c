@@ -45,6 +45,8 @@ struct chart {
 static char *cmd_line_png_fname = NULL;
 static int cmd_line_png = 0;
 static int save_count = 1;
+static int lmargin = 75;
+static int rmargin = 110;
 static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
@@ -327,6 +329,8 @@ static int add_plot() {
 	jbplot_set_y_axis_label((jbplot *)p, "Amplitude", 1);
 	jbplot_set_y_axis_label_visible((jbplot *)p, 1);
 
+	jbplot_set_plot_area_LR_margins((jbplot *)p, MARGIN_PX, lmargin, rmargin);
+
 	//jbplot_set_x_axis_format((jbplot *)p, "%.0f");
 
 	if(stack) {
@@ -486,6 +490,28 @@ gboolean update_data(gpointer data) {
 						// setting num_points to zero will create a new trace(s) upon next valid data row
 						charts[chart_count-1].num_points = 0;
 						myprintf("Creating new trace(s)\n");
+					}
+				}
+				else if(!strcmp(cmd,"xmargins")) {
+					if(stack) {
+						myprintf("#xmargins command not currently supported in stacked mode\n");
+						continue;
+					}
+					else {
+						char *usage = "xmargins usage: #xmargins <left_px> <right_px>\n";
+						char *dat;
+						if( (dat = strtok(NULL, "")) == NULL) {
+							myprintf(usage);
+							continue;
+						}
+						if(sscanf(dat, "%d %d", &lmargin, &rmargin) != 2) {
+							myprintf(usage);
+							continue;
+						}
+						int i;
+						for(i=0; i<chart_count; i++) {
+							jbplot_set_plot_area_LR_margins((jbplot *)charts[i].plot, MARGIN_PX, lmargin, rmargin);
+						}
 					}
 				}
 				else if(!strcmp(cmd,"xtics")) {
@@ -909,6 +935,10 @@ interlaced with lines of data. A list of available commands and their usage foll
 \n\
     Allows user-specified tic values-label pairs.\n\
 \n\
+  XMARGINS\n\
+    Usage (stacked mode ON): not yet supported \n\
+    Usage (stacked mode OFF): #xmargins <left_px> <right_px> \n\
+\n\
   TRACENAME\n\
     Usage: #tracename <trace_index> <name> \n\
 \n\
@@ -1019,3 +1049,4 @@ int main (int argc, char **argv) {
 
 	return 0;
 }
+
