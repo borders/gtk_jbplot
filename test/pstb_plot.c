@@ -65,6 +65,7 @@ static int line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
 static int quiet = 0;
+static int needs_lineup = 1;
 
 void myprintf(const char *fmt, ...) {
 	if(!quiet) {
@@ -77,7 +78,7 @@ void myprintf(const char *fmt, ...) {
 }
 
 
-void lineup_margins(void) {
+int  lineup_margins(void) {
 	int i;
 	double max_left = 0.0;
 	double max_right = 0.0;
@@ -95,14 +96,14 @@ void lineup_margins(void) {
 	}
 	if(!valid) {
 		myprintf("invalid ideal margins\n");
-		return;
+		return -1;
 	}
 	myprintf("max_left: %g; max_right: %g\n", max_left, max_right);
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		jbplot_set_plot_area_LR_margins(p, MARGIN_PX, max_left, max_right);
 	}
-	return;
+	return 0;
 }
 
 
@@ -268,7 +269,7 @@ gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble 
 			jbplot_set_x_axis_range(p, xmin, xmax);
 		}
 	}
-	lineup_margins();
+	needs_lineup = 1;
 	return 0;
 }
 
@@ -283,7 +284,7 @@ gint zoom_all_cb(jbplot *plot) {
 			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT);
 		//}
 	}
-	lineup_margins();
+	needs_lineup = 1;
 	return 0;
 }
 
@@ -827,7 +828,15 @@ gboolean update_data(gpointer data) {
 				jbplot_refresh((jbplot *)charts[i].plot);
 			}
 		}
-		lineup_margins();
+		needs_lineup = 1;
+	}
+
+	// lineup plot margins if needed
+	if(needs_lineup) {
+		myprintf("lineup()\n");
+		if(lineup_margins() == 0) {
+			needs_lineup = 0;
+		}
 	}
 
 	// if using cmd_line_png option, and STDIN is closed, then create the PNG now
