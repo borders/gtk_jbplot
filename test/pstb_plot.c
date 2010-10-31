@@ -193,6 +193,21 @@ int save_png(char *filename) {
 	strcat(cmd, filename);
 	myprintf("executing: \"%s\"\n", cmd);
 	system(cmd);
+
+	char cmd2[1000];
+	char title_fname[1000];
+	sprintf(title_fname, "%s_title.png", f_base);
+	char pic_title[] = "Test_Title";
+	sprintf(cmd2, "convert -size %dx%d -gravity center label:\"%s\" \"%s\"", 600, 15, filename, title_fname);
+	myprintf("executing: \"%s\"\n", cmd2);
+	system(cmd2);
+	char cmd3[1000];
+	sprintf(cmd3, "montage -mode concatenate -tile 1x \"%s\" \"%s\" \"%s\"", title_fname, filename, filename);
+					
+	myprintf("executing: \"%s\"\n", cmd3);
+	system(cmd3);
+	remove(title_fname);
+
 	for(i=0; i<chart_count; i++) {
 		sprintf(f, "%s_%02d%s", f_base, i, per);
 		remove(f);
