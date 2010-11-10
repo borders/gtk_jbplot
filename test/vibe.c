@@ -22,11 +22,13 @@ static double h = 1e-3;
 static trace_handle t1, t2;
 GtkWidget *plot;
 GtkWidget *canvas;
-GtkWidget *dt_scale;
 static int run = 1;
 
 // Global variables
-FILE *fp;
+static FILE *fp;
+static int got_eof = 0;
+static double ti, y_1, theta;
+static double squash_factor = 1.0;
 
 gboolean update_data(gpointer data) {
 	int i;
@@ -35,12 +37,21 @@ gboolean update_data(gpointer data) {
 	}
 
 	// read line of file
-	
-
-	gdouble v = gtk_range_get_value(GTK_RANGE(dt_scale));
-
-	jbplot_refresh((jbplot *)plot);
-	gtk_widget_queue_draw(canvas);	
+	int ret = fscanf(fp, "%lf %lf %lf\n", &ti, &y_1, &theta);
+	if(ret==3) {
+		printf("Got data: t = %g, y_1 = %g, theta = %g\n", ti, y_1, theta);
+		jbplot_trace_add_point(t1, ti, y_1); 
+		jbplot_trace_add_point(t2, ti, theta); 
+		jbplot_refresh((jbplot *)plot);
+		gtk_widget_queue_draw(canvas);	
+	}
+	else if(ret==EOF) {
+		printf("Got to end of file. Done.\n");
+		return FALSE;
+	}
+	else {
+		printf("Error parsing file...\n");
+	}
 	return TRUE;
 }
 
@@ -77,14 +88,32 @@ gboolean draw_it (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
   cairo_paint(cr);
  
   cairo_translate(cr, w/2, h/2);
-  //cairo_scale(cr, 1, -1);
-  cairo_scale(cr, scale_factor, -scale_factor);
+  //cairo_scale(cr, scale_factor, -scale_factor);
+  cairo_scale(cr, 1, -1);
 
-	//draw the upper link
-	cairo_set_line_width(cr, 0.05 * L1);
+	//draw the big mass
+#define M_width 100.0
+#define M_height 70.0
+	double M_y = y_1 * squash_factor;
+	cairo_set_line_width(cr, 1.0);
 	cairo_set_source_rgb(cr, 0, 0, 1.0);
-	cairo_move_to(cr, 0.0, 0.0);
+	cairo_move_to(cr, -M_width/2, M_y + M_height/2);
+	cairo_line_to(cr, +M_width/2, M_y + M_height/2);
+	cairo_line_to(cr, +M_width/2, M_y - M_height/2);
+	cairo_line_to(cr, -M_width/2, M_y - M_height/2);
+	cairo_line_to(cr, -M_width/2, M_y + M_height/2);
 	cairo_stroke(cr);
+
+	// draw the little (rotating) mass
+#define m_L 30
+#define m_R 8
+	cairo_set_line_width(cr, 0.25*m_L);
+	cairo_set_source_rgb(cr, 1, 0, 0);
+	cairo_move_to(cr, 0, M_y);
+	cairo_line_to(cr, m_L * sin(theta), M_y - m_L*cos(theta));
+	cairo_stroke(cr);
+	cairo_arc(cr, m_L*sin(theta), M_y - m_L*cos(theta), m_R, 0, 2*M_PI);
+	cairo_fill(cr);
 
   cairo_destroy(cr);
 
@@ -114,8 +143,8 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(v_box), button, FALSE, FALSE, 0);
 	g_signal_connect(button, "clicked", G_CALLBACK(button_activate), NULL);
 
-	if(argc < 3) {
-		printf("Usage: vibe data_file dt\n");
+	if(argc < 4) {
+		printf("Usage: vibe data_file dt_ms vertical_squash_factor\n");
 		exit(1);
 	}
 
@@ -131,10 +160,11 @@ int main (int argc, char **argv) {
 		}
 	}
 		
-	double dt = atof(argv[2]);
-	printf("Using dt = %g\n", dt);
+	int dt = atof(argv[2]);
+	printf("Using dt = %d\n", dt);
 
-	return;
+	squash_factor = atof(argv[3]);
+	printf("Using squash_factor = %g\n", squash_factor);
 
 	canvas = gtk_drawing_area_new();
 	gtk_widget_set_size_request(canvas, 700,400);
@@ -145,7 +175,7 @@ int main (int argc, char **argv) {
 
 	gtk_widget_show_all (window);
 
-	g_timeout_add(20, update_data, t1);
+	g_timeout_add(dt, update_data, t1);
 
 	jbplot_set_plot_title((jbplot *)plot, "Vibe", 1);
 	jbplot_set_plot_title_visible((jbplot *)plot, 1);
