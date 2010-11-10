@@ -107,7 +107,7 @@ gboolean draw_it (GtkWidget *widget, GdkEventExpose *event, gpointer data) {
 	// draw the little (rotating) mass
 #define m_L 30
 #define m_R 8
-	cairo_set_line_width(cr, 0.25*m_L);
+	cairo_set_line_width(cr, 0.2*m_L);
 	cairo_set_source_rgb(cr, 1, 0, 0);
 	cairo_move_to(cr, 0, M_y);
 	cairo_line_to(cr, m_L * sin(theta), M_y - m_L*cos(theta));
