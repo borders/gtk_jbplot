@@ -24,6 +24,10 @@ test/dp: jbplot.c jbplot.h test/dp.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/dp jbplot.c test/dp.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0` -lgsl -lgslcblas
 
+test/vibe: jbplot.c jbplot.h test/vibe.c jbplot-marshallers.c jbplot-marshallers.h
+	gcc -g -o test/vibe jbplot.c test/vibe.c jbplot-marshallers.c \
+		`pkg-config --libs --cflags gtk+-2.0`
+
 test/bab: jbplot.c jbplot.h test/bab.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/bab jbplot.c test/bab.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
