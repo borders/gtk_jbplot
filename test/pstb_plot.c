@@ -565,38 +565,49 @@ gboolean update_data(gpointer data) {
 					}
 				}
 				else if(!strcmp(cmd,"ytics")) {
+					char *dat;
 					if(stack) {
-						myprintf("#ytics command not currently supported in stacked mode\n");
-						continue;
+						if(charts[chart_count-1].num_points < 1) {
+							myprintf("ylabel must be run after at least one data record (when in stacked mode)\n");
+							continue;
+						}
+						char *c;
+						int i;
+						if( (c = strtok(NULL, " \t")) == NULL || sscanf(c, "%d", &i) != 1 || 
+								i < 1 || i > stack_count || (dat=strtok(NULL,"")) == NULL) {
+							myprintf("ytics usage: #ylabel <index (1-based)> <val1> <label1> <val2> <label2> ...\\n");
+							continue;
+						}
 					}
 					else {
-						char *dat;
 						if( (dat = strtok(NULL, "")) == NULL) {
 							myprintf("ytics usage: #ytics <val1> <label1> <val2> <label2> ...\n");
 							continue;
 						}
-						double values[20];
-						int i;
-						char *labels[20];
-						for(i=0; i<20; i++) {
-							labels[i] = malloc(150);
-						}
-						for(i=0; i<20; i++) {
-							int nr;
-							if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
-								break;
-							}
-							myprintf("%g, %s\n", values[i], labels[i]);
-							dat = dat + nr;
-						}
-						if(i >= 2) {
-							jbplot_set_y_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
-							myprintf("setting y tics listed above...\n");
-						}
-						for(i=0; i<20; i++) {
-							free(labels[i]);
-						}
+
 					}
+					double values[20];
+					int i;
+					char *labels[20];
+					for(i=0; i<20; i++) {
+						labels[i] = malloc(150);
+					}
+					for(i=0; i<20; i++) {
+						int nr;
+						if(sscanf(dat, "%lf %s%n", &(values[i]), labels[i], &nr) != 2) {
+							break;
+						}
+						myprintf("%g, %s\n", values[i], labels[i]);
+						dat = dat + nr;
+					}
+					if(i >= 2) {
+						jbplot_set_y_axis_tics((jbplot *)charts[chart_count-1].plot,i,values,labels);
+						myprintf("setting y tics listed above...\n");
+					}
+					for(i=0; i<20; i++) {
+						free(labels[i]);
+					}
+
 				}
 				else if(!strcmp(cmd,"xlabel")) {
 					if(stack) {
