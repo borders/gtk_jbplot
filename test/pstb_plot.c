@@ -54,6 +54,7 @@ static int stack_count =0;
 static GtkWidget *cursor_button;
 static GtkWidget *coords_button;
 static GtkWidget *snap_button;
+static GtkWidget *clear_all_button;
 static GtkWidget *window;
 static GtkWidget *v_box;
 static GtkWidget *plot_scroll_win;
@@ -220,6 +221,13 @@ int save_png(char *filename) {
 
 int is_valid_fname(char *str) {
 	return (strpbrk(str, "()&") == NULL);
+}
+
+void clear_cb(GtkButton *b, gpointer user_data) {
+	int i;
+	for(i=0; i<chart_count; i++) {
+		jbplot_clear_data((jbplot *)(charts[i].plot));
+	}
 }
 
 void save_png_cb(GtkButton *b, gpointer user_data) {
@@ -1003,11 +1011,15 @@ int main (int argc, char **argv) {
 	GtkWidget *top_v_box;
 	GtkWidget *h_box;
 	GtkWidget *save_button;
+	int realtime = 0;
 
 	for(i=1; i<argc; i++) {
 		if(!strcmp(argv[i],"-h")) {
 			usage(argv[0]);
 			return 0;
+		}
+		else if(!strcmp(argv[i],"-r")) {
+			realtime = 1;
 		}
 		else if(!strcmp(argv[i],"-p")) {
 			if((argc-i) >= 2 && argv[i+1][0] != '-') {
@@ -1056,6 +1068,12 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(h_box), snap_button, FALSE, FALSE, 0);
 	g_signal_connect(snap_button, "toggled", G_CALLBACK(snap_cb), NULL);
 	//gtk_widget_set_tooltip_text(snap_button, "Snap crosshair and/or coordinates to nearest data point");
+
+	if(realtime) {
+		clear_all_button = gtk_button_new_with_label("Clear All");
+		gtk_box_pack_start (GTK_BOX(h_box), clear_all_button, FALSE, FALSE, 0);
+		g_signal_connect(clear_all_button, "clicked", G_CALLBACK(clear_cb), NULL);
+	}
 
 	plot_scroll_win = gtk_scrolled_window_new(NULL, NULL);
 	gtk_widget_set_size_request(plot_scroll_win, 750, 600);

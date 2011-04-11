@@ -2645,6 +2645,17 @@ int jbplot_trace_set_name(trace_t *t, char *name) {
 	return 0;
 }
 
+int jbplot_clear_data(jbplot *p) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(p);
+	int i;
+	for(i=0; i<priv->plot.num_traces; i++) {
+		jbplot_trace_clear_data(priv->plot.traces[i]);
+	}
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)p);
+	return 0;
+}
+
 int jbplot_trace_clear_data(trace_t *t) {
 	t->length = 0;
 	t->start_index = 0;

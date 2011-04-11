@@ -125,6 +125,8 @@ int jbplot_set_plot_title_visible(jbplot *plot, gboolean visible);
 
 int jbplot_set_bg_color(jbplot *plot, rgb_color_t *color);
 
+int jbplot_clear_data(jbplot *p);
+int jbplot_trace_clear_data(trace_handle th);
 
 /********************** X-axis functions *********************************************/
 int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels);
