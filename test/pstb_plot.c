@@ -448,25 +448,50 @@ gboolean update_data(gpointer data) {
 					myprintf("Setting name of trace %d to '%s'\n", i, c);
 				}
 				else if(!strcmp(cmd,"traceprops")) {
-					if(charts[chart_count-1].num_points < 1) {
-						myprintf("%s must be run after at least one data record\n", cmd);
-						continue;
+					if(stack) {
+						if(charts[chart_count-1].num_points < 1) {
+							myprintf("traceprops must be run after at least one data record (when in stacked mode)\n");
+							continue;
+						}
+						char *c;
+						int plot_index;
+						int trace_index;
+						int lt, col;
+						float lw, ms;
+						if(  (c=strtok(NULL,"")) == NULL || 
+								 sscanf(c,"%d %d %d %f %f %d",&plot_index,&trace_index,&lt,&lw,&ms,&col) != 6 ||
+						     plot_index < 1 || plot_index > chart_count ||
+								 trace_index < 1 || trace_index > charts[chart_count-1].num_traces ||
+								 lt >= NUM_LTYPES || lw < 0.f || ms < 0.f || col < 0 || col >= NUM_COLORS) {
+							myprintf("%s usage: #%s <plot_index> <trace_index> <line_type> <line_width> <marker_size> <color>\n", cmd, cmd);
+							continue;
+						}
+						jbplot_trace_set_line_props(charts[plot_index-1].traces[trace_index-1], (lt<0)?LINETYPE_NONE:ltypes[lt], lw, &(colors[col]) );
+						jbplot_trace_set_marker_props(charts[plot_index-1].traces[trace_index-1], MARKER_CIRCLE, ms, &(colors[col]));
+						jbplot_legend_refresh((jbplot *)charts[plot_index-1].plot);
+						got_one = 1;
 					}
-					char *c;
-					int i;
-					int lt, col;
-					float lw, ms;
-					if(  (c=strtok(NULL,"")) == NULL || 
-					     sscanf(c,"%d %d %f %f %d",&i,&lt,&lw,&ms,&col) != 5 ||
-					     i < 1 || i > charts[chart_count-1].num_traces ||
-					     lt >= NUM_LTYPES || lw < 0.f || ms < 0.f || col < 0 || col >= NUM_COLORS) {
-						myprintf("%s usage: #%s <trace_index> <line_type> <line_width> <marker_size> <color>\n", cmd, cmd);
-						continue;
+					else {
+						if(charts[chart_count-1].num_points < 1) {
+							myprintf("%s must be run after at least one data record\n", cmd);
+							continue;
+						}
+						char *c;
+						int i;
+						int lt, col;
+						float lw, ms;
+						if(  (c=strtok(NULL,"")) == NULL || 
+								 sscanf(c,"%d %d %f %f %d",&i,&lt,&lw,&ms,&col) != 5 ||
+								 i < 1 || i > charts[chart_count-1].num_traces ||
+								 lt >= NUM_LTYPES || lw < 0.f || ms < 0.f || col < 0 || col >= NUM_COLORS) {
+							myprintf("%s usage: #%s <trace_index> <line_type> <line_width> <marker_size> <color>\n", cmd, cmd);
+							continue;
+						}
+						jbplot_trace_set_line_props(charts[chart_count-1].traces[i-1], (lt<0)?LINETYPE_NONE:ltypes[lt], lw, &(colors[col]) );
+						jbplot_trace_set_marker_props(charts[chart_count-1].traces[i-1], MARKER_CIRCLE, ms, &(colors[col]));
+						jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
+						got_one = 1;
 					}
-					jbplot_trace_set_line_props(charts[chart_count-1].traces[i-1], (lt<0)?LINETYPE_NONE:ltypes[lt], lw, &(colors[col]) );
-					jbplot_trace_set_marker_props(charts[chart_count-1].traces[i-1], MARKER_CIRCLE, ms, &(colors[col]));
-					jbplot_legend_refresh((jbplot *)charts[chart_count-1].plot);
-					got_one = 1;
 				}
 				else if(!strcmp(cmd,"stack")) {
 					char *usage = "stack usage: #stack (yes|no|1|0|on|off)\n";
