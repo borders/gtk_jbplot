@@ -2264,8 +2264,8 @@ static data_range get_y_range(trace_t **traces, int num_traces) {
 			max = +1.0;
 		}
 		else {
-			min = min - 0.1 * min;
-			max = max + 0.1 * max;
+			min = min - 0.1 * fabs(min);
+			max = max + 0.1 * fabs(max);
 		}
 	}
   r.min = min;
@@ -2326,8 +2326,8 @@ static data_range get_x_range(trace_t **traces, int num_traces) {
 			max = +1.0;
 		}
 		else {
-			min = min - 0.1 * min;
-			max = max + 0.1 * max;
+			min = min - 0.1 * fabs(min);
+			max = max + 0.1 * fabs(max);
 		}
 	}
   r.min = min;
