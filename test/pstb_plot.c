@@ -16,7 +16,7 @@
 #include "../jbplot.h"
 
 #define MAX_CHARTS 15
-#define MAX_TRACES 10
+#define MAX_TRACES 20
 
 
 rgb_color_t colors[] = {
