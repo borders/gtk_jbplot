@@ -662,8 +662,15 @@ gboolean update_data(gpointer data) {
 					}
 					else {
 						char *c = strtok(NULL, "");
-						jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
-						myprintf("Setting x-axis label to '%s'\n", c);
+						if(c) {
+							jbplot_set_x_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
+							jbplot_set_x_axis_label_visible((jbplot *)charts[chart_count-1].plot, 1);
+							myprintf("Setting x-axis label to '%s'\n", c);
+						}
+						else {
+							jbplot_set_x_axis_label_visible((jbplot *)charts[chart_count-1].plot, 0);
+							myprintf("Clearing x-axis label\n");
+						}
 					}
 				}
 				else if(!strcmp(cmd,"ylabel")) {
@@ -684,8 +691,15 @@ gboolean update_data(gpointer data) {
 					}
 					else {
 						char *c = strtok(NULL, "");
-						jbplot_set_y_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
-						myprintf("Setting y-axis label to '%s'\n", c);
+						if(c) {
+							jbplot_set_y_axis_label((jbplot *)charts[chart_count-1].plot, c, 1);
+							jbplot_set_y_axis_label_visible((jbplot *)charts[chart_count-1].plot, 1);
+							myprintf("Setting y-axis label to '%s'\n", c);
+						}
+						else {
+							jbplot_set_y_axis_label_visible((jbplot *)charts[chart_count-1].plot, 0);
+							myprintf("Clearing y-axis label\n");
+						}	
 					}
 				}
 				else if(!strcmp(cmd,"title")) {
