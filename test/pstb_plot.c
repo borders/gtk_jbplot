@@ -15,7 +15,7 @@
 
 #include "../jbplot.h"
 
-#define MAX_CHARTS 15
+#define MAX_CHARTS 20
 #define MAX_TRACES 20
 
 
@@ -384,7 +384,7 @@ int add_trace(struct chart *chart) {
 		exit(1);
 	}
 	int i = chart->num_traces;
-	trace_handle t1 = jbplot_create_trace(200000);
+	trace_handle t1 = jbplot_create_trace(500000);
 	if(t1==NULL) {
 		printf("error creating trace!\n");
 		return 0;
