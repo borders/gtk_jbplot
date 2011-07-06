@@ -41,6 +41,9 @@ typedef struct box_size_t {
   double height;
 } box_size_t;
 
+typedef struct zoom_hist_t {
+} zoom_hist_t;
+
 
 typedef struct axis_t {
   int type; // 0=x, 1=y
@@ -2296,8 +2299,8 @@ static data_range get_y_range_within_x_range(trace_t **traces, int num_traces, d
 			max = +1.0;
 		}
 		else {
-			min = min - 0.1 * min;
-			max = max + 0.1 * max;
+			min = min - 0.1 * fabs(min);
+			max = max + 0.1 * fabs(max);
 		}
 	}
   r.min = min;
@@ -2358,8 +2361,8 @@ static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, d
 			max = +1.0;
 		}
 		else {
-			min = min - 0.1 * min;
-			max = max + 0.1 * max;
+			min = min - 0.1 * fabs(min);
+			max = max + 0.1 * fabs(max);
 		}
 	}
   r.min = min;
