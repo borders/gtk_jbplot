@@ -390,7 +390,8 @@ int add_trace(struct chart *chart) {
 		return 0;
 	}
 	jbplot_trace_set_line_props(t1, ltypes[(i/NUM_COLORS)%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
-	jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
+	//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
+	jbplot_trace_set_marker_props(t1, MARKER_NONE, 2.0, &(colors[i%NUM_COLORS]));
 	chart->traces[i] = t1;
 	jbplot_add_trace((jbplot *)chart->plot, t1);
 	jbplot_legend_refresh((jbplot *)charts->plot);
