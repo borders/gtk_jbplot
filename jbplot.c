@@ -2424,7 +2424,7 @@ int jbplot_set_y_axis_tics(jbplot *plot, int n, double *values, char **labels) {
 int jbplot_set_coords_visible(jbplot *plot, int vis) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
 	priv->do_show_coords = vis;
-	priv->needs_redraw = TRUE;
+	//priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }	
@@ -2461,7 +2461,7 @@ int jbplot_set_crosshair_mode(jbplot *plot, crosshair_t mode) {
 		default:
 			break;
 	}
-	priv->needs_redraw = TRUE;
+	//priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
 }
