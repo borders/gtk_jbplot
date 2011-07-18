@@ -481,8 +481,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 	if(event->type == GDK_2BUTTON_PRESS) { // double click
-		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT, 1);
-		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT, 1);
+		jbplot_set_xy_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT, 1);
 		g_signal_emit_by_name((gpointer *)w, "zoom-all");
 	}
 	else {
@@ -2918,6 +2917,18 @@ int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double lef
 	}
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+
+int jbplot_set_xy_scale_mode(jbplot *plot, scale_mode_t mode, int history) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
+	jbplot_set_x_axis_scale_mode(plot, mode, 0);
+	jbplot_set_y_axis_scale_mode(plot, mode, 0);
 	return 0;
 }
 

@@ -311,10 +311,9 @@ gint zoom_all_cb(jbplot *plot) {
 	myprintf("Zoom All!\n");
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
-		//if(p != plot) {
-			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_TIGHT, 1);
-			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT, 1);
-		//}
+		if(p != plot) {
+			jbplot_set_xy_scale_mode(p, SCALE_AUTO_TIGHT, 1);
+		}
 	}
 	needs_lineup = 1;
 	return 0;

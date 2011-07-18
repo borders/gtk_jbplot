@@ -164,6 +164,7 @@ int jbplot_legend_refresh(jbplot *plot);
 
 int jbplot_undo_zoom(jbplot *plot);
 int jbplot_set_xy_range(jbplot *plot, double xmin, double xmax, double ymin, double ymax, int history);
+int jbplot_set_xy_scale_mode(jbplot *plot, scale_mode_t mode, int history);
 
 /* Trace-related functions */
 int jbplot_trace_resize(trace_handle th, int new_size);
