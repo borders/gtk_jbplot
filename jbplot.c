@@ -250,7 +250,7 @@ static void zoom_hist_init(zoom_hist_t *z) {
 
 static 
 void zoom_hist_push(zoom_hist_t *z, range_state_t *r) {
-	printf("pushing range state to history stack\n");
+	//printf("pushing range state to history stack\n");
 	int new_index = (z->start_index + z->length) % ZOOM_HIST_SIZE;
 	z->length++;
 	if(z->length > ZOOM_HIST_SIZE) {
@@ -258,22 +258,22 @@ void zoom_hist_push(zoom_hist_t *z, range_state_t *r) {
 		new_index = z->start_index;
 		z->start_index = (z->start_index + 1) % ZOOM_HIST_SIZE;
 	}
-	printf("new hist length: %d\n", z->length);
+	//printf("  new hist length: %d\n", z->length);
 	z->range_states[new_index] = *r;
 	return;
 }
 
 static 
 range_state_t *zoom_hist_pop(zoom_hist_t *z) {
-	printf("Popping history\n");
+	//printf("Popping history\n");
 	if(z->length < 1) {
-		printf("  Zoom history empty\n");
+		//printf("  Zoom history empty\n");
 		return NULL;
 	}
 	z->length--;
 	int n = (z->start_index + z->length) % ZOOM_HIST_SIZE;
-	printf("  Accessing history index %d\n", n);
-	printf("  Zoom history length is now %d\n", z->length);
+	//printf("  Accessing history index %d\n", n);
+	//printf("  Zoom history length is now %d\n", z->length);
 	return &(z->range_states[n]);
 }
 
