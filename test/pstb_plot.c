@@ -143,6 +143,41 @@ void coords_cb(GtkToggleButton *b, gpointer user_data) {
 	}
 }
 
+void avg_cb(GtkButton *b, gpointer user_data) {
+	int i;
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		printf("*** Plot #%d [%s] ***\n", i+1, jbplot_get_y_axis_label(p));
+		int num_traces = jbplot_get_trace_count(p);
+		trace_handle *traces = jbplot_get_traces(p);
+		double min_x, max_x;
+		jbplot_get_x_axis_range(p, &min_x, &max_x);
+	
+		int j;
+		for(j=0; j<num_traces; j++) {
+			double *x, *y;
+			int data_length;
+			jbplot_trace_get_data(traces[j], &x, &y, &data_length);
+			if(data_length > 0) {
+				double sum = 0.0;
+				int count = 0;
+				int k;
+				for(k=0; k<data_length; k++) {
+					if(x[k] >= min_x && x[k] <= max_x && (y[k] > -1.0 || y[k] < 1.0)) {
+						sum += y[k];
+						count++;
+					}
+				}
+				double avg = 0.0;
+				if(count) {
+					avg = sum / count;
+				}
+				printf(" %s: %g\n", jbplot_trace_get_name(traces[j]), avg);
+			}
+		}
+	}
+}
+
 void undo_cb(GtkButton *b, gpointer user_data) {
 	int i;
 	for(i=0; i<chart_count; i++) {
@@ -1071,6 +1106,7 @@ int main (int argc, char **argv) {
 	GtkWidget *top_v_box;
 	GtkWidget *h_box;
 	GtkWidget *save_button;
+	GtkWidget *avg_button;
 	int realtime = 0;
 
 	for(i=1; i<argc; i++) {
@@ -1132,6 +1168,10 @@ int main (int argc, char **argv) {
 	undo_button = gtk_button_new_with_label("Undo Zoom");
 	gtk_box_pack_start (GTK_BOX(h_box), undo_button, FALSE, FALSE, 0);
 	g_signal_connect(undo_button, "clicked", G_CALLBACK(undo_cb), NULL);
+
+	avg_button = gtk_button_new_with_label("Calc. AVG");
+	gtk_box_pack_start (GTK_BOX(h_box), avg_button, FALSE, FALSE, 0);
+	g_signal_connect(avg_button, "clicked", G_CALLBACK(avg_cb), NULL);
 
 	if(realtime) {
 		clear_all_button = gtk_button_new_with_label("Clear All");

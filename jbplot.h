@@ -132,6 +132,7 @@ int jbplot_trace_clear_data(trace_handle th);
 int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_x_axis_format(jbplot *plot, char *str);
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
+char *jbplot_get_x_axis_label(jbplot *plot);
 int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
 int jbplot_set_x_axis_range(jbplot *plot, double min, double max, int history);
 int jbplot_get_x_axis_range(jbplot *plot, double *min, double *max);
@@ -144,6 +145,7 @@ int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 int jbplot_set_y_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_y_axis_format(jbplot *plot, char *str);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
+char *jbplot_get_y_axis_label(jbplot *plot);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
 int jbplot_set_y_axis_range(jbplot *plot, double min, double max, int history);
 int jbplot_get_y_axis_range(jbplot *plot, double *min, double *max);
@@ -173,6 +175,7 @@ int jbplot_remove_trace(jbplot *plot, trace_handle th);
 trace_handle jbplot_create_trace(int capacity);
 void jbplot_destroy_trace(trace_handle th);
 int jbplot_trace_set_data(trace_handle th, double *x_start, double *y_start, int length);
+int jbplot_trace_get_data(trace_handle th, double **x, double **y, int *length);
 int jbplot_trace_set_decimation(trace_handle th, int divisor);
 
 trace_handle jbplot_create_trace_with_external_data(double *x, double *y, int length, int capacity);
@@ -180,7 +183,11 @@ int jbplot_trace_add_point(trace_handle th, double x, double y);
 int jbplot_trace_set_line_props(trace_handle th, line_type_t type, double width, rgb_color_t *color);
 int jbplot_trace_set_marker_props(trace_handle th, marker_type_t type, double size, rgb_color_t *color);
 int jbplot_trace_set_name(trace_handle th, char *name);
+char *jbplot_trace_get_name(trace_handle th);
 int jbplot_trace_clear_data(trace_handle th);
+
+trace_handle *jbplot_get_traces(jbplot *plot);
+int jbplot_get_trace_count(jbplot *plot);
 
 /* cursor related functions */
 int jbplot_set_cursor_pos(jbplot *plot, double x, double y);

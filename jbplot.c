@@ -2434,6 +2434,26 @@ static void jbplot_get_range_state(jbplot *plot, range_state_t *rs) {
 
 
 /******************** Public Functions *******************************/
+char *jbplot_trace_get_name(trace_handle th) {
+	return th->name;
+}
+
+int jbplot_trace_get_data(trace_handle th, double **x, double **y, int *length) {
+	*x = th->x_data;
+	*y = th->y_data;
+	*length = th->length;
+	return 0;
+}
+
+int jbplot_get_trace_count(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	return priv->plot.num_traces;
+}
+
+trace_handle *jbplot_get_traces(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	return priv->plot.traces;
+}
 
 int jbplot_undo_zoom(jbplot *plot) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
@@ -3264,6 +3284,15 @@ int jbplot_set_plot_title_visible(jbplot *plot, gboolean visible) {
 	return 0;
 }
 	
+char *jbplot_get_x_axis_label(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	return priv->plot.x_axis.axis_label;
+}
+
+char *jbplot_get_y_axis_label(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	return priv->plot.y_axis.axis_label;
+}
 
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
