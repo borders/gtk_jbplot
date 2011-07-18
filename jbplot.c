@@ -31,6 +31,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 #define MAX_NUM_TRACES    100
 
 #define MED_GAP 6
+#define ZOOM_HIST_SIZE 10
 
 
 double dash_pattern[] = {4.0, 4.0};
@@ -41,9 +42,22 @@ typedef struct box_size_t {
   double height;
 } box_size_t;
 
-typedef struct zoom_hist_t {
-} zoom_hist_t;
+typedef struct range_state_t {
+	double x_min;
+	double x_max;
+	double y_min;
+	double y_max;
+	char x_do_autoscale;
+	char x_do_loose_fit;
+	char y_do_autoscale;
+	char y_do_loose_fit;
+} range_state_t;
 
+typedef struct zoom_hist_t {
+	range_state_t range_states[ZOOM_HIST_SIZE];
+	int length;
+	int start_index;
+} zoom_hist_t;
 
 typedef struct axis_t {
   int type; // 0=x, 1=y
@@ -214,7 +228,8 @@ struct _jbplotPrivate
 	cairo_t *legend_context;
 	cairo_surface_t *plot_buffer;
 	cairo_t *plot_context;
-	
+
+	zoom_hist_t zoom_hist;	
 };
 
 enum
@@ -226,6 +241,41 @@ enum
 };
 
 static guint jbplot_signals[LAST_SIGNAL] = { 0 };
+
+static void zoom_hist_init(zoom_hist_t *z) {
+	z->length = 0;
+	z->start_index = 0;
+	return;
+}
+
+static 
+void zoom_hist_push(zoom_hist_t *z, range_state_t *r) {
+	printf("pushing range state to history stack\n");
+	int new_index = (z->start_index + z->length) % ZOOM_HIST_SIZE;
+	z->length++;
+	if(z->length > ZOOM_HIST_SIZE) {
+		z->length = ZOOM_HIST_SIZE;
+		new_index = z->start_index;
+		z->start_index = (z->start_index + 1) % ZOOM_HIST_SIZE;
+	}
+	printf("new hist length: %d\n", z->length);
+	z->range_states[new_index] = *r;
+	return;
+}
+
+static 
+range_state_t *zoom_hist_pop(zoom_hist_t *z) {
+	printf("Popping history\n");
+	if(z->length < 1) {
+		printf("  Zoom history empty\n");
+		return NULL;
+	}
+	z->length--;
+	int n = (z->start_index + z->length) % ZOOM_HIST_SIZE;
+	printf("  Accessing history index %d\n", n);
+	printf("  Zoom history length is now %d\n", z->length);
+	return &(z->range_states[n]);
+}
 
 
 static gboolean popup_responder(GtkWidget *w, GdkEvent *e, gpointer data) {
@@ -256,10 +306,9 @@ static gboolean popup_callback_show_coords(GtkWidget *w, GdkEvent *e, gpointer d
 	return FALSE;
 }
 
-
 static gboolean popup_callback_zoom_all(GtkWidget *w, GdkEvent *e, gpointer data) {
-	jbplot_set_x_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
-	jbplot_set_y_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT);
+	jbplot_set_x_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT, 1);
+	jbplot_set_y_axis_scale_mode((jbplot*)data, SCALE_AUTO_TIGHT, 1);
 	g_signal_emit_by_name((gpointer *)data, "zoom-all");
 	return FALSE;
 }
@@ -432,8 +481,8 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
 	if(event->type == GDK_2BUTTON_PRESS) { // double click
-		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
-		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT);
+		jbplot_set_x_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT, 1);
+		jbplot_set_y_axis_scale_mode((jbplot*)w, SCALE_AUTO_TIGHT, 1);
 		g_signal_emit_by_name((gpointer *)w, "zoom-all");
 	}
 	else {
@@ -474,8 +523,8 @@ static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 				priv->pan_start_x_range.max = priv->plot.x_axis.max_val;
 				priv->pan_start_y_range.min = priv->plot.y_axis.min_val;
 				priv->pan_start_y_range.max = priv->plot.y_axis.max_val;
-				jbplot_set_x_axis_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val); 
-				jbplot_set_y_axis_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val); 
+				jbplot_set_x_axis_range((jbplot *)w, priv->plot.x_axis.min_val, priv->plot.x_axis.max_val, 0); 
+				jbplot_set_y_axis_range((jbplot *)w, priv->plot.y_axis.min_val, priv->plot.y_axis.max_val, 0); 
 			}
 		}
 	}
@@ -503,7 +552,7 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				double xmax = (x_max - priv->x_b)/priv->x_m;
 				double ymin = (y_max - priv->y_b)/priv->y_m;
 				double ymax = (y_min - priv->y_b)/priv->y_m;
-				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
+				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax, 1);
 				priv->needs_redraw = TRUE;
 				priv->needs_h_zoom_signal = TRUE;
 				//g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
@@ -521,7 +570,7 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				double xmax = (x_max - priv->x_b)/priv->x_m;
 				double ymin = (y_max - priv->y_b)/priv->y_m;
 				double ymax = (y_min - priv->y_b)/priv->y_m;
-				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
+				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax, 1);
 				priv->needs_redraw = TRUE;
 				priv->needs_v_zoom_signal = TRUE;
 				//g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
@@ -535,8 +584,7 @@ static gboolean jbplot_button_release(GtkWidget *w, GdkEventButton *event) {
 				double xmax = (x_max - priv->x_b)/priv->x_m;
 				double ymin = (y_max - priv->y_b)/priv->y_m;
 				double ymax = (y_min - priv->y_b)/priv->y_m;
-				jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
-				jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
+				jbplot_set_xy_range((jbplot *)w, xmin, xmax, ymin, ymax, 1);
 				priv->needs_redraw = TRUE;
 				g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
 			}
@@ -590,8 +638,8 @@ static gboolean jbplot_motion_notify(GtkWidget *w, GdkEventMotion *event) {
 		xmax = priv->pan_start_x_range.max - (event->x - priv->pan_start_x)/priv->x_m;
 		ymin = priv->pan_start_y_range.min - (event->y - priv->pan_start_y)/priv->y_m;
 		ymax = priv->pan_start_y_range.max - (event->y - priv->pan_start_y)/priv->y_m;
-		jbplot_set_x_axis_range((jbplot *)w, xmin, xmax);
-		jbplot_set_y_axis_range((jbplot *)w, ymin, ymax);
+		jbplot_set_x_axis_range((jbplot *)w, xmin, xmax, 0);
+		jbplot_set_y_axis_range((jbplot *)w, ymin, ymax, 0);
 		priv->needs_redraw = TRUE;
 		gtk_widget_queue_draw(w);
 		g_signal_emit_by_name((gpointer *)w, "pan", xmin, xmax, ymin, ymax);
@@ -792,7 +840,8 @@ static void jbplot_init (jbplot *plot) {
 	priv->legend_buffer = NULL;
 	priv->plot_context = NULL;
 	priv->plot_buffer = NULL;
-	
+
+	zoom_hist_init(&(priv->zoom_hist));	
 }
 
 
@@ -2370,7 +2419,54 @@ static data_range get_x_range_within_y_range(trace_t **traces, int num_traces, d
   return r;
 }
 
+static void jbplot_get_range_state(jbplot *plot, range_state_t *rs) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	rs->x_min = priv->plot.x_axis.min_val;
+	rs->x_max = priv->plot.x_axis.max_val;
+	rs->x_do_autoscale = priv->plot.x_axis.do_autoscale;
+	rs->x_do_loose_fit = priv->plot.x_axis.do_loose_fit;
+
+	rs->y_min = priv->plot.y_axis.min_val;
+	rs->y_max = priv->plot.y_axis.max_val;
+	rs->y_do_autoscale = priv->plot.y_axis.do_autoscale;
+	rs->y_do_loose_fit = priv->plot.y_axis.do_loose_fit;
+}
+
+
+
 /******************** Public Functions *******************************/
+
+int jbplot_undo_zoom(jbplot *plot) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
+	range_state_t *rs;
+	rs = zoom_hist_pop(&(priv->zoom_hist));
+	if(rs) {
+		if(rs->x_do_autoscale) {
+			if(rs->x_do_loose_fit) {
+				jbplot_set_x_axis_scale_mode(plot, SCALE_AUTO_LOOSE, 0);
+			}
+			else {
+				jbplot_set_x_axis_scale_mode(plot, SCALE_AUTO_TIGHT, 0);
+			}
+		}
+		else {
+			jbplot_set_x_axis_range(plot, rs->x_min, rs->x_max, 0);
+		}
+		if(rs->y_do_autoscale) {
+			if(rs->y_do_loose_fit) {
+				jbplot_set_y_axis_scale_mode(plot, SCALE_AUTO_LOOSE, 0);
+			}
+			else {
+				jbplot_set_y_axis_scale_mode(plot, SCALE_AUTO_TIGHT, 0);
+			}
+		}
+		else {
+			jbplot_set_y_axis_range(plot, rs->y_min, rs->y_max, 0);
+		}
+	}
+	return 0;
+}
+
 int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((plot));
 	int ret = 0;
@@ -2826,8 +2922,13 @@ int jbplot_set_plot_area_LR_margins(jbplot *plot, margin_mode_t mode, double lef
 }
 
 
-int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
+int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode, int history) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
 	if(mode == SCALE_AUTO_TIGHT) {
 		priv->plot.x_axis.do_autoscale = 1;
 		priv->plot.x_axis.do_loose_fit = 0;
@@ -2845,8 +2946,13 @@ int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
 	return 0;
 }
 
-int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode) {
+int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode, int history) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
 	if(mode == SCALE_AUTO_TIGHT) {
 		priv->plot.y_axis.do_autoscale = 1;
 		priv->plot.y_axis.do_loose_fit = 0;
@@ -2871,12 +2977,34 @@ int jbplot_get_x_axis_range(jbplot *plot, double *min, double *max) {
 	return 0;
 }
 
-int jbplot_set_x_axis_range(jbplot *plot, double min, double max) {
+int jbplot_set_xy_range(jbplot *plot, double xmin, double xmax, double ymin, double ymax, int history) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
+	priv->plot.x_axis.do_autoscale = 0;
+	priv->plot.y_axis.do_autoscale = 0;
+	priv->plot.x_axis.min_val = xmin;
+	priv->plot.y_axis.min_val = ymin;
+	priv->plot.x_axis.max_val = xmax;
+	priv->plot.y_axis.max_val = ymax;
+	priv->needs_redraw = TRUE;
+	gtk_widget_queue_draw((GtkWidget *)plot);
+	return 0;
+}
+	
+int jbplot_set_x_axis_range(jbplot *plot, double min, double max, int history) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
 	priv->plot.x_axis.do_autoscale = 0;
 	priv->plot.x_axis.min_val = min;
 	priv->plot.x_axis.max_val = max;
-	//printf("Setting x-axis range to (%g , %g)\n", min, max);
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;
@@ -2890,12 +3018,16 @@ int jbplot_get_y_axis_range(jbplot *plot, double *min, double *max) {
 }
 
 
-int jbplot_set_y_axis_range(jbplot *plot, double min, double max) {
+int jbplot_set_y_axis_range(jbplot *plot, double min, double max, int history) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
+	if(history) {
+		range_state_t rs;
+		jbplot_get_range_state(plot, &rs);
+		zoom_hist_push(&(priv->zoom_hist), &rs);
+	}
 	priv->plot.y_axis.do_autoscale = 0;
 	priv->plot.y_axis.min_val = min;
 	priv->plot.y_axis.max_val = max;
-	//printf("Setting y-axis range to (%g , %g)\n", min, max);
 	priv->needs_redraw = TRUE;
 	gtk_widget_queue_draw((GtkWidget *)plot);
 	return 0;

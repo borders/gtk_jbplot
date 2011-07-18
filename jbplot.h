@@ -133,9 +133,9 @@ int jbplot_set_x_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_x_axis_format(jbplot *plot, char *str);
 int jbplot_set_x_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_x_axis_label_visible(jbplot *plot, gboolean visible);
-int jbplot_set_x_axis_range(jbplot *plot, double min, double max);
+int jbplot_set_x_axis_range(jbplot *plot, double min, double max, int history);
 int jbplot_get_x_axis_range(jbplot *plot, double *min, double *max);
-int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode);
+int jbplot_set_x_axis_scale_mode(jbplot *plot, scale_mode_t mode, int history);
 int jbplot_set_x_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color);
 int jbplot_set_x_axis_gridline_visible(jbplot *plot, gboolean visible);
 
@@ -145,9 +145,9 @@ int jbplot_set_y_axis_tics(jbplot *plot, int n, double *values, char **labels);
 int jbplot_set_y_axis_format(jbplot *plot, char *str);
 int jbplot_set_y_axis_label(jbplot *plot, char *title, int copy);
 int jbplot_set_y_axis_label_visible(jbplot *plot, gboolean visible);
-int jbplot_set_y_axis_range(jbplot *plot, double min, double max);
+int jbplot_set_y_axis_range(jbplot *plot, double min, double max, int history);
 int jbplot_get_y_axis_range(jbplot *plot, double *min, double *max);
-int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode);
+int jbplot_set_y_axis_scale_mode(jbplot *plot, scale_mode_t mode, int history);
 int jbplot_set_y_axis_gridline_props(jbplot *plot, line_type_t type, double width, rgb_color_t *color);
 int jbplot_set_y_axis_gridline_visible(jbplot *plot, gboolean visible);
 
@@ -161,6 +161,9 @@ int jbplot_get_ideal_LR_margins(jbplot *plot, double *left, double *right);
 
 int jbplot_set_legend_props(jbplot *plot, double border_width, rgb_color_t *bg_color, rgb_color_t *border_color, legend_pos_t position);
 int jbplot_legend_refresh(jbplot *plot);
+
+int jbplot_undo_zoom(jbplot *plot);
+int jbplot_set_xy_range(jbplot *plot, double xmin, double xmax, double ymin, double ymax, int history);
 
 /* Trace-related functions */
 int jbplot_trace_resize(trace_handle th, int new_size);

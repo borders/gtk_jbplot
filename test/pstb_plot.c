@@ -142,6 +142,15 @@ void coords_cb(GtkToggleButton *b, gpointer user_data) {
 	}
 }
 
+void undo_cb(GtkButton *b, gpointer user_data) {
+	int i;
+	printf("undo zoom\n");
+	for(i=0; i<chart_count; i++) {
+		jbplot *p = (jbplot *)(charts[i].plot);
+		jbplot_undo_zoom(p);
+	}
+}
+
 void snap_cb(GtkToggleButton *b, gpointer user_data) {
 	int i;
 	int state = gtk_toggle_button_get_active(b);
@@ -289,7 +298,7 @@ gint zoom_in_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble 
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
-			jbplot_set_x_axis_range(p, xmin, xmax);
+			jbplot_set_x_axis_range(p, xmin, xmax, 1);
 		}
 	}
 	needs_lineup = 1;
@@ -303,8 +312,8 @@ gint zoom_all_cb(jbplot *plot) {
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		//if(p != plot) {
-			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_TIGHT);
-			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT);
+			jbplot_set_x_axis_scale_mode(p, SCALE_AUTO_TIGHT, 1);
+			jbplot_set_y_axis_scale_mode(p, SCALE_AUTO_TIGHT, 1);
 		//}
 	}
 	needs_lineup = 1;
@@ -317,7 +326,7 @@ gint pan_cb(jbplot *plot, gdouble xmin, gdouble xmax, gdouble ymin, gdouble ymax
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		if(p != plot) {
-			jbplot_set_x_axis_range(p, xmin, xmax);
+			jbplot_set_x_axis_range(p, xmin, xmax, 0);
 		}
 	}
 	return 0;
@@ -1051,6 +1060,7 @@ int main (int argc, char **argv) {
 	GtkWidget *top_v_box;
 	GtkWidget *h_box;
 	GtkWidget *save_button;
+	GtkWidget *undo_button;
 	int realtime = 0;
 
 	for(i=1; i<argc; i++) {
@@ -1108,6 +1118,10 @@ int main (int argc, char **argv) {
 	gtk_box_pack_start (GTK_BOX(h_box), snap_button, FALSE, FALSE, 0);
 	g_signal_connect(snap_button, "toggled", G_CALLBACK(snap_cb), NULL);
 	//gtk_widget_set_tooltip_text(snap_button, "Snap crosshair and/or coordinates to nearest data point");
+
+	undo_button = gtk_button_new_with_label("Undo Zoom");
+	gtk_box_pack_start (GTK_BOX(h_box), undo_button, FALSE, FALSE, 0);
+	g_signal_connect(undo_button, "clicked", G_CALLBACK(undo_cb), NULL);
 
 	if(realtime) {
 		clear_all_button = gtk_button_new_with_label("Clear All");
