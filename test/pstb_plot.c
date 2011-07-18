@@ -145,9 +145,11 @@ void coords_cb(GtkToggleButton *b, gpointer user_data) {
 
 void avg_cb(GtkButton *b, gpointer user_data) {
 	int i;
+	static char str[1000000];
+	str[0] = '\0';
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
-		printf("*** Plot #%d [%s] ***\n", i+1, jbplot_get_y_axis_label(p));
+		sprintf(str, "%s<b>Plot #%d [%s]</b>\n", str, i+1, jbplot_get_y_axis_label(p));
 		int num_traces = jbplot_get_trace_count(p);
 		trace_handle *traces = jbplot_get_traces(p);
 		double min_x, max_x;
@@ -172,10 +174,17 @@ void avg_cb(GtkButton *b, gpointer user_data) {
 				if(count) {
 					avg = sum / count;
 				}
-				printf(" %s: %g\n", jbplot_trace_get_name(traces[j]), avg);
+				sprintf(str, "%s %s: %g\n", str, jbplot_trace_get_name(traces[j]), avg);
 			}
 		}
 	}
+	myprintf("%s", str);
+	GtkWidget *dialog;
+	dialog = gtk_message_dialog_new ((GtkWindow *)window, GTK_DIALOG_DESTROY_WITH_PARENT, GTK_MESSAGE_INFO, GTK_BUTTONS_CLOSE, NULL);
+	gtk_message_dialog_set_markup (GTK_MESSAGE_DIALOG (dialog), str);
+	gtk_window_set_title(GTK_WINDOW(dialog), "Average y-values within visible x-range");
+	gtk_dialog_run (GTK_DIALOG (dialog));
+	gtk_widget_destroy (dialog);
 }
 
 void undo_cb(GtkButton *b, gpointer user_data) {
