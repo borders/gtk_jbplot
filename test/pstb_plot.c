@@ -314,6 +314,9 @@ gint zoom_all_cb(jbplot *plot) {
 		if(p != plot) {
 			jbplot_set_xy_scale_mode(p, SCALE_AUTO_TIGHT, 1);
 		}
+		else {
+			jbplot_set_xy_scale_mode(p, SCALE_AUTO_TIGHT, 0);
+		}
 	}
 	needs_lineup = 1;
 	return 0;
