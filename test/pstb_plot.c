@@ -144,7 +144,6 @@ void coords_cb(GtkToggleButton *b, gpointer user_data) {
 
 void undo_cb(GtkButton *b, gpointer user_data) {
 	int i;
-	printf("undo zoom\n");
 	for(i=0; i<chart_count; i++) {
 		jbplot *p = (jbplot *)(charts[i].plot);
 		jbplot_undo_zoom(p);
