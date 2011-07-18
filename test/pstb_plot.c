@@ -51,6 +51,7 @@ static int t = 0;
 static int num_fields = 0;
 static int stack = 1;
 static int stack_count =0;
+static GtkWidget *undo_button;
 static GtkWidget *cursor_button;
 static GtkWidget *coords_button;
 static GtkWidget *snap_button;
@@ -229,6 +230,15 @@ int save_png(char *filename) {
 
 int is_valid_fname(char *str) {
 	return (strpbrk(str, "()&") == NULL);
+}
+
+void key_press_cb(GtkWidget *w, GdkEvent *e, gpointer user_data) {
+	GdkEventKey *k = (GdkEventKey *)e;
+	if(k->state == GDK_CONTROL_MASK && k->keyval == 'z') {
+		printf("Undo!!\n");
+		gtk_button_clicked((GtkButton *)undo_button);
+	}
+	
 }
 
 void clear_cb(GtkButton *b, gpointer user_data) {
@@ -1061,7 +1071,6 @@ int main (int argc, char **argv) {
 	GtkWidget *top_v_box;
 	GtkWidget *h_box;
 	GtkWidget *save_button;
-	GtkWidget *undo_button;
 	int realtime = 0;
 
 	for(i=1; i<argc; i++) {
@@ -1148,6 +1157,7 @@ int main (int argc, char **argv) {
 	add_plot();
 
 	g_signal_connect (window, "destroy", G_CALLBACK (gtk_main_quit), NULL);
+	g_signal_connect (window, "key-press-event", G_CALLBACK (key_press_cb), NULL);
 
 	g_timeout_add(50, update_data, NULL);
 
