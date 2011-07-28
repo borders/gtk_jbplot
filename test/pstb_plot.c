@@ -279,7 +279,6 @@ int is_valid_fname(char *str) {
 void key_press_cb(GtkWidget *w, GdkEvent *e, gpointer user_data) {
 	GdkEventKey *k = (GdkEventKey *)e;
 	if(k->state == GDK_CONTROL_MASK && k->keyval == 'z') {
-		printf("Undo!!\n");
 		gtk_button_clicked((GtkButton *)undo_button);
 	}
 	
