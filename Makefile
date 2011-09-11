@@ -1,7 +1,7 @@
-all: test/test1 test/dp test/bab test/data_view test/chaos test/newton_cradle test/pstb_plot test/set_data
+all: test/test1 test/dp test/bab test/data_view test/chaos test/newton_cradle test/zing test/set_data
 
-test/pstb_plot: jbplot.c jbplot.h test/pstb_plot.c jbplot-marshallers.c jbplot-marshallers.h
-	gcc -g -o test/pstb_plot jbplot.c test/pstb_plot.c jbplot-marshallers.c \
+test/zing: jbplot.c jbplot.h test/zing.c jbplot-marshallers.c jbplot-marshallers.h
+	gcc -g -o test/zing jbplot.c test/zing.c jbplot-marshallers.c \
 		`pkg-config --libs --cflags gtk+-2.0`
 
 test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
@@ -56,5 +56,5 @@ clean:
 	rm -f test/set_data
 	rm -f test/data_view
 	rm -f test/dp
-	rm -f test/pstb_plot
+	rm -f test/zing
 	rm -f test/newton_cradle
