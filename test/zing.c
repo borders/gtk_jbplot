@@ -67,6 +67,7 @@ static int line_index = 0;
 static int line_count = 0;
 static int is_cmd = 0;
 static int quiet = 0;
+static int use_markers = 0;
 static int needs_lineup = 1;
 
 void myprintf(const char *fmt, ...) {
@@ -453,8 +454,12 @@ int add_trace(struct chart *chart) {
 		return 0;
 	}
 	jbplot_trace_set_line_props(t1, ltypes[(i/NUM_COLORS)%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
-	//jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
-	jbplot_trace_set_marker_props(t1, MARKER_NONE, 2.0, &(colors[i%NUM_COLORS]));
+	if(use_markers) {
+		jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
+	}
+	else {
+		jbplot_trace_set_marker_props(t1, MARKER_NONE, 2.0, &(colors[i%NUM_COLORS]));
+	}
 	chart->traces[i] = t1;
 	jbplot_add_trace((jbplot *)chart->plot, t1);
 	jbplot_legend_refresh((jbplot *)charts->plot);
@@ -1134,6 +1139,9 @@ int main (int argc, char **argv) {
 				usage(argv[0]);
 				return 0;
 			}
+		}
+		else if(!strcmp(argv[i],"-m")) {
+			use_markers = 1;
 		}
 		else if(!strcmp(argv[i],"-q")) {
 			quiet = 1;
