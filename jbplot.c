@@ -198,6 +198,7 @@ struct _jbplotPrivate
 	gboolean do_show_coords;
 	gboolean do_show_cross_hair;
 	gboolean do_snap_to_data;
+	double closest_x, closest_y;
 	gboolean cross_hair_is_visible;
 	gdouble drag_start_x;
 	gdouble drag_start_y;
@@ -313,6 +314,17 @@ static gboolean popup_callback_zoom_all(GtkWidget *w, GdkEvent *e, gpointer data
 	return FALSE;
 }
 
+static gboolean popup_callback_copy_xy(GtkWidget *w, GdkEvent *e, gpointer data) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
+	if(priv->do_show_coords && priv->do_snap_to_data) {
+		GtkClipboard *clip = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
+		char str[1000];
+		sprintf(str, "(%.6f, %g)", priv->closest_x, priv->closest_y);
+		gtk_clipboard_set_text(clip, str, -1);
+	}
+	return FALSE;
+}
+
 static gboolean popup_callback_x_autoscale(GtkWidget *w, GdkEvent *e, gpointer data) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot *) data);
 	//printf("Toggling x-axis autoscale state\n");
@@ -374,6 +386,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	GtkWidget *show_coords = gtk_check_menu_item_new_with_label("Show Coords");
 	GtkWidget *show_cross_hair = gtk_check_menu_item_new_with_label("Show Crosshair");
 	GtkWidget *snap_to_data = gtk_check_menu_item_new_with_label("Snap to Data");
+	GtkWidget *copy_xy = gtk_menu_item_new_with_label("Copy XY data");
 
 	if(priv->do_show_coords) {
 		gtk_check_menu_item_set_active((GtkCheckMenuItem *)show_coords, TRUE);
@@ -391,6 +404,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	g_signal_connect(G_OBJECT(show_coords), "button-press-event", G_CALLBACK(popup_callback_show_coords), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(show_cross_hair), "button-press-event", G_CALLBACK(popup_callback_show_cross_hair), (gpointer) my_widget);
 	g_signal_connect(G_OBJECT(snap_to_data), "button-press-event", G_CALLBACK(popup_callback_snap_to_data), (gpointer) my_widget);
+	g_signal_connect(G_OBJECT(copy_xy), "button-press-event", G_CALLBACK(popup_callback_copy_xy), (gpointer) my_widget);
 
 	gtk_menu_shell_append((GtkMenuShell *)menu, zoom_all);
 	gtk_menu_shell_append((GtkMenuShell *)menu, x);
@@ -398,6 +412,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_menu_shell_append((GtkMenuShell *)menu, show_coords);
 	gtk_menu_shell_append((GtkMenuShell *)menu, show_cross_hair);
 	gtk_menu_shell_append((GtkMenuShell *)menu, snap_to_data);
+	gtk_menu_shell_append((GtkMenuShell *)menu, copy_xy);
 
 	/* x-axis submenu */
   x_axis_submenu = gtk_menu_new();
@@ -462,6 +477,7 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 	gtk_widget_show(show_coords);
 	gtk_widget_show(show_cross_hair);
 	gtk_widget_show(snap_to_data);
+	gtk_widget_show(copy_xy);
 
   if(event) {
 		button = event->button;
@@ -1952,6 +1968,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	int closest_point_index = 0;
 	int closest_trace_index = 0;
 	gboolean is_in_plot_area = FALSE;
+	priv->closest_x = 0.0;
+	priv->closest_y = 0.0;
 	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
 		gint x,y;
 		gtk_widget_get_pointer(plot, &x, &y);
@@ -1971,8 +1989,11 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 					}
 				}
 			}
+			priv->closest_x = (p->traces[closest_trace_index])->x_data[closest_point_index];
+			priv->closest_y = (p->traces[closest_trace_index])->y_data[closest_point_index];
 			x_px = x_m * (p->traces[closest_trace_index])->x_data[closest_point_index] + x_b;
 			y_px = y_m * (p->traces[closest_trace_index])->y_data[closest_point_index] + y_b;
+			
 		}
 		else {
 			is_in_plot_area = FALSE;
