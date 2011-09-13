@@ -319,7 +319,7 @@ static gboolean popup_callback_copy_xy(GtkWidget *w, GdkEvent *e, gpointer data)
 	if(priv->do_show_coords && priv->do_snap_to_data) {
 		GtkClipboard *clip = gtk_clipboard_get(GDK_SELECTION_CLIPBOARD);
 		char str[1000];
-		sprintf(str, "(%.6f, %g)", priv->closest_x, priv->closest_y);
+		sprintf(str, "%.6f\t%g", priv->closest_x, priv->closest_y);
 		gtk_clipboard_set_text(clip, str, -1);
 	}
 	return FALSE;
