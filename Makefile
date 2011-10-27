@@ -1,7 +1,13 @@
 all: test/test1 test/dp test/bab test/data_view test/chaos test/newton_cradle test/zing test/set_data
 
-test/zing: jbplot.c jbplot.h test/zing.c jbplot-marshallers.c jbplot-marshallers.h
-	gcc -g -o test/zing jbplot.c test/zing.c jbplot-marshallers.c \
+jbplot.o: jbplot.c jbplot.h jbplot-marshallers.h
+	gcc `pkg-config --cflags gtk+-2.0` -g -c -o jbplot.o jbplot.c
+
+jbplot-marshallers.o: jbplot-marshallers.c jbplot-marshallers.h
+	gcc `pkg-config --cflags gtk+-2.0` -g -c -o jbplot-marshallers.o jbplot-marshallers.c
+
+test/zing: jbplot.o test/zing.c jbplot-marshallers.o
+	gcc -g -o test/zing jbplot.o test/zing.c jbplot-marshallers.o \
 		`pkg-config --libs --cflags gtk+-2.0`
 
 test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
