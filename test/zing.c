@@ -1019,6 +1019,9 @@ OPTIONS\n\
  -p <fname> \n\
    Save to png and immediately exit. \n\
 \n\
+ -m \n\
+   Use data markers by default. \n\
+\n\
 INPUT FORMAT\n\
 ------------\n\
 Data is entered using a simple whitespace-delimited text format.  The simplest example \n\
