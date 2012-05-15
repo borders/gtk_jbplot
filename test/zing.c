@@ -953,6 +953,8 @@ gboolean update_data(gpointer data) {
 		}
 		else if(line_index==0 && c=='#') {
 			is_cmd = 1;
+			line_index++;
+			line[0] = ' ';
 		}
 		else {
 			line[line_index++] = c;
