@@ -70,6 +70,8 @@ typedef struct axis_t {
   char do_autoscale;
   char do_loose_fit;
   char do_show_major_gridlines;
+  char log_scale;
+  char log_scale_ok;
   double major_gridline_width;
 	rgb_color_t major_gridline_color;
 	int major_gridline_type;
@@ -745,6 +747,8 @@ static int init_axis(axis_t *axis) {
   axis->do_show_tic_labels = 1;
   axis->do_autoscale = 1;
   axis->do_loose_fit = 0;
+  axis->log_scale = 0;
+  axis->log_scale_ok = 0;
   axis->do_show_major_gridlines = 1;
   axis->major_gridline_width = 1.0;
 	axis->major_gridline_color = color;
@@ -1850,6 +1854,12 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
+
+	/* change the mouse cursor to show we're busy */
+	GdkCursor *cursor = gdk_cursor_new(GDK_WATCH);
+	gdk_window_set_cursor(plot->window, cursor);
+	
+
 	plot_t *p = &(priv->plot);
 	axis_t *x_axis = &(p->x_axis);
 	axis_t *y_axis = &(p->y_axis);
@@ -2147,13 +2157,16 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	}
 
 	cairo_destroy(cr);
+
+	gdk_window_set_cursor(plot->window, NULL);
+	gdk_cursor_unref(cursor);
 	return FALSE;
 }
 
 
 
 /******************* Plot Drawing Functions **************************/
-static int set_major_tic_values(axis_t *a, double min, double max) {
+static int set_linear_tic_values(axis_t *a, double min, double max) {
 	double raw_range = max - min;
 	double raw_tic_delta = raw_range / (a->num_request_major_tics - 1);
 	double mantissa;
@@ -2219,9 +2232,30 @@ static int set_major_tic_values(axis_t *a, double min, double max) {
 		}
 	}
 	a->major_tic_delta = actual_tic_delta;
+
+
 	return 0;
 }
 
+static int set_log_tic_values(axis_t *a, double min, double max) {
+	// all values must be positive!!!
+	if(min < 0) {
+		return -1;
+	}
+	return set_linear_tic_values(a, log10(min), log10(max));
+}
+
+static int set_major_tic_values(axis_t *a, double min, double max) {
+	if(a->log_scale) {
+		// try doing log scale. If it succeeds, great.  Otherwise, do linear scale
+		a->log_scale_ok = 0;
+		if(!set_log_tic_values(a, min, max)) {
+			a->log_scale_ok = 1;
+			return 0;
+		}
+	}
+	return set_linear_tic_values(a, min, max);
+}
 
 static int set_major_tic_labels(axis_t *a) {
 	int i, ret;
@@ -2237,12 +2271,22 @@ static int set_major_tic_labels(axis_t *a) {
 		sprintf(a->tic_label_format_string, "%%.%dg", sigs);
 		sprintf(a->coord_label_format_string, "%%.%dg", sigs+2);
 		for(i=0; i<a->num_actual_major_tics; i++) { 
-			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+			if(a->log_scale && a->log_scale_ok) {
+				ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, "%g", pow(10,a->major_tic_values[i]));
+			}
+			else {
+				ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+			}
 		}
 	}
 	else { // otherwise, use standard fprintf type of format string
 		for(i=0; i<a->num_actual_major_tics; i++) { 
-			ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+			if(a->log_scale && a->log_scale_ok) {
+				ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, "%g", pow(10,a->major_tic_values[i]));
+			}
+			else {
+				ret = snprintf(a->major_tic_labels[i], MAJOR_TIC_LABEL_SIZE, a->tic_label_format_string, a->major_tic_values[i]);
+			}
 		}
 	}
 	return err;
