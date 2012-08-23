@@ -453,6 +453,7 @@ int add_trace(struct chart *chart) {
 		printf("error creating trace!\n");
 		return 0;
 	}
+	jbplot_trace_set_decimation(t1, -1); /* enable lossless decimation */
 	jbplot_trace_set_line_props(t1, ltypes[(i/NUM_COLORS)%NUM_LTYPES], 1.0, &(colors[i%NUM_COLORS]) );
 	if(use_markers) {
 		jbplot_trace_set_marker_props(t1, MARKER_CIRCLE, 2.0, &(colors[i%NUM_COLORS]));
