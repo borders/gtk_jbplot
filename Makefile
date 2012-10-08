@@ -1,14 +1,10 @@
-all: test/test1 test/dp test/bab test/data_view test/chaos test/newton_cradle test/zing test/set_data
+all: test/test1 test/dp test/bab test/data_view test/chaos test/newton_cradle test/set_data
 
 jbplot.o: jbplot.c jbplot.h jbplot-marshallers.h
 	gcc `pkg-config --cflags gtk+-2.0` -g -c -o jbplot.o jbplot.c
 
 jbplot-marshallers.o: jbplot-marshallers.c jbplot-marshallers.h
 	gcc `pkg-config --cflags gtk+-2.0` -g -c -o jbplot-marshallers.o jbplot-marshallers.c
-
-test/zing: jbplot.o test/zing.c jbplot-marshallers.o
-	gcc -g -o test/zing jbplot.o test/zing.c jbplot-marshallers.o \
-		`pkg-config --libs --cflags gtk+-2.0`
 
 test/test1: jbplot.c jbplot.h test/test1.c jbplot-marshallers.c jbplot-marshallers.h
 	gcc -g -o test/test1 jbplot.c test/test1.c jbplot-marshallers.c \
@@ -50,7 +46,7 @@ jbplot-marshallers.h: jbplot-marshallers.list
 	glib-genmarshal --prefix _plot_marshal --header $< > $@
 
 .PHONY: docs
-docs: jbplot.c jbplot.h
+docs: 
 	@ echo "Generating documentation..."
 	@ doxygen Doxyfile > /dev/null
 
@@ -62,5 +58,4 @@ clean:
 	rm -f test/set_data
 	rm -f test/data_view
 	rm -f test/dp
-	rm -f test/zing
 	rm -f test/newton_cradle
