@@ -15,6 +15,13 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/Xos.h>
+#include <X11/Xatom.h>
+#include <X11/keysym.h>
+#include <gdk/gdkx.h>
+
 #include "jbplot.h"
 #include "jbplot-marshallers.h"
 
@@ -33,6 +40,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 #define MED_GAP 6
 #define ZOOM_HIST_SIZE 10
 
+#define DRAW_WITH_XLIB 0
 
 double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
@@ -173,10 +181,13 @@ typedef struct plot_t {
 
 
 /* private (static) plotting utility functions */
+static double get_text_height_x(Display *display, GC gc, char *text);
+static double get_text_width_x(Display *display, GC gc, char *text);
 static double get_text_height(cairo_t *cr, char *text, double font_size);
 static double get_text_width(cairo_t *cr, char *text, double font_size);
 static int set_major_tic_values(axis_t *a, double min, double max);
 static int set_major_tic_labels(axis_t *a);
+static double get_widest_label_width_x(axis_t *a, Display *display, GC gc);
 static double get_widest_label_width(axis_t *a, cairo_t *cr);
 static void get_double_parts(double f, double *mantissa, int *exponent);
 static double round_to_nearest(double num, double nearest);
@@ -825,6 +836,10 @@ static int init_plot(plot_t *plot) {
 
 
 static void jbplot_init (jbplot *plot) {
+#if DRAW_WITH_XLIB
+	gtk_widget_set_double_buffered((GtkWidget *)plot, FALSE);
+#endif
+
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 			GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
@@ -1245,6 +1260,644 @@ static int draw_legend(jbplot *plot) {
 	return 0;
 }
 
+// ------ start X11 draw
+static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, double width, double height) {
+	int i, j;
+	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
+	plot_t *p = &(priv->plot);
+	axis_t *x_axis = &(p->x_axis);
+	axis_t *y_axis = &(p->y_axis);
+	plot_area_t *pa = &(p->plot_area);
+	legend_t *l = &(p->legend);
+
+	if(!priv->needs_redraw) {
+		return FALSE;
+	}
+	priv->needs_redraw = FALSE;
+
+	// create graphics context
+	// TODO: GC gc = XCreateGC(display, d, unsignedlong valuemask, XGCValues *values);
+	GC gc = DefaultGC(display, DefaultScreen(display));
+
+	// set up a couple colors
+	int blackColor = BlackPixel(display, DefaultScreen(display));
+	int whiteColor = WhitePixel(display, DefaultScreen(display));
+
+	// set some default values in cairo context
+	///cairo_set_line_width(cr, 1.0);
+	XSetLineAttributes(
+		display, gc, 
+		1,         // lineWidth
+		LineSolid, // lineStyle
+		CapRound,  //cap_style
+		JoinMiter  // jointStyle
+	);
+	XSetFillStyle(display, gc, FillSolid);
+
+	//First fill the background
+	///cairo_rectangle(cr, 0., 0., width, height);
+	///cairo_set_source_rgb (cr, p->bg_color.red, p->bg_color.green, p->bg_color.blue);
+	///cairo_fill(cr);
+	XSetForeground(display, gc, whiteColor);
+	XFillRectangle(display, d, gc, 0, 0, width, height);
+
+	// now do the layout calcs
+  double title_top_edge = 0.01 * height;
+	double title_bottom_edge;
+	if(p->do_show_plot_title) {
+	  title_bottom_edge = title_top_edge + get_text_height_x(display, gc, p->plot_title);
+	}
+	else {
+		title_bottom_edge = title_top_edge;
+	}
+  double x_label_bottom_edge = height - 0.01*height;
+  double x_label_top_edge = x_label_bottom_edge - 
+                             get_text_height_x(display, gc, x_axis->axis_label);
+
+	double legend_width, legend_height;
+	double legend_top_edge, legend_left_edge;
+#if 0
+	// draw the plot title if desired	
+	///cairo_set_source_rgb (cr, 0., 0., 0.);
+	XSetForeground(display, gc, blackColor);
+  if(p->do_show_plot_title) {
+		cairo_save(cr);
+		cairo_set_font_size(cr, p->plot_title_font_size);
+		draw_horiz_text_at_point(cr, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
+		cairo_restore(cr);
+  }
+
+	/********** Draw the legend ***********************/
+	/* Draw the legend to the legend image buffer */
+	draw_legend((jbplot *)plot);
+
+	legend_width = l->size.width;
+	legend_height = l->size.height;
+
+	/* Then paint the legend image buffer to the plot surface */
+	if(l->position != LEGEND_POS_NONE) {
+		if(l->position == LEGEND_POS_RIGHT) {
+			legend_left_edge = width - legend_width - 10;
+			legend_top_edge = title_bottom_edge + 0.01 * height;
+		}
+		else if(l->position == LEGEND_POS_TOP) {
+			legend_left_edge = (width - legend_width)/2.;
+			legend_top_edge = title_bottom_edge + 10;
+		}
+		
+		cairo_save(cr);
+		cairo_set_source_surface(cr, priv->legend_buffer, legend_left_edge, legend_top_edge);
+		cairo_rectangle(cr, legend_left_edge, legend_top_edge, l->size.width, l->size.height);
+		cairo_clip(cr);
+		cairo_paint(cr);
+		cairo_restore(cr);
+	}
+	
+#endif
+
+	// calculate data ranges and tic labels
+	data_range x_range, y_range;
+	if(x_axis->do_autoscale) {
+		if(y_axis->do_autoscale) {
+	  	x_range = get_x_range(p->traces, p->num_traces);
+		}
+		else {
+			data_range yr;
+			yr.min = y_axis->min_val;
+			yr.max = y_axis->max_val;
+			x_range = get_x_range_within_y_range(p->traces, p->num_traces, yr);
+		}
+	}
+	else {
+		x_range.min = x_axis->min_val;
+		x_range.max = x_axis->max_val;
+	}
+	if(y_axis->do_autoscale) {
+		if(x_axis->do_autoscale) {
+			y_range = get_y_range(p->traces, p->num_traces);
+		}
+		else {
+			data_range xr;
+			xr.min = x_axis->min_val;
+			xr.max = x_axis->max_val;
+			y_range = get_y_range_within_x_range(p->traces, p->num_traces, xr);
+		}
+	}
+	else {
+		y_range.min = y_axis->min_val;
+		y_range.max = y_axis->max_val;
+	}
+
+	set_major_tic_values(x_axis, x_range.min, x_range.max);
+	set_major_tic_values(y_axis, y_range.min, y_range.max);
+
+	if(!x_axis->do_manual_tics) {
+		set_major_tic_labels(x_axis);
+	}
+	if(!y_axis->do_manual_tics) {
+		set_major_tic_labels(y_axis);
+	}
+
+	double max_y_label_width = get_widest_label_width_x(y_axis, display, gc);
+	double y_tic_labels_left_edge;
+	double y_tic_labels_right_edge;
+	double plot_area_left_edge;
+	double plot_area_right_edge;
+	double y_label_left_edge;
+	double y_label_right_edge; 
+
+	// fire a zoom signal if needed
+	if((priv->needs_h_zoom_signal || priv->needs_v_zoom_signal) && !priv->get_ideal_lr) {
+		g_signal_emit_by_name((gpointer *)plot, "zoom-in", x_axis->min_val, x_axis->max_val, y_axis->min_val, y_axis->max_val);
+		priv->needs_h_zoom_signal = FALSE;
+		priv->needs_v_zoom_signal = FALSE;
+	}
+
+	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO || priv->get_ideal_lr) {
+		y_label_left_edge = MED_GAP;
+		y_label_right_edge = y_label_left_edge + 
+			get_text_height_x(display, gc, y_axis->axis_label);
+		if(y_axis->do_show_axis_label) {
+			y_tic_labels_left_edge = y_label_right_edge + MED_GAP;
+		}
+		else {
+			y_tic_labels_left_edge = MED_GAP;
+		}
+
+		y_tic_labels_right_edge = y_tic_labels_left_edge + max_y_label_width;
+		plot_area_left_edge = y_tic_labels_right_edge + MED_GAP;
+
+		if(l->position == LEGEND_POS_RIGHT) {
+			plot_area_right_edge = legend_left_edge - 10;
+		}
+		else {
+			plot_area_right_edge = width - 0.06 * width;
+		}
+
+		double right_side_x_tic_label_width = 
+			get_text_width_x(display, gc, 
+			x_axis->major_tic_labels[x_axis->num_actual_major_tics-1]);
+		if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
+			plot_area_right_edge = width - right_side_x_tic_label_width;
+		}
+		priv->plot.plot_area.left_edge = plot_area_left_edge;
+		priv->plot.plot_area.ideal_left_margin = plot_area_left_edge;
+		priv->plot.plot_area.right_edge = plot_area_right_edge;
+		priv->plot.plot_area.ideal_right_margin = width - plot_area_right_edge;
+	}
+	if(priv->get_ideal_lr) {
+		return FALSE;
+	}
+	if(priv->plot.plot_area.LR_margin_mode != MARGIN_AUTO) {
+		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
+			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
+			plot_area_right_edge = width - priv->plot.plot_area.rmargin * width;
+		}
+		else { // pixels
+			plot_area_left_edge = priv->plot.plot_area.lmargin;
+			plot_area_right_edge = width - priv->plot.plot_area.rmargin;
+		}
+		priv->plot.plot_area.left_edge = plot_area_left_edge;
+		priv->plot.plot_area.right_edge = plot_area_right_edge;
+		y_tic_labels_right_edge = plot_area_left_edge - MED_GAP;
+		y_tic_labels_left_edge = y_tic_labels_right_edge - max_y_label_width;
+		y_label_right_edge = y_tic_labels_left_edge - MED_GAP;
+		y_label_left_edge = y_label_right_edge - 
+			get_text_height_x(display, gc, y_axis->axis_label);
+	}
+
+	double plot_area_top_edge;
+	if(l->position == LEGEND_POS_TOP) {
+		plot_area_top_edge = legend_top_edge + legend_height + 2*MED_GAP;
+	}
+	else {
+		plot_area_top_edge = title_bottom_edge + 2*MED_GAP;
+	}
+	priv->plot.plot_area.top_edge = plot_area_top_edge;
+  double x_tic_labels_bottom_edge;
+	if(x_axis->do_show_axis_label) {
+		x_tic_labels_bottom_edge = x_label_top_edge - MED_GAP;
+	}
+	else {
+		x_tic_labels_bottom_edge = height - MED_GAP;
+	}
+
+  double x_tic_labels_height = get_text_height_x(display, gc, x_axis->major_tic_labels[0]);
+  double x_tic_labels_top_edge = x_tic_labels_bottom_edge - x_tic_labels_height;
+  double plot_area_bottom_edge = x_tic_labels_top_edge - MED_GAP;
+	priv->plot.plot_area.bottom_edge = plot_area_bottom_edge;
+  double plot_area_height = plot_area_bottom_edge - plot_area_top_edge;
+  double plot_area_width = plot_area_right_edge - plot_area_left_edge;
+  double y_label_middle_y = plot_area_top_edge + plot_area_height/2;
+  double y_label_bottom_edge = y_label_middle_y + 0.5*get_text_width_x(display, gc, y_axis->axis_label);
+  double x_label_middle_x = plot_area_left_edge + plot_area_width/2;
+
+	// these params can be used to transform from data coordinates to pixel coords
+	// for x-direction, use: x_pixel = x_m * x_data + x_b
+	// for y-direction, use: y_pixel = y_m * y_data + y_b	
+	double x_m = (plot_area_right_edge - plot_area_left_edge) / (x_axis->max_val - x_axis->min_val);	
+	double x_b = plot_area_left_edge - x_m * x_axis->min_val;	
+	double y_m = (plot_area_top_edge - plot_area_bottom_edge) / (y_axis->max_val - y_axis->min_val);	
+	double y_b = plot_area_bottom_edge - y_m * y_axis->min_val;
+	priv->x_m = x_m;	
+	priv->y_m = y_m;	
+	priv->x_b = x_b;	
+	priv->y_b = y_b;	
+	
+	// fill the plot area (we'll stroke the border later)
+	XSetForeground(display, gc, whiteColor);
+	XFillRectangle(display, d, gc, 
+		plot_area_left_edge, 
+		plot_area_top_edge,
+		(plot_area_right_edge-plot_area_left_edge),
+		(plot_area_bottom_edge-plot_area_top_edge)
+	);
+
+#if 0
+	// draw the y tic labels
+	cairo_set_source_rgb (cr, 0., 0., 0.);
+	cairo_save(cr);
+	cairo_set_font_size(cr, y_axis->tic_label_font_size);
+	if(y_axis->do_manual_tics) {
+		for(i=0; i<y_axis->num_actual_major_tics; i++) {
+			double val = y_axis->major_tic_values[i];
+			if(val <= y_axis->max_val && val >= y_axis->min_val) {
+				draw_horiz_text_at_point(	cr, 
+																	y_axis->major_tic_labels[i], 
+																	y_tic_labels_right_edge, 
+																	y_m * y_axis->major_tic_values[i] + y_b, 
+																	ANCHOR_MIDDLE_RIGHT
+																);
+			}
+		}
+	}
+	else {
+		for(i=0; i<y_axis->num_actual_major_tics; i++) {
+			draw_horiz_text_at_point(	cr, 
+																y_axis->major_tic_labels[i], 
+																y_tic_labels_right_edge, 
+																y_m * y_axis->major_tic_values[i] + y_b, 
+																ANCHOR_MIDDLE_RIGHT
+															);
+		}
+	}
+	cairo_restore(cr);
+#endif
+
+	// draw the y major gridlines
+	if(y_axis->do_show_major_gridlines && y_axis->major_gridline_type != LINETYPE_NONE) {
+		if(y_axis->major_gridline_type == LINETYPE_SOLID) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineSolid, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		else if(y_axis->major_gridline_type == LINETYPE_DASHED) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineOnOffDash, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		else if(y_axis->major_gridline_type == LINETYPE_DOTTED) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineOnOffDash, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		XSetForeground(display, gc, blackColor);
+		if(y_axis->do_manual_tics) {
+			for(i=0; i<y_axis->num_actual_major_tics; i++) {
+				double val = y_axis->major_tic_values[i];
+				if(val <= y_axis->max_val && val >= y_axis->min_val) {
+					double y = y_m * y_axis->major_tic_values[i] + y_b;
+					XDrawLine(display, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
+				}
+			}
+		}	
+		else {
+			for(i=0; i<y_axis->num_actual_major_tics; i++) {
+				double y = y_m * y_axis->major_tic_values[i] + y_b;
+				XDrawLine(display, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
+			}
+		}
+	}
+
+#if 0
+	// draw the x tic labels
+	cairo_set_source_rgb (cr, 0., 0., 0.);
+	cairo_save(cr);
+	cairo_set_font_size(cr, x_axis->tic_label_font_size);
+	if(x_axis->do_manual_tics) {
+		for(i=0; i<x_axis->num_actual_major_tics; i++) {
+			double val = x_axis->major_tic_values[i];
+			if(val <= x_axis->max_val && val >= x_axis->min_val) {
+				draw_horiz_text_at_point(	cr, 
+																	x_axis->major_tic_labels[i], 
+																	x_m * val + x_b, 
+																	x_tic_labels_top_edge, 
+																	ANCHOR_TOP_MIDDLE
+																);
+			}
+		}
+	}
+	else {
+		for(i=0; i<x_axis->num_actual_major_tics; i++) {
+			draw_horiz_text_at_point(	cr, 
+																x_axis->major_tic_labels[i], 
+																x_m * x_axis->major_tic_values[i] + x_b, 
+																x_tic_labels_top_edge, 
+																ANCHOR_TOP_MIDDLE
+															);
+		}
+	}
+	cairo_restore(cr);
+#endif
+	
+	// draw the x major gridlines
+	if(x_axis->do_show_major_gridlines && x_axis->major_gridline_type != LINETYPE_NONE) {
+		if(x_axis->major_gridline_type == LINETYPE_SOLID) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineSolid, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		else if(x_axis->major_gridline_type == LINETYPE_DASHED) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineOnOffDash, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		else if(x_axis->major_gridline_type == LINETYPE_DOTTED) {
+			XSetLineAttributes(
+				display, gc, 
+				y_axis->major_gridline_width,  // lineWidth
+				LineOnOffDash, // lineStyle
+				CapRound,  //cap_style
+				JoinMiter  // jointStyle
+			);
+		}	
+		XSetForeground(display, gc, blackColor);
+		if(x_axis->do_manual_tics) {
+			for(i=0; i<x_axis->num_actual_major_tics; i++) {
+				double val = x_axis->major_tic_values[i];
+				if(val <= x_axis->max_val && val >= x_axis->min_val) {
+					double x = x_m * val + x_b;		
+					XDrawLine(display, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
+				}
+			}
+		}
+		else {
+			for(i=0; i<x_axis->num_actual_major_tics; i++) {
+				double x = x_m * x_axis->major_tic_values[i] + x_b;		
+				XDrawLine(display, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
+			}
+		}
+	}
+			
+#if 0
+
+	// draw the y-axis label if desired
+	cairo_set_source_rgb (cr, 0, 0, 0);
+	if(y_axis->do_show_axis_label) {
+		draw_vert_text_at_point(	plot,
+															cr, 
+															y_axis->axis_label, 
+															y_label_left_edge, 
+															y_label_bottom_edge, 
+															ANCHOR_BOTTOM_LEFT
+														);
+	}
+	
+	// draw the x-axis label if desired
+	cairo_set_source_rgb (cr, 0, 0, 0);
+	if(x_axis->do_show_axis_label) {
+		draw_horiz_text_at_point(	cr, 
+															x_axis->axis_label, 
+															x_label_middle_x, 
+															x_label_top_edge, 
+															ANCHOR_TOP_MIDDLE
+														);
+	}
+
+#endif
+
+	/*********** draw the plot area border ******************/
+	if(pa->do_show_bounding_box) {
+		//cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
+		XSetForeground(display, gc, blackColor);
+		XSetLineAttributes(
+			display, gc, 
+			y_axis->major_gridline_width,  // lineWidth
+			LineSolid, // lineStyle
+			CapRound,  //cap_style
+			JoinMiter  // jointStyle
+		);
+
+		XDrawRectangle(
+			display, d, gc, 
+			plot_area_left_edge - pa->bounding_box_width, 
+			plot_area_top_edge - pa->bounding_box_width,
+			plot_area_right_edge - plot_area_left_edge + 2*pa->bounding_box_width,
+			plot_area_bottom_edge - plot_area_top_edge + 2*pa->bounding_box_width
+		);
+	}
+
+	/*************** Draw the data ******************/
+
+	// set the clip region to the plot area
+	XRectangle clip_rect;
+	clip_rect.x = plot_area_left_edge;
+	clip_rect.y = plot_area_top_edge;
+	clip_rect.width = (plot_area_right_edge-plot_area_left_edge);
+	clip_rect.height = (plot_area_bottom_edge-plot_area_top_edge);
+	XSetClipRectangles(
+		display, gc, 
+		0, 0,          // clip origin (x,y) 
+		&clip_rect, 1, // clipping rectangle
+		Unsorted       // ordering
+	);
+
+	// now draw the trace lines (if requested)
+	for(i = 0; i < p->num_traces; i++) {
+		char first_pt = 1;
+		char last_was_NAN = 0;
+		char last_was_out = 0;
+		trace_t *t = p->traces[i];
+		if(t->line_type == LINETYPE_NONE) {
+			continue;
+		}
+		///cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
+		XSetForeground(display, gc, blackColor);
+
+		if(t->line_type == LINETYPE_SOLID) {
+			XSetLineAttributes(display, gc, t->line_width, LineSolid,CapRound,JoinMiter);
+		}	
+		else if(t->line_type == LINETYPE_DASHED) {
+			XSetLineAttributes(display, gc, t->line_width, LineOnOffDash, CapRound, JoinMiter);
+		}	
+		else if(t->line_type == LINETYPE_DOTTED) {
+			XSetLineAttributes(display, gc, t->line_width, LineDoubleDash, CapRound, JoinMiter);
+		}	
+		if(t->length <= 0) continue;
+		int dd = t->decimate_divisor;
+		if(t->lossless_decimation) {
+			for(j = 0; j < t->length; j += dd) {
+				int last_x_px, last_y_px;
+				double min_y, max_y;
+				int n = t->start_index + j;
+				if(n >= t->capacity) {
+					n -= t->capacity;
+				}
+				double x_px = x_m * t->x_data[n] + x_b;
+				double y_px = y_m * t->y_data[n] + y_b;
+				if(first_pt) {
+					/// Why is this next line needed!!??
+					/// cairo_move_to(cr,	x_px,	y_px);
+					first_pt = 0;
+					min_y = max_y = y_px;
+				}
+				else {
+					if(x_px != last_x_px) {
+						/* first draw vertical line spanning min to max for previous x-pixel */
+						XDrawLine(display, d, gc, last_x_px, min_y, last_x_px, max_y);
+						/* then draw a line connecting last point to this point */
+						XDrawLine(display, d, gc, last_x_px, last_y_px, x_px, y_px);
+						min_y = max_y = y_px;
+					}
+					else {
+						if(y_px > max_y) 
+							max_y = y_px;
+						if(y_px < min_y) 
+							min_y = y_px;
+					}
+				}
+				last_x_px = x_px;
+				last_y_px = y_px;
+			}
+		}
+		else {
+			double line_start_x, line_start_y;
+			for(j = 0; j < t->length; j += dd) {
+				int n = t->start_index + j;
+				if(n >= t->capacity) {
+					n -= t->capacity;
+				}
+				if(isnan(t->y_data[n])) {
+					last_was_NAN = 1;
+					continue;
+				}
+				char this_is_out = 0;
+				if(t->x_data[n] < x_axis->min_val ||
+					 t->x_data[n] > x_axis->max_val ||
+					 t->y_data[n] < y_axis->min_val || 
+					 t->y_data[n] > y_axis->max_val
+				) {
+					this_is_out = 1;
+				}
+				double x_px = x_m * t->x_data[n] + x_b;
+				double y_px = y_m * t->y_data[n] + y_b;
+				if(first_pt) {
+					line_start_x = x_px;
+					line_start_y = y_px;
+					first_pt = 0;
+				}
+				else if(!this_is_out && last_was_NAN) {
+					line_start_x = x_px;
+					line_start_y = y_px;
+				}
+				else if(!this_is_out && last_was_out) {
+					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					line_start_x = x_px;
+					line_start_y = y_px;
+				}
+				else if(this_is_out && !last_was_out) {
+					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					line_start_x = x_px;
+					line_start_y = y_px;
+				}
+				else if(this_is_out && last_was_out) {
+					line_start_x = x_px;
+					line_start_y = y_px;
+				}
+				else {
+					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					line_start_x = x_px;
+					line_start_y = y_px;
+				}
+				last_was_NAN = 0;
+				last_was_out = this_is_out;
+			}
+		}
+	}
+
+	// unset the clip region
+	XSetClipMask(display, gc, None);
+
+#if 0
+
+	// now draw the trace markers (if requested)
+	for(i = 0; i < p->num_traces; i++) {
+		cairo_save(cr);
+		trace_t *t = p->traces[i];
+		if(t->marker_type == MARKER_NONE) {
+			continue;
+		}
+		cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
+		if(t->marker_type == MARKER_POINT) {
+			cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
+		}
+		if(t->length <= 0) continue;
+		int dd = t->decimate_divisor;
+		for(j = 0; j < t->length; j += dd) {
+			int n;
+			n = t->start_index + j;
+			if(n >= t->capacity) {
+				n -= t->capacity;
+			}
+			if(t->x_data[n] < x_axis->min_val ||
+			   t->x_data[n] > x_axis->max_val ||
+			   t->y_data[n] < y_axis->min_val || 
+			   t->y_data[n] > y_axis->max_val
+			) {
+				continue;
+			}
+			cairo_move_to(cr, x_m * t->x_data[n] + x_b,	y_m * t->y_data[n] + y_b);
+			draw_marker(cr, t->marker_type, t->marker_size);
+		}
+		cairo_restore(cr);
+	}
+
+
+/*
+	// DEBUG!!!!!
+	// Draw the legend image
+	cairo_save(cr);
+	cairo_set_source_surface(cr, legend_buffer, 50, 50);
+	cairo_rectangle(cr, 50, 50, 30, 100);
+	cairo_clip(cr);
+	cairo_paint(cr);
+	cairo_restore(cr);
+*/
+	
+#endif	
+	return FALSE;
+}
+//---------- End X11 draw
 
 static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double height) {
 	int i, j;
@@ -1854,7 +2507,6 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
-
 	/* change the mouse cursor to show we're busy */
 	GdkCursor *cursor = gdk_cursor_new(GDK_WATCH);
 	gdk_window_set_cursor(plot->window, cursor);
@@ -1871,7 +2523,21 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double x_b = priv->x_b;	
 	double y_b = priv->y_b;	
 
+#if DRAW_WITH_XLIB
+	Display *dpy = gdk_x11_drawable_get_xdisplay(plot->window);
+	Window win =gdk_x11_drawable_get_xid(plot->window);
+	GC gc = DefaultGC(dpy, DefaultScreen(dpy));
+
+	draw_plot_x(plot, dpy, win, plot->allocation.width, plot->allocation.height);
+
+	return FALSE;
+#endif
 	cairo_t *cr = gdk_cairo_create(plot->window);
+	if(!cr) {
+		printf("ERROR creating cairo context!!!\n");
+		exit(-1);
+	}
+	cairo_rectangle(cr, 10, 10, 100, 100);
 	if(priv->antialias) {
 		cairo_set_antialias(cr, CAIRO_ANTIALIAS_DEFAULT);
 	}
@@ -2292,6 +2958,36 @@ static int set_major_tic_labels(axis_t *a) {
 	return err;
 }
 
+static double get_text_height_x(Display *display, GC gc, char *text) {
+
+	int direction;
+	int font_ascent;
+	int font_descent;
+	XCharStruct overall;
+
+	XFontStruct *fp = XQueryFont(display, XGContextFromGC(gc));
+	XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
+
+	XFreeFontInfo(NULL, fp, 1);
+
+	return (overall.ascent + overall.descent);
+}
+	
+static double get_text_width_x(Display *display, GC gc, char *text) {
+
+	int direction;
+	int font_ascent;
+	int font_descent;
+	XCharStruct overall;
+
+	XFontStruct *fp = XQueryFont(display, XGContextFromGC(gc));
+	XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
+
+	XFreeFontInfo(NULL, fp, 1);
+
+	return (overall.width);
+}
+	
 
 static double get_text_height(cairo_t *cr, char *text, double font_size) {
 	cairo_text_extents_t te;
@@ -2311,6 +3007,19 @@ static double get_text_width(cairo_t *cr, char *text, double font_size) {
 	return te.width;
 }
 	
+
+static double get_widest_label_width_x(axis_t *a, Display *display, GC gc) {
+	double max = 0.0;
+	double w;
+	int i;
+	for(i=0; i<a->num_actual_major_tics; i++) {
+		w = get_text_width_x(display, gc, a->major_tic_labels[i]);
+		if(w > max) {
+			max = w;
+		}
+	}
+	return max;
+}
 
 
 static double get_widest_label_width(axis_t *a, cairo_t *cr) {
