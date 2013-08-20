@@ -951,6 +951,65 @@ static int draw_vert_text_at_point(GtkWidget *plot, void *cr, char *text, double
 	return 0;
 }
 
+static int draw_horiz_text_at_point_x(Display *display, Drawable d, GC gc, char *text, double x, double y, anchor_t anchor) {
+	double x_left, y_bottom;
+	double w, h;
+
+	int direction;
+	int font_ascent;
+	int font_descent;
+	XCharStruct overall;
+	XFontStruct *fp = XQueryFont(display, XGContextFromGC(gc));
+	XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
+	XFreeFontInfo(NULL, fp, 1);
+
+	w = overall.width;
+	h = overall.ascent + overall.descent;
+	switch(anchor) {
+		case ANCHOR_TOP_LEFT:
+			x_left = x;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_TOP_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_TOP_RIGHT:
+			x_left = x - w;
+			y_bottom = y + h;
+			break;
+		case ANCHOR_MIDDLE_LEFT:
+			x_left = x;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_MIDDLE_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_MIDDLE_RIGHT:
+			x_left = x - w;
+			y_bottom = y + h/2;
+			break;
+		case ANCHOR_BOTTOM_LEFT:
+			x_left = x;
+			y_bottom = y;
+			break;
+		case ANCHOR_BOTTOM_MIDDLE:
+			x_left = x - w/2;
+			y_bottom = y;
+			break;
+		case ANCHOR_BOTTOM_RIGHT:
+			x_left = x - w;
+			y_bottom = y;
+			break;
+		default:
+			x_left = x;
+			y_bottom = y;
+	}
+	XDrawString(display, d, gc, x_left, y_bottom, text, strlen(text));
+	return 0;
+}
+
 
 static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, anchor_t anchor) {
 	double x_left, y_bottom;
@@ -1316,16 +1375,16 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 
 	double legend_width, legend_height;
 	double legend_top_edge, legend_left_edge;
-#if 0
+
+
 	// draw the plot title if desired	
 	///cairo_set_source_rgb (cr, 0., 0., 0.);
 	XSetForeground(display, gc, blackColor);
   if(p->do_show_plot_title) {
-		cairo_save(cr);
-		cairo_set_font_size(cr, p->plot_title_font_size);
-		draw_horiz_text_at_point(cr, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
-		cairo_restore(cr);
+		draw_horiz_text_at_point_x(display, d, gc, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
   }
+
+#if 0
 
 	/********** Draw the legend ***********************/
 	/* Draw the legend to the legend image buffer */
@@ -1513,36 +1572,34 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		(plot_area_bottom_edge-plot_area_top_edge)
 	);
 
-#if 0
 	// draw the y tic labels
-	cairo_set_source_rgb (cr, 0., 0., 0.);
-	cairo_save(cr);
-	cairo_set_font_size(cr, y_axis->tic_label_font_size);
+	XSetForeground(display, gc, blackColor);
+	///cairo_set_font_size(cr, y_axis->tic_label_font_size);
 	if(y_axis->do_manual_tics) {
 		for(i=0; i<y_axis->num_actual_major_tics; i++) {
 			double val = y_axis->major_tic_values[i];
 			if(val <= y_axis->max_val && val >= y_axis->min_val) {
-				draw_horiz_text_at_point(	cr, 
-																	y_axis->major_tic_labels[i], 
-																	y_tic_labels_right_edge, 
-																	y_m * y_axis->major_tic_values[i] + y_b, 
-																	ANCHOR_MIDDLE_RIGHT
-																);
+				draw_horiz_text_at_point_x(
+					display, d, gc, 
+					y_axis->major_tic_labels[i], 
+					y_tic_labels_right_edge, 
+					y_m * y_axis->major_tic_values[i] + y_b, 
+					ANCHOR_MIDDLE_RIGHT
+				);
 			}
 		}
 	}
 	else {
 		for(i=0; i<y_axis->num_actual_major_tics; i++) {
-			draw_horiz_text_at_point(	cr, 
-																y_axis->major_tic_labels[i], 
-																y_tic_labels_right_edge, 
-																y_m * y_axis->major_tic_values[i] + y_b, 
-																ANCHOR_MIDDLE_RIGHT
-															);
+			draw_horiz_text_at_point_x(
+				display, d, gc, 
+				y_axis->major_tic_labels[i], 
+				y_tic_labels_right_edge, 
+				y_m * y_axis->major_tic_values[i] + y_b, 
+				ANCHOR_MIDDLE_RIGHT
+			);
 		}
 	}
-	cairo_restore(cr);
-#endif
 
 	// draw the y major gridlines
 	if(y_axis->do_show_major_gridlines && y_axis->major_gridline_type != LINETYPE_NONE) {
@@ -1591,36 +1648,34 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}
 	}
 
-#if 0
 	// draw the x tic labels
-	cairo_set_source_rgb (cr, 0., 0., 0.);
-	cairo_save(cr);
-	cairo_set_font_size(cr, x_axis->tic_label_font_size);
+	XSetForeground(display, gc, blackColor);
+	///cairo_set_font_size(cr, x_axis->tic_label_font_size);
 	if(x_axis->do_manual_tics) {
 		for(i=0; i<x_axis->num_actual_major_tics; i++) {
 			double val = x_axis->major_tic_values[i];
 			if(val <= x_axis->max_val && val >= x_axis->min_val) {
-				draw_horiz_text_at_point(	cr, 
-																	x_axis->major_tic_labels[i], 
-																	x_m * val + x_b, 
-																	x_tic_labels_top_edge, 
-																	ANCHOR_TOP_MIDDLE
-																);
+				draw_horiz_text_at_point_x(
+					display, d, gc, 
+					x_axis->major_tic_labels[i], 
+					x_m * val + x_b, 
+					x_tic_labels_top_edge, 
+					ANCHOR_TOP_MIDDLE
+				);
 			}
 		}
 	}
 	else {
 		for(i=0; i<x_axis->num_actual_major_tics; i++) {
-			draw_horiz_text_at_point(	cr, 
-																x_axis->major_tic_labels[i], 
-																x_m * x_axis->major_tic_values[i] + x_b, 
-																x_tic_labels_top_edge, 
-																ANCHOR_TOP_MIDDLE
-															);
+			draw_horiz_text_at_point_x(
+				display, d, gc, 
+				x_axis->major_tic_labels[i], 
+				x_m * x_axis->major_tic_values[i] + x_b, 
+				x_tic_labels_top_edge, 
+				ANCHOR_TOP_MIDDLE
+			);
 		}
 	}
-	cairo_restore(cr);
-#endif
 	
 	// draw the x major gridlines
 	if(x_axis->do_show_major_gridlines && x_axis->major_gridline_type != LINETYPE_NONE) {
@@ -1668,9 +1723,8 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 			}
 		}
 	}
-			
-#if 0
 
+#if 0
 	// draw the y-axis label if desired
 	cairo_set_source_rgb (cr, 0, 0, 0);
 	if(y_axis->do_show_axis_label) {
@@ -1682,19 +1736,19 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 															ANCHOR_BOTTOM_LEFT
 														);
 	}
+#endif
 	
 	// draw the x-axis label if desired
-	cairo_set_source_rgb (cr, 0, 0, 0);
+	XSetForeground(display, gc, blackColor);
 	if(x_axis->do_show_axis_label) {
-		draw_horiz_text_at_point(	cr, 
-															x_axis->axis_label, 
-															x_label_middle_x, 
-															x_label_top_edge, 
-															ANCHOR_TOP_MIDDLE
-														);
+		draw_horiz_text_at_point_x(
+			display, d, gc, 
+			x_axis->axis_label, 
+			x_label_middle_x, 
+			x_label_top_edge, 
+			ANCHOR_TOP_MIDDLE
+		);
 	}
-
-#endif
 
 	/*********** draw the plot area border ******************/
 	if(pa->do_show_bounding_box) {
@@ -1881,18 +1935,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}
 		cairo_restore(cr);
 	}
-
-
-/*
-	// DEBUG!!!!!
-	// Draw the legend image
-	cairo_save(cr);
-	cairo_set_source_surface(cr, legend_buffer, 50, 50);
-	cairo_rectangle(cr, 50, 50, 30, 100);
-	cairo_clip(cr);
-	cairo_paint(cr);
-	cairo_restore(cr);
-*/
 	
 #endif	
 	return FALSE;
