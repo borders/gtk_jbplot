@@ -25,6 +25,24 @@
 #include "jbplot.h"
 #include "jbplot-marshallers.h"
 
+#define BLACK  0x000000
+#define WHITE  0xFFFFFF
+#define RED    0xFF0000
+#define GREEN  0x00FF00
+#define BLUE   0x0000FF
+#define YELLOW 0xFFFF00
+#define AQUA   0x00FFFF
+#define PINK   0xFF00FF
+#define PURPLE 0x800080
+
+static unsigned int trace_colors[] = {
+	BLUE,
+	RED,
+	GREEN,
+	AQUA,
+	PINK,
+	PURPLE
+};
 
 #define JBPLOT_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), JBPLOT_TYPE, jbplotPrivate))
 
@@ -40,7 +58,7 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 #define MED_GAP 6
 #define ZOOM_HIST_SIZE 10
 
-#define DRAW_WITH_XLIB 0
+#define DRAW_WITH_XLIB 1
 
 double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
@@ -1796,7 +1814,8 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 			continue;
 		}
 		///cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
-		XSetForeground(display, gc, blackColor);
+		//XSetForeground(display, gc, blackColor);
+		XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
 
 		if(t->line_type == LINETYPE_SOLID) {
 			XSetLineAttributes(display, gc, t->line_width, LineSolid,CapRound,JoinMiter);
@@ -3982,7 +4001,7 @@ trace_t *jbplot_create_trace(int capacity) {
 	t->end_index = 0;
 	t->length = 0;
 	t->capacity = capacity;
-	t->line_width = 1.0;
+	t->line_width = 2.0;
 	t->line_type = LINETYPE_SOLID;
 	t->marker_type = MARKER_NONE;
 	t->line_color.red = 0.0;
