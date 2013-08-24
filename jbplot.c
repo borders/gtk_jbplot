@@ -261,6 +261,10 @@ struct _jbplotPrivate
 	cairo_surface_t *plot_buffer;
 	cairo_t *plot_context;
 
+#if DRAW_WITH_XLIB
+	Pixmap xpixmap;
+#endif
+
 	zoom_hist_t zoom_hist;	
 };
 
@@ -892,6 +896,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->legend_buffer = NULL;
 	priv->plot_context = NULL;
 	priv->plot_buffer = NULL;
+	priv->xpixmap = NULL;
 
 	zoom_hist_init(&(priv->zoom_hist));	
 }
@@ -2543,6 +2548,17 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 	double width = plot->allocation.width;
 	double height = plot->allocation.height;
 
+#if DRAW_WITH_XLIB
+	Display *dpy = gdk_x11_drawable_get_xdisplay(plot->window);
+	if(priv->xpixmap) {
+		XFreePixmap(dpy, priv->xpixmap);
+	}
+	Window win =gdk_x11_drawable_get_xid(plot->window);
+	Pixmap pm = XCreatePixmap(dpy, win, width, height, XDefaultDepth(dpy, DefaultScreen(dpy)));
+	priv->xpixmap = pm;
+#endif
+
+
 	if(priv->plot_context != NULL) {
 		cairo_destroy(priv->plot_context);
 	}
@@ -2589,7 +2605,17 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	Window win =gdk_x11_drawable_get_xid(plot->window);
 	GC gc = DefaultGC(dpy, DefaultScreen(dpy));
 
-	draw_plot_x(plot, dpy, win, plot->allocation.width, plot->allocation.height);
+	#if 0
+		draw_plot_x(plot, dpy, win, plot->allocation.width, plot->allocation.height);
+	#else
+		Window root_win;
+		int x,y;
+		unsigned int w, h;
+		unsigned int bord_w, depth;
+		XGetGeometry(dpy, priv->xpixmap, &root_win, &x, &y, &w, &h, &bord_w, &depth);
+		draw_plot_x(plot, dpy, priv->xpixmap, w, h);
+		XCopyArea(dpy, priv->xpixmap, win, gc, 0, 0, w, h, 0, 0);
+	#endif	
 
 	return FALSE;
 #endif
