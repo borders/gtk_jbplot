@@ -896,7 +896,7 @@ static void jbplot_init (jbplot *plot) {
 	priv->legend_buffer = NULL;
 	priv->plot_context = NULL;
 	priv->plot_buffer = NULL;
-	priv->xpixmap = NULL;
+	priv->xpixmap = 0;
 
 	zoom_hist_init(&(priv->zoom_hist));	
 }
@@ -2617,8 +2617,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		XCopyArea(dpy, priv->xpixmap, win, gc, 0, 0, w, h, 0, 0);
 	#endif	
 
-	return FALSE;
-#endif
+#else
 	cairo_t *cr = gdk_cairo_create(plot->window);
 	if(!cr) {
 		printf("ERROR creating cairo context!!!\n");
@@ -2910,6 +2909,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	}
 
 	cairo_destroy(cr);
+#endif
 
 	gdk_window_set_cursor(plot->window, NULL);
 	gdk_cursor_unref(cursor);
