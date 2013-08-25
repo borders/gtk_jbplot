@@ -2654,6 +2654,261 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	draw_plot_x(plot, priv->xdisp, priv->xpixmap, w, h);
 	XCopyArea(priv->xdisp, priv->xpixmap, priv->xwin, gc, 0, 0, w, h, 0, 0);
 
+	/********************** draw the cursor (if needed) *************************/
+	if(p->cursor.type != CURSOR_NONE) {
+		cursor_t *c = &(p->cursor);
+		XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(c->color)) );
+		int lineStyle = LineSolid;
+		if(c->line_type == LINETYPE_SOLID) {
+			lineStyle = LineSolid;
+		}	
+		else if(c->line_type == LINETYPE_DASHED) {
+			lineStyle = LineOnOffDash;
+		}	
+		else if(c->line_type == LINETYPE_DOTTED) {
+			lineStyle = LineDoubleDash;
+		}
+		XSetLineAttributes(
+			priv->xdisp, gc, 
+			c->line_width,  // lineWidth
+			lineStyle, // lineStyle
+			CapRound,  //cap_style
+			JoinMiter  // jointStyle
+		);
+		double x_px = x_m * c->x + x_b;	
+		double y_px = y_m * c->y + y_b;	
+		if(c->type == CURSOR_VERT || c->type == CURSOR_CROSS) {
+			if(x_px >= p->plot_area.left_edge && x_px <= p->plot_area.right_edge) {
+				XDrawLine(
+					priv->xdisp, priv->xwin, gc, 
+					x_px, p->plot_area.top_edge, 
+					x_px, p->plot_area.bottom_edge
+				);
+			}
+		}
+		if(c->type == CURSOR_HORIZ || c->type == CURSOR_CROSS) {
+			if(y_px >= p->plot_area.top_edge && y_px <= p->plot_area.bottom_edge) {
+				XDrawLine(
+					priv->xdisp, priv->xwin, gc, 
+					p->plot_area.left_edge, y_px,
+					p->plot_area.right_edge, y_px
+				);
+			}
+		}
+	}
+
+	/************* draw the zoom box if zooming is active *****************/
+	if(priv->zooming) {
+		double dashes[] = {8.0,4.0};
+		XSetForeground(priv->xdisp, gc, 0x6CA5C8);
+		XSetLineAttributes(priv->xdisp, gc, 1, LineOnOffDash,	CapRound, JoinMiter);
+		double x_e = priv->drag_end_x;
+		double y_e = priv->drag_end_y;
+		double x_s = priv->drag_start_x;
+		double y_s = priv->drag_start_y;
+		if(priv->drag_end_x < priv->plot.plot_area.left_edge) {
+			x_e = priv->plot.plot_area.left_edge;
+		}
+		else if(priv->drag_end_x > priv->plot.plot_area.right_edge) {
+			x_e = priv->plot.plot_area.right_edge;
+		}
+		if(priv->drag_end_y < priv->plot.plot_area.top_edge) {
+			y_e = priv->plot.plot_area.top_edge;
+		}
+		else if(priv->drag_end_y > priv->plot.plot_area.bottom_edge) {
+			y_e = priv->plot.plot_area.bottom_edge;
+		}
+		if(priv->h_zoom) {
+			y_s = priv->plot.plot_area.top_edge;
+			y_e = priv->plot.plot_area.bottom_edge;
+		}
+		if(priv->v_zoom) {
+			x_s = priv->plot.plot_area.left_edge;
+			x_e = priv->plot.plot_area.right_edge;
+		}
+		int x_min = x_s < x_e ? x_s : x_e;
+		int y_min = y_s < y_e ? y_s : y_e;
+		int w = fabs(x_s-x_e);
+		int h = fabs(y_s-y_e);
+		XDrawRectangle(priv->xdisp, priv->xwin, gc, x_min, y_min, w, h);	
+	}
+
+	/********** find closest data point if showing coords or cross-hair *****/
+	double x_px = 0.0;
+	double y_px = 0.0;
+	int closest_point_index = 0;
+	int closest_trace_index = 0;
+	gboolean is_in_plot_area = FALSE;
+	priv->closest_x = 0.0;
+	priv->closest_y = 0.0;
+	if(priv->do_snap_to_data && (priv->do_show_cross_hair || priv->do_show_coords)) {
+		gint x,y;
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(x >= priv->plot.plot_area.left_edge-1 && x <= priv->plot.plot_area.right_edge+1 &&
+		   y >= priv->plot.plot_area.top_edge-1 &&  y <= priv->plot.plot_area.bottom_edge+1) {
+			int i, j;
+			double min_dist = DBL_MAX;
+			is_in_plot_area = TRUE;
+			for(j=0; j < p->num_traces; j++) {
+				for(i=0; i<(p->traces[0])->length; i++) {
+					double dist;
+					dist = pow((p->traces[j])->x_data[i] * x_m + x_b - x,2) + pow((p->traces[j])->y_data[i] * y_m + y_b - y,2);
+					if(dist < min_dist) {
+						min_dist = dist;
+						closest_point_index = i;
+						closest_trace_index = j;
+					}
+				}
+			}
+			priv->closest_x = (p->traces[closest_trace_index])->x_data[closest_point_index];
+			priv->closest_y = (p->traces[closest_trace_index])->y_data[closest_point_index];
+			x_px = x_m * (p->traces[closest_trace_index])->x_data[closest_point_index] + x_b;
+			y_px = y_m * (p->traces[closest_trace_index])->y_data[closest_point_index] + y_b;
+			
+		}
+		else {
+			is_in_plot_area = FALSE;
+		}
+	}
+
+	/************** draw crosshair if active ****************************/
+	if(priv->do_show_cross_hair) {
+		gint x,y;
+		int inhibit_ch = 0;
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(x < priv->plot.plot_area.left_edge-1) {
+			x = priv->plot.plot_area.left_edge;
+			inhibit_ch = 1;
+		}
+		if(x > priv->plot.plot_area.right_edge+1) {
+			x = priv->plot.plot_area.right_edge;
+			inhibit_ch = 1;
+		}
+		if(y < priv->plot.plot_area.top_edge-1) {
+			y = priv->plot.plot_area.top_edge;
+			inhibit_ch = 1;
+		}
+		if(y > priv->plot.plot_area.bottom_edge+1) {
+			y = priv->plot.plot_area.bottom_edge;
+			inhibit_ch = 1;
+		}
+		if(priv->do_snap_to_data && is_in_plot_area) {
+			x = x_px;
+			y = y_px;
+		}
+		if(!inhibit_ch) {
+			XSetForeground(priv->xdisp, gc, BLUE);
+			XSetLineAttributes(priv->xdisp, gc, 1, LineSolid,	CapRound, JoinMiter);
+
+			XDrawLine(priv->xdisp, priv->xwin, gc, priv->plot.plot_area.left_edge, y, x-10, y);
+			XDrawLine(priv->xdisp, priv->xwin, gc, x-5, y, x+5, y);
+			XDrawLine(priv->xdisp, priv->xwin, gc, x+10, y, priv->plot.plot_area.right_edge, y);
+
+			XDrawLine(priv->xdisp, priv->xwin, gc, x, priv->plot.plot_area.top_edge, x, y-10);
+			XDrawLine(priv->xdisp, priv->xwin, gc, x, y-5, x, y+5);
+			XDrawLine(priv->xdisp, priv->xwin, gc, x, y+10, x, priv->plot.plot_area.bottom_edge);
+
+			priv->cross_hair_is_visible = TRUE;
+		}
+		else {
+			priv->cross_hair_is_visible = FALSE;
+		}
+	}
+
+
+	/**************** draw coordinates if active (whether zooming or not) *************/
+	if(priv->do_show_coords) {
+		gint x,y;
+		gtk_widget_get_pointer(plot, &x, &y);
+		if(priv->do_snap_to_data && is_in_plot_area) {
+			x = x_px;
+			y = y_px;
+		}
+		if(x >= (priv->plot.plot_area.left_edge-1) &&
+		   x <= (priv->plot.plot_area.right_edge+1) &&
+		   y >= (priv->plot.plot_area.top_edge-1) &&
+		   y <= (priv->plot.plot_area.bottom_edge+1)
+		  ) {
+			char x_str[100], y_str[100];
+			double x_w, x_h, y_w, y_h;
+			double box_w, box_h;
+
+			char x_fs[200]="x=";
+			char y_fs[200]="y=";
+			strcat(x_fs, p->x_axis.coord_label_format_string);
+			strcat(y_fs, p->y_axis.coord_label_format_string);
+
+			if(priv->do_snap_to_data) {
+				sprintf(x_str, x_fs, (p->traces[closest_trace_index])->x_data[closest_point_index]);
+				sprintf(y_str, y_fs, (p->traces[closest_trace_index])->y_data[closest_point_index]);
+			}
+			else {
+				sprintf(x_str, x_fs, ((double)x-x_b)/x_m);
+				sprintf(y_str, y_fs, ((double)y-y_b)/y_m);
+			}
+			x_w = get_text_width_x(priv->xdisp, gc, x_str);
+			y_w = get_text_width_x(priv->xdisp, gc, y_str);
+			x_h = get_text_height_x(priv->xdisp, gc, x_str);
+			y_h = get_text_height_x(priv->xdisp, gc, y_str);
+			box_w = 10 + ((x_w > y_w) ? x_w : y_w);
+			box_h = 10 + (x_h + y_h);
+
+			gint mid_x = (priv->plot.plot_area.left_edge + priv->plot.plot_area.right_edge)/2.;
+			gint mid_y = (priv->plot.plot_area.top_edge + priv->plot.plot_area.bottom_edge)/2.;
+
+			// draw white rectangle
+			int rect_x, rect_y;
+			if(x < mid_x) { // left half
+				if(y > mid_y) { // bottom left quadrant
+					rect_x = x+3;
+					rect_y = y - box_h - 3;
+				}
+				else { // top left quadrant
+					rect_x = x+3;
+					rect_y = y+3;
+				}
+			}
+			else { // right half
+				if(y > mid_y) { // bottom right quadrant
+					rect_x = x - box_w - 3;
+					rect_y = y - box_h - 3;
+				}
+				else { // top right quadrant
+					rect_x = x - box_w - 3;
+					rect_y = y+3;
+				}
+			}
+			XSetForeground(priv->xdisp, gc, WHITE);
+			XFillRectangle(priv->xdisp, priv->xwin, gc, rect_x, rect_y, box_w, box_h);	
+			XSetForeground(priv->xdisp, gc, BLACK);
+			XSetLineAttributes(priv->xdisp, gc, 1, LineSolid,	CapRound, JoinMiter);
+			XDrawRectangle(priv->xdisp, priv->xwin, gc, rect_x, rect_y, box_w, box_h);	
+
+			// draw coordinates...
+			XSetForeground(priv->xdisp, gc, BLACK);
+			if(x < mid_x) { // left half
+				if(y > mid_y) { // bottom left quadrant
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, x_str, x+5+3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, y_str, x+5+3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+				}
+				else { // top left quadrant
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, x_str, x+5+3, y+6, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, y_str, x+5+3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
+				}
+			}
+			else { // right half
+				if(y > mid_y) { // bottom right quadrant
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, x_str, x-box_w+5-3, y-5-y_h-3-2, ANCHOR_BOTTOM_LEFT);
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, y_str, x-box_w+5-3, y-5-3+2, ANCHOR_BOTTOM_LEFT);
+				}
+				else { // top right quadrant
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, x_str, x-box_w+5-3, y+6, ANCHOR_TOP_LEFT);
+					draw_horiz_text_at_point_x(priv->xdisp, priv->xwin, gc, y_str, x-box_w+5-3, y+5+y_h+3+2, ANCHOR_TOP_LEFT);
+				}
+			}
+		}
+			
+	}
 #else
 	cairo_t *cr = gdk_cairo_create(plot->window);
 	if(!cr) {
