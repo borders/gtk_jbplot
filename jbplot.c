@@ -15,12 +15,16 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-#include <X11/Xos.h>
-#include <X11/Xatom.h>
-#include <X11/keysym.h>
-#include <gdk/gdkx.h>
+#define DRAW_WITH_XLIB 1
+
+#if DRAW_WITH_XLIB
+	#include <X11/Xlib.h>
+	#include <X11/Xutil.h>
+	#include <X11/Xos.h>
+	#include <X11/Xatom.h>
+	#include <X11/keysym.h>
+	#include <gdk/gdkx.h>
+#endif 
 
 #include "jbplot.h"
 #include "jbplot-marshallers.h"
@@ -58,7 +62,6 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event);
 #define MED_GAP 6
 #define ZOOM_HIST_SIZE 10
 
-#define DRAW_WITH_XLIB 1
 
 double dash_pattern[] = {4.0, 4.0};
 double dot_pattern[] =  {2.0, 4.0};
@@ -262,6 +265,8 @@ struct _jbplotPrivate
 	cairo_t *plot_context;
 
 #if DRAW_WITH_XLIB
+	Display *xdisp;
+	Window xwin;
 	Pixmap xpixmap;
 #endif
 
@@ -808,6 +813,16 @@ static int init_axis(axis_t *axis) {
 	return 0;
 }
 
+static unsigned int rgb_color_to_uint(rgb_color_t *color) {
+	unsigned char r,g,b;
+	r = color->red * 255;
+	g = color->green * 255;
+	b = color->blue * 255;
+	unsigned int out = 
+		((unsigned int)r << 16) + ((unsigned int)g << 8) + b;
+	return out;
+}
+
 static int init_plot_area(plot_area_t *area) {
 	rgb_color_t color = {0.0, 0.0, 0.0};
   area->do_show_bounding_box = 1;
@@ -896,7 +911,12 @@ static void jbplot_init (jbplot *plot) {
 	priv->legend_buffer = NULL;
 	priv->plot_context = NULL;
 	priv->plot_buffer = NULL;
+
+#if DRAW_WITH_XLIB
+	priv->xdisp = NULL;
+	priv->xwin = 0;
 	priv->xpixmap = 0;
+#endif
 
 	zoom_hist_init(&(priv->zoom_hist));	
 }
@@ -1089,6 +1109,19 @@ static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, an
 	cairo_show_text(cr, text);
 	cairo_restore(cr);
 	return 0;
+}
+
+void draw_marker_x(Display *display, Drawable d, GC gc, int type, double size, double x, double y) {
+	if(type == MARKER_POINT) {
+		XDrawPoint(display, d, gc, x, y);
+	}
+	else if(type == MARKER_CIRCLE) {
+		XFillArc(display, d, gc, x, y, size, size, 0, 23040);
+	}
+	else if(type == MARKER_SQUARE) {
+		XFillRectangle(display, d, gc, x, y, size, size);
+	}
+	return;
 }
 
 
@@ -1820,7 +1853,8 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}
 		///cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
 		//XSetForeground(display, gc, blackColor);
-		XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
+		//XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
+		XSetForeground(display, gc, rgb_color_to_uint(&(t->line_color)) );
 
 		if(t->line_type == LINETYPE_SOLID) {
 			XSetLineAttributes(display, gc, t->line_width, LineSolid,CapRound,JoinMiter);
@@ -1926,19 +1960,15 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	// unset the clip region
 	XSetClipMask(display, gc, None);
 
-#if 0
-
 	// now draw the trace markers (if requested)
 	for(i = 0; i < p->num_traces; i++) {
-		cairo_save(cr);
 		trace_t *t = p->traces[i];
 		if(t->marker_type == MARKER_NONE) {
 			continue;
 		}
-		cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
-		if(t->marker_type == MARKER_POINT) {
-			cairo_set_line_cap(cr, CAIRO_LINE_CAP_ROUND);
-		}
+		//cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
+		//XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
+		XSetForeground(display, gc, rgb_color_to_uint(&(t->marker_color)) );
 		if(t->length <= 0) continue;
 		int dd = t->decimate_divisor;
 		for(j = 0; j < t->length; j += dd) {
@@ -1947,6 +1977,9 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 			if(n >= t->capacity) {
 				n -= t->capacity;
 			}
+			if(isnan(t->y_data[n])) {
+				continue;
+			}
 			if(t->x_data[n] < x_axis->min_val ||
 			   t->x_data[n] > x_axis->max_val ||
 			   t->y_data[n] < y_axis->min_val || 
@@ -1954,13 +1987,16 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 			) {
 				continue;
 			}
-			cairo_move_to(cr, x_m * t->x_data[n] + x_b,	y_m * t->y_data[n] + y_b);
-			draw_marker(cr, t->marker_type, t->marker_size);
+			draw_marker_x (
+				display, d, gc,
+				t->marker_type, 
+				t->marker_size, 
+				x_m * t->x_data[n] + x_b, 
+				y_m * t->y_data[n] + y_b
+			);
 		}
-		cairo_restore(cr);
 	}
 	
-#endif	
 	return FALSE;
 }
 //---------- End X11 draw
@@ -2549,12 +2585,19 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 	double height = plot->allocation.height;
 
 #if DRAW_WITH_XLIB
-	Display *dpy = gdk_x11_drawable_get_xdisplay(plot->window);
+	if(priv->xdisp == NULL) {
+		priv->xdisp = gdk_x11_drawable_get_xdisplay(plot->window);
+		priv->xwin =gdk_x11_drawable_get_xid(plot->window);
+	}
 	if(priv->xpixmap) {
-		XFreePixmap(dpy, priv->xpixmap);
+		XFreePixmap(priv->xdisp, priv->xpixmap);
 	}
 	Window win =gdk_x11_drawable_get_xid(plot->window);
-	Pixmap pm = XCreatePixmap(dpy, win, width, height, XDefaultDepth(dpy, DefaultScreen(dpy)));
+	Pixmap pm = XCreatePixmap(
+		priv->xdisp, win, 
+		width, height, 
+		XDefaultDepth(priv->xdisp, DefaultScreen(priv->xdisp))
+	);
 	priv->xpixmap = pm;
 #endif
 
@@ -2601,21 +2644,15 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	double y_b = priv->y_b;	
 
 #if DRAW_WITH_XLIB
-	Display *dpy = gdk_x11_drawable_get_xdisplay(plot->window);
-	Window win =gdk_x11_drawable_get_xid(plot->window);
-	GC gc = DefaultGC(dpy, DefaultScreen(dpy));
+	GC gc = DefaultGC(priv->xdisp, DefaultScreen(priv->xdisp));
 
-	#if 0
-		draw_plot_x(plot, dpy, win, plot->allocation.width, plot->allocation.height);
-	#else
-		Window root_win;
-		int x,y;
-		unsigned int w, h;
-		unsigned int bord_w, depth;
-		XGetGeometry(dpy, priv->xpixmap, &root_win, &x, &y, &w, &h, &bord_w, &depth);
-		draw_plot_x(plot, dpy, priv->xpixmap, w, h);
-		XCopyArea(dpy, priv->xpixmap, win, gc, 0, 0, w, h, 0, 0);
-	#endif	
+	Window root_win;
+	int x,y;
+	unsigned int w, h;
+	unsigned int bord_w, depth;
+	XGetGeometry(priv->xdisp, priv->xpixmap, &root_win, &x, &y, &w, &h, &bord_w, &depth);
+	draw_plot_x(plot, priv->xdisp, priv->xpixmap, w, h);
+	XCopyArea(priv->xdisp, priv->xpixmap, priv->xwin, gc, 0, 0, w, h, 0, 0);
 
 #else
 	cairo_t *cr = gdk_cairo_create(plot->window);
