@@ -1410,10 +1410,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	XSetFillStyle(display, gc, FillSolid);
 
 	//First fill the background
-	///cairo_rectangle(cr, 0., 0., width, height);
-	///cairo_set_source_rgb (cr, p->bg_color.red, p->bg_color.green, p->bg_color.blue);
-	///cairo_fill(cr);
-	XSetForeground(display, gc, whiteColor);
+	XSetForeground(display, gc, rgb_color_to_uint(&(p->bg_color)));
 	XFillRectangle(display, d, gc, 0, 0, width, height);
 
 	// now do the layout calcs
@@ -1434,8 +1431,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 
 
 	// draw the plot title if desired	
-	///cairo_set_source_rgb (cr, 0., 0., 0.);
-	XSetForeground(display, gc, blackColor);
+	XSetForeground(display, gc, BLACK);
   if(p->do_show_plot_title) {
 		draw_horiz_text_at_point_x(display, d, gc, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
   }
@@ -1620,7 +1616,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	priv->y_b = y_b;	
 	
 	// fill the plot area (we'll stroke the border later)
-	XSetForeground(display, gc, whiteColor);
+	XSetForeground(display, gc, rgb_color_to_uint(&(pa->bg_color)) );
 	XFillRectangle(display, d, gc, 
 		plot_area_left_edge, 
 		plot_area_top_edge,
@@ -1629,7 +1625,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	);
 
 	// draw the y tic labels
-	XSetForeground(display, gc, blackColor);
+	XSetForeground(display, gc, BLACK);
 	///cairo_set_font_size(cr, y_axis->tic_label_font_size);
 	if(y_axis->do_manual_tics) {
 		for(i=0; i<y_axis->num_actual_major_tics; i++) {
@@ -1686,7 +1682,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, blackColor);
+		XSetForeground(display, gc, BLACK);
 		if(y_axis->do_manual_tics) {
 			for(i=0; i<y_axis->num_actual_major_tics; i++) {
 				double val = y_axis->major_tic_values[i];
@@ -1705,7 +1701,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	}
 
 	// draw the x tic labels
-	XSetForeground(display, gc, blackColor);
+	XSetForeground(display, gc, BLACK);
 	///cairo_set_font_size(cr, x_axis->tic_label_font_size);
 	if(x_axis->do_manual_tics) {
 		for(i=0; i<x_axis->num_actual_major_tics; i++) {
@@ -1762,7 +1758,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, blackColor);
+		XSetForeground(display, gc, BLACK);
 		if(x_axis->do_manual_tics) {
 			for(i=0; i<x_axis->num_actual_major_tics; i++) {
 				double val = x_axis->major_tic_values[i];
@@ -1795,7 +1791,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 #endif
 	
 	// draw the x-axis label if desired
-	XSetForeground(display, gc, blackColor);
+	XSetForeground(display, gc, BLACK);
 	if(x_axis->do_show_axis_label) {
 		draw_horiz_text_at_point_x(
 			display, d, gc, 
@@ -1809,7 +1805,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	/*********** draw the plot area border ******************/
 	if(pa->do_show_bounding_box) {
 		//cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
-		XSetForeground(display, gc, blackColor);
+		XSetForeground(display, gc, BLACK);
 		XSetLineAttributes(
 			display, gc, 
 			y_axis->major_gridline_width,  // lineWidth
@@ -1851,9 +1847,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		if(t->line_type == LINETYPE_NONE) {
 			continue;
 		}
-		///cairo_set_source_rgb (cr, t->line_color.red, t->line_color.green, t->line_color.blue);
-		//XSetForeground(display, gc, blackColor);
-		//XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
 		XSetForeground(display, gc, rgb_color_to_uint(&(t->line_color)) );
 
 		if(t->line_type == LINETYPE_SOLID) {
@@ -1966,8 +1959,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		if(t->marker_type == MARKER_NONE) {
 			continue;
 		}
-		//cairo_set_source_rgb (cr, t->marker_color.red, t->marker_color.green, t->marker_color.blue);
-		//XSetForeground(display, gc, trace_colors[ i % (sizeof(trace_colors)/sizeof(trace_colors[0]))]);
 		XSetForeground(display, gc, rgb_color_to_uint(&(t->marker_color)) );
 		if(t->length <= 0) continue;
 		int dd = t->decimate_divisor;
