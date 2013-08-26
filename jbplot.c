@@ -534,6 +534,29 @@ static void do_popup_menu (GtkWidget *my_widget, GdkEventButton *event) {
 }
 
 
+static gboolean jbplot_scroll(GtkWidget *w, GdkEventScroll *event) {
+	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
+
+	// Ignore the SCROLL event if any mouse buttons are pressed
+	if(event->state & (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)) {
+		//printf("Ignoring scroll event cuz a mouse button is pressed\n");
+		return FALSE;
+	}
+
+	int dir = event->direction;
+	if(dir == GDK_SCROLL_UP || dir == GDK_SCROLL_LEFT) {
+		printf("Got scroll UP/LEFT (%g,%g), %d\n", event->x, event->y, event->state);
+		return TRUE;
+	}
+	else if(dir == GDK_SCROLL_DOWN || dir == GDK_SCROLL_RIGHT) {
+		printf("Got scroll DOWN/RIGHT (%g,%g), %d\n", event->x, event->y, event->state);
+	}
+	else {
+		printf("got other scroll\n");
+	}
+	return FALSE;
+}
+
 
 static gboolean jbplot_button_press(GtkWidget *w, GdkEventButton *event) {
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE((jbplot*)w);
@@ -734,6 +757,7 @@ static void jbplot_class_init (jbplotClass *class) {
 	widget_class->expose_event = jbplot_expose;
 	widget_class->configure_event = jbplot_configure;
 	widget_class->button_press_event = jbplot_button_press;
+	widget_class->scroll_event = jbplot_scroll;
 	widget_class->button_release_event = jbplot_button_release;
 	widget_class->motion_notify_event = jbplot_motion_notify;
 	widget_class->leave_notify_event = jbplot_leave_notify;
@@ -880,7 +904,7 @@ static void jbplot_init (jbplot *plot) {
 
 	gtk_widget_add_events (GTK_WIDGET (plot),
 			GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK);
+			GDK_POINTER_MOTION_MASK | GDK_LEAVE_NOTIFY_MASK | GDK_SCROLL_MASK);
 
 	jbplotPrivate *priv = JBPLOT_GET_PRIVATE(plot);
 
