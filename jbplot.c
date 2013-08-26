@@ -1683,7 +1683,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, BLACK);
+		XSetForeground(display, gc, rgb_color_to_uint(&(y_axis->major_gridline_color)) );
 		if(y_axis->do_manual_tics) {
 			for(i=0; i<y_axis->num_actual_major_tics; i++) {
 				double val = y_axis->major_tic_values[i];
@@ -1759,7 +1759,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, BLACK);
+		XSetForeground(display, gc, rgb_color_to_uint(&(x_axis->major_gridline_color)) );
 		if(x_axis->do_manual_tics) {
 			for(i=0; i<x_axis->num_actual_major_tics; i++) {
 				double val = x_axis->major_tic_values[i];
