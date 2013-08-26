@@ -202,6 +202,7 @@ typedef struct plot_t {
 
 
 /* private (static) plotting utility functions */
+static int get_text_dims_x(Display *display, GC gc, char *text, int *width_out, int *height_out);
 static double get_text_height_x(Display *display, GC gc, char *text);
 static double get_text_width_x(Display *display, GC gc, char *text);
 static double get_text_height(cairo_t *cr, char *text, double font_size);
@@ -1119,7 +1120,7 @@ void draw_marker_x(Display *display, Drawable d, GC gc, int type, double size, d
 		XFillArc(display, d, gc, x, y, size, size, 0, 23040);
 	}
 	else if(type == MARKER_SQUARE) {
-		XFillRectangle(display, d, gc, x, y, size, size);
+		XFillRectangle(display, d, gc, x-size/2, y-size/2, size, size);
 	}
 	return;
 }
@@ -2576,16 +2577,18 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 	double height = plot->allocation.height;
 
 #if DRAW_WITH_XLIB
+	// handle X initialization stuff here
 	if(priv->xdisp == NULL) {
 		priv->xdisp = gdk_x11_drawable_get_xdisplay(plot->window);
 		priv->xwin =gdk_x11_drawable_get_xid(plot->window);
 	}
+
+	// free the current pixmap, and allocate a new one of the new size
 	if(priv->xpixmap) {
 		XFreePixmap(priv->xdisp, priv->xpixmap);
 	}
-	Window win =gdk_x11_drawable_get_xid(plot->window);
 	Pixmap pm = XCreatePixmap(
-		priv->xdisp, win, 
+		priv->xdisp, priv->xwin, 
 		width, height, 
 		XDefaultDepth(priv->xdisp, DefaultScreen(priv->xdisp))
 	);
@@ -2692,7 +2695,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	if(priv->zooming) {
 		double dashes[] = {8.0,4.0};
 		XSetForeground(priv->xdisp, gc, 0x6CA5C8);
-		XSetLineAttributes(priv->xdisp, gc, 1, LineOnOffDash,	CapRound, JoinMiter);
+		//XSetLineAttributes(priv->xdisp, gc, 1, LineOnOffDash,	CapRound, JoinMiter);
+		XSetLineAttributes(priv->xdisp, gc, 1, LineSolid,	CapRound, JoinMiter);
 		double x_e = priv->drag_end_x;
 		double y_e = priv->drag_end_y;
 		double x_s = priv->drag_start_x;
@@ -2821,7 +2825,7 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 		   y <= (priv->plot.plot_area.bottom_edge+1)
 		  ) {
 			char x_str[100], y_str[100];
-			double x_w, x_h, y_w, y_h;
+			int x_w, x_h, y_w, y_h;
 			double box_w, box_h;
 
 			char x_fs[200]="x=";
@@ -2837,10 +2841,8 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 				sprintf(x_str, x_fs, ((double)x-x_b)/x_m);
 				sprintf(y_str, y_fs, ((double)y-y_b)/y_m);
 			}
-			x_w = get_text_width_x(priv->xdisp, gc, x_str);
-			y_w = get_text_width_x(priv->xdisp, gc, y_str);
-			x_h = get_text_height_x(priv->xdisp, gc, x_str);
-			y_h = get_text_height_x(priv->xdisp, gc, y_str);
+			get_text_dims_x(priv->xdisp, gc, x_str, &x_w, &x_h);
+			get_text_dims_x(priv->xdisp, gc, y_str, &y_w, &y_h);
 			box_w = 10 + ((x_w > y_w) ? x_w : y_w);
 			box_h = 10 + (x_h + y_h);
 
@@ -3328,6 +3330,23 @@ static int set_major_tic_labels(axis_t *a) {
 	return err;
 }
 
+static int get_text_dims_x(Display *display, GC gc, char *text, int *width_out, int *height_out) {
+
+	int direction;
+	int font_ascent;
+	int font_descent;
+	XCharStruct overall;
+
+	XFontStruct *fp = XQueryFont(display, XGContextFromGC(gc));
+	XTextExtents(fp, text, strlen(text), &direction, &font_ascent, &font_descent, &overall);
+
+	XFreeFontInfo(NULL, fp, 1);
+
+	*height_out = overall.ascent + overall.descent;
+	*width_out = overall.width;
+	return 0;
+}
+	
 static double get_text_height_x(Display *display, GC gc, char *text) {
 
 	int direction;
