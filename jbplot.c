@@ -544,15 +544,38 @@ static gboolean jbplot_scroll(GtkWidget *w, GdkEventScroll *event) {
 	}
 
 	int dir = event->direction;
-	if(dir == GDK_SCROLL_UP || dir == GDK_SCROLL_LEFT) {
-		printf("Got scroll UP/LEFT (%g,%g), %d\n", event->x, event->y, event->state);
+	if(event->x >= priv->plot.plot_area.left_edge &&
+		event->x <= priv->plot.plot_area.right_edge &&
+		event->y >= priv->plot.plot_area.top_edge &&
+		event->y <= priv->plot.plot_area.bottom_edge) 
+	{
+		double x_s = event->x;
+		double y_s = event->y;
+		double xs = (x_s - priv->x_b)/priv->x_m;
+		double ys = (y_s - priv->y_b)/priv->y_m;
+		double xmin, xmax, ymin, ymax;
+		double alpha;
+		if(dir == GDK_SCROLL_UP || dir == GDK_SCROLL_LEFT) {
+			printf("Got scroll UP/LEFT (%g,%g), %d\n", event->x, event->y, event->state);
+			alpha = 0.75;
+		}
+		else if(dir == GDK_SCROLL_DOWN || dir == GDK_SCROLL_RIGHT) {
+			printf("Got scroll DOWN/RIGHT (%g,%g), %d\n", event->x, event->y, event->state);
+			alpha = 4.0/3.0;
+		}
+		else {
+			printf("got unexpected scroll direction!!\n");
+			return FALSE;
+		}
+		xmin = xs - alpha/2 * (priv->plot.x_axis.max_val - priv->plot.x_axis.min_val);
+		xmax = xs + alpha/2 * (priv->plot.x_axis.max_val - priv->plot.x_axis.min_val);
+		ymin = ys - alpha/2 * (priv->plot.y_axis.max_val - priv->plot.y_axis.min_val);
+		ymax = ys + alpha/2 * (priv->plot.y_axis.max_val - priv->plot.y_axis.min_val);
+		jbplot_set_xy_range((jbplot *)w, xmin, xmax, ymin, ymax, 1);
+		priv->needs_redraw = TRUE;
+		g_signal_emit_by_name((gpointer *)w, "zoom-in", xmin, xmax, ymin, ymax);
+		gtk_widget_queue_draw(w);
 		return TRUE;
-	}
-	else if(dir == GDK_SCROLL_DOWN || dir == GDK_SCROLL_RIGHT) {
-		printf("Got scroll DOWN/RIGHT (%g,%g), %d\n", event->x, event->y, event->state);
-	}
-	else {
-		printf("got other scroll\n");
 	}
 	return FALSE;
 }
@@ -2606,6 +2629,8 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 		priv->xdisp = gdk_x11_drawable_get_xdisplay(plot->window);
 		priv->xwin =gdk_x11_drawable_get_xid(plot->window);
 	}
+
+	// load font and font information use for text metrics
 
 	// free the current pixmap, and allocate a new one of the new size
 	if(priv->xpixmap) {
