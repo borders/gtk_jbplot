@@ -15,7 +15,7 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
-#define DRAW_WITH_XLIB 0
+#define DRAW_WITH_XLIB 1
 
 #if DRAW_WITH_XLIB
 	#include <X11/Xlib.h>
@@ -270,7 +270,8 @@ struct _jbplotPrivate
 #if DRAW_WITH_XLIB
 	Display *xdisp;
 	Window xwin;
-	Pixmap xpixmap;
+	Pixmap plot_pixmap;
+	Pixmap legend_pixmap;
 #endif
 
 	zoom_hist_t zoom_hist;	
@@ -965,7 +966,8 @@ static void jbplot_init (jbplot *plot) {
 #if DRAW_WITH_XLIB
 	priv->xdisp = NULL;
 	priv->xwin = 0;
-	priv->xpixmap = 0;
+	priv->plot_pixmap = 0;
+	priv->legend_pixmap = 0;
 #endif
 
 	zoom_hist_init(&(priv->zoom_hist));	
@@ -1217,6 +1219,216 @@ int calc_legend_dims(plot_t *plot, cairo_t *cr, double *width, double *height, d
 	return 0;
 }
 
+#if DRAW_WITH_XLIB
+static int draw_legend_x(jbplot *plot) {
+	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
+	plot_t *p = &(priv->plot);
+	legend_t *l = &(p->legend);
+	double border_margin = 3.;
+	double line_length = 15;
+	double text_to_line_gap = 5;
+
+	if(!l->needs_redraw) {
+		return 0;
+	}
+	l->needs_redraw = 0;
+
+
+	// create graphics context
+	// TODO: GC gc = XCreateGC(display, d, unsignedlong valuemask, XGCValues *values);
+	GC gc = DefaultGC(priv->xdisp, DefaultScreen(priv->xdisp));
+
+	// set up a couple colors
+	int blackColor = BlackPixel(priv->xdisp, DefaultScreen(priv->xdisp));
+	int whiteColor = WhitePixel(priv->xdisp, DefaultScreen(priv->xdisp));
+
+	// set some default values in graphics context
+	XSetLineAttributes(
+		priv->xdisp, gc, 
+		1,         // lineWidth
+		LineSolid, // lineStyle
+		CapRound,  //cap_style
+		JoinMiter  // jointStyle
+	);
+	XSetFillStyle(priv->xdisp, gc, FillSolid);
+
+	//First fill the background
+	XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->bg_color)));
+	XFillRectangle(priv->xdisp, priv->legend_pixmap, gc, 0, 0, 2000, 2000);
+
+	if(l->position == LEGEND_POS_RIGHT) {
+		// first calculate the widest trace name
+		double max_width = 10.;
+		int i;
+		double w;
+		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
+			w = get_text_width_x(priv->xdisp, gc, p->traces[i]->name);
+			if(w > max_width) {
+				max_width = w;
+			}
+		}
+
+		double x_start = border_margin + max_width + text_to_line_gap;
+		//cairo_set_font_size(cr, p->legend.font_size);
+	  
+		double entry_spacing = 1.5 * get_text_height_x(priv->xdisp, gc, "Test");
+		int j=0;
+		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
+			XSetForeground(priv->xdisp, gc, BLACK);
+			draw_horiz_text_at_point_x(
+				priv->xdisp, priv->legend_pixmap, gc, 
+				p->traces[i]->name, 
+				border_margin, border_margin + entry_spacing*j, 
+				ANCHOR_TOP_LEFT
+			);
+
+			if(p->traces[i]->line_type != LINETYPE_NONE) {
+
+				int lineStyle = LineSolid;
+				if(p->traces[i]->line_type == LINETYPE_SOLID) {
+					lineStyle = LineSolid;
+				}	
+				else if(p->traces[i]->line_type == LINETYPE_DASHED) {
+					lineStyle = LineOnOffDash;
+				}	
+				else if(p->traces[i]->line_type == LINETYPE_DOTTED) {
+					lineStyle = LineDoubleDash;
+				}	
+				XSetLineAttributes(
+					priv->xdisp, gc, 
+					p->traces[i]->line_width,  // lineWidth
+					lineStyle, // lineStyle
+					CapRound,  //cap_style
+					JoinMiter  // jointStyle
+				);
+
+				XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->traces[i]->line_color)) );
+				double h = border_margin + entry_spacing * j + 0.5 * get_text_height_x(priv->xdisp, gc, p->traces[i]->name);
+				XDrawLine(
+					priv->xdisp, priv->legend_pixmap, gc, 
+					x_start, h, 
+					x_start + line_length, h
+				);
+			}
+			if(p->traces[i]->marker_type != MARKER_NONE) {
+				XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->traces[i]->marker_color)) );
+				XSetLineAttributes(priv->xdisp, gc, p->traces[i]->line_width,LineSolid,CapRound,JoinMiter);
+				double h = border_margin + entry_spacing * j + 0.5 * get_text_height_x(priv->xdisp, gc, p->traces[i]->name);
+				draw_marker_x (
+					priv->xdisp, priv->legend_pixmap, gc,
+					p->traces[i]->marker_type, 
+					p->traces[i]->marker_size, 
+					x_start + line_length/2.0, 
+					h
+				);
+			}
+			j++;
+		}
+		l->size.width = x_start + line_length + border_margin;
+		l->size.height = border_margin + j * entry_spacing + border_margin;
+		if(l->do_show_bounding_box) {
+			XSetLineAttributes(priv->xdisp, gc, l->bounding_box_width,LineSolid,CapRound,JoinMiter);
+			XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(l->border_color)) );
+			XDrawRectangle(priv->xdisp, priv->legend_pixmap, gc, 0, 0,l->size.width,l->size.height);
+		}
+	}
+	else if(l->position == LEGEND_POS_TOP) {
+		int i;
+		double h_space = 10;
+
+		// first calculate the cumulative width of the legend entries
+		double total_width = 0.;
+		double w;
+		for(i=0; i < p->num_traces; i++) {
+			/* skip traces with empty names */
+			if(strlen(p->traces[i]->name) == 0) {
+				continue;
+			}
+			w = get_text_width_x(priv->xdisp, gc, p->traces[i]->name);
+			total_width += w + text_to_line_gap + line_length + h_space;
+		}
+		if(total_width > ((GtkWidget *)plot)->allocation.width) {
+			// the legend entries must span more than one line.  In this case,
+			// we'll allocate an equal width of space for each legend entry
+
+			// first calculate the widest trace name
+			double max_width = 10.;
+			double w;
+			for(i=0; i < p->num_traces; i++) {
+				/* skip traces with empty names */
+				if(strlen(p->traces[i]->name) == 0) {
+					continue;
+				}
+				w = get_text_width_x(priv->xdisp, gc, p->traces[i]->name);
+				if(w > max_width) {
+					max_width = w;
+				}
+			}
+			double entry_width = max_width + text_to_line_gap + line_length + h_space;
+		}
+		else {
+			// all the legend entries will fit on a single line
+			double x = border_margin;
+			//cairo_set_font_size(cr, p->legend.font_size);
+			for(i=0; i < p->num_traces; i++) {
+				/* skip traces with empty names */
+				if(strlen(p->traces[i]->name) == 0) {
+					continue;
+				}
+				XSetForeground(priv->xdisp, gc, BLACK );
+				draw_horiz_text_at_point_x(
+					priv->xdisp, priv->legend_pixmap, gc, 
+					p->traces[i]->name, 
+					x, border_margin, 
+					ANCHOR_TOP_LEFT
+				);
+				x += get_text_width_x(priv->xdisp, gc, p->traces[i]->name) + text_to_line_gap;
+				if(p->traces[i]->line_type != LINETYPE_NONE) {
+					XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->traces[i]->line_color)) );
+					XSetLineAttributes(priv->xdisp, gc, p->traces[i]->line_width,LineSolid,CapRound,JoinMiter);
+					double h = border_margin + 0.5 * get_text_height_x(priv->xdisp, gc, p->traces[i]->name);
+					XDrawLine(
+						priv->xdisp, priv->legend_pixmap, gc, 
+						x, h, 
+						x + line_length, h
+					);
+				}
+				if(p->traces[i]->marker_type != MARKER_NONE) {
+					XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->traces[i]->marker_color)) );
+					XSetLineAttributes(priv->xdisp, gc, p->traces[i]->line_width,LineSolid,CapRound,JoinMiter);
+					double h = border_margin + 0.5 * get_text_height_x(priv->xdisp, gc, p->traces[i]->name);
+					draw_marker_x (
+						priv->xdisp, priv->legend_pixmap, gc,
+						p->traces[i]->marker_type, 
+						p->traces[i]->marker_size, 
+						x + line_length/2.0, 
+						h
+					);
+				}
+				x += line_length + h_space;
+			}
+			l->size.width = border_margin + total_width + border_margin;
+			l->size.height = border_margin + get_text_height_x(priv->xdisp, gc, "Test") + border_margin;
+			if(l->do_show_bounding_box) {
+				XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(l->border_color)) );
+				XSetLineAttributes(priv->xdisp, gc, l->bounding_box_width,LineSolid,CapRound,JoinMiter);
+				XDrawRectangle(priv->xdisp, priv->legend_pixmap, gc, 0, 0,l->size.width,l->size.height);
+			}
+		}
+
+	}
+	return 0;
+}
+
+#endif
 
 static int draw_legend(jbplot *plot) {
 	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
@@ -1430,7 +1642,7 @@ static int draw_legend(jbplot *plot) {
 
 #if DRAW_WITH_XLIB
 // ------ start X11 draw
-static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, double width, double height) {
+static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double height) {
 	int i, j;
 	jbplotPrivate	*priv = JBPLOT_GET_PRIVATE(plot);
 	plot_t *p = &(priv->plot);
@@ -1445,56 +1657,56 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	priv->needs_redraw = FALSE;
 
 	// create graphics context
-	// TODO: GC gc = XCreateGC(display, d, unsignedlong valuemask, XGCValues *values);
-	GC gc = DefaultGC(display, DefaultScreen(display));
+	// TODO: GC gc = XCreateGC(priv->xdisp, d, unsignedlong valuemask, XGCValues *values);
+	GC gc = DefaultGC(priv->xdisp, DefaultScreen(priv->xdisp));
 
 	// set up a couple colors
-	int blackColor = BlackPixel(display, DefaultScreen(display));
-	int whiteColor = WhitePixel(display, DefaultScreen(display));
+	int blackColor = BlackPixel(priv->xdisp, DefaultScreen(priv->xdisp));
+	int whiteColor = WhitePixel(priv->xdisp, DefaultScreen(priv->xdisp));
 
 	// set some default values in cairo context
 	///cairo_set_line_width(cr, 1.0);
 	XSetLineAttributes(
-		display, gc, 
+		priv->xdisp, gc, 
 		1,         // lineWidth
 		LineSolid, // lineStyle
 		CapRound,  //cap_style
 		JoinMiter  // jointStyle
 	);
-	XSetFillStyle(display, gc, FillSolid);
+	XSetFillStyle(priv->xdisp, gc, FillSolid);
 
 	//First fill the background
-	XSetForeground(display, gc, rgb_color_to_uint(&(p->bg_color)));
-	XFillRectangle(display, d, gc, 0, 0, width, height);
+	XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(p->bg_color)));
+	XFillRectangle(priv->xdisp, d, gc, 0, 0, width, height);
 
 	// now do the layout calcs
   double title_top_edge = 0.01 * height;
 	double title_bottom_edge;
 	if(p->do_show_plot_title) {
-	  title_bottom_edge = title_top_edge + get_text_height_x(display, gc, p->plot_title);
+	  title_bottom_edge = title_top_edge + get_text_height_x(priv->xdisp, gc, p->plot_title);
 	}
 	else {
 		title_bottom_edge = title_top_edge;
 	}
   double x_label_bottom_edge = height - 0.01*height;
   double x_label_top_edge = x_label_bottom_edge - 
-                             get_text_height_x(display, gc, x_axis->axis_label);
+                             get_text_height_x(priv->xdisp, gc, x_axis->axis_label);
 
 	double legend_width, legend_height;
 	double legend_top_edge, legend_left_edge;
 
 
 	// draw the plot title if desired	
-	XSetForeground(display, gc, BLACK);
+	XSetForeground(priv->xdisp, gc, BLACK);
   if(p->do_show_plot_title) {
-		draw_horiz_text_at_point_x(display, d, gc, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
+		draw_horiz_text_at_point_x(priv->xdisp, d, gc, p->plot_title, 0.5*width, title_top_edge, ANCHOR_TOP_MIDDLE);
   }
 
-#if 0
+#if 1
 
 	/********** Draw the legend ***********************/
 	/* Draw the legend to the legend image buffer */
-	draw_legend((jbplot *)plot);
+	draw_legend_x((jbplot *)plot);
 
 	legend_width = l->size.width;
 	legend_height = l->size.height;
@@ -1510,12 +1722,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 			legend_top_edge = title_bottom_edge + 10;
 		}
 		
-		cairo_save(cr);
-		cairo_set_source_surface(cr, priv->legend_buffer, legend_left_edge, legend_top_edge);
-		cairo_rectangle(cr, legend_left_edge, legend_top_edge, l->size.width, l->size.height);
-		cairo_clip(cr);
-		cairo_paint(cr);
-		cairo_restore(cr);
+		XCopyArea(priv->xdisp, priv->legend_pixmap, priv->plot_pixmap, gc, 0, 0, l->size.width, l->size.height, legend_left_edge, legend_top_edge);
 	}
 	
 #endif
@@ -1563,7 +1770,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		set_major_tic_labels(y_axis);
 	}
 
-	double max_y_label_width = get_widest_label_width_x(y_axis, display, gc);
+	double max_y_label_width = get_widest_label_width_x(y_axis, priv->xdisp, gc);
 	double y_tic_labels_left_edge;
 	double y_tic_labels_right_edge;
 	double plot_area_left_edge;
@@ -1579,9 +1786,10 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	}
 
 	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO || priv->get_ideal_lr) {
+		printf("here_1\n");
 		y_label_left_edge = MED_GAP;
 		y_label_right_edge = y_label_left_edge + 
-			get_text_height_x(display, gc, y_axis->axis_label);
+			get_text_height_x(priv->xdisp, gc, y_axis->axis_label);
 		if(y_axis->do_show_axis_label) {
 			y_tic_labels_left_edge = y_label_right_edge + MED_GAP;
 		}
@@ -1593,16 +1801,19 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		plot_area_left_edge = y_tic_labels_right_edge + MED_GAP;
 
 		if(l->position == LEGEND_POS_RIGHT) {
+			printf("here_3\n");
 			plot_area_right_edge = legend_left_edge - 10;
 		}
 		else {
+			printf("here_4\n");
 			plot_area_right_edge = width - 0.06 * width;
 		}
 
 		double right_side_x_tic_label_width = 
-			get_text_width_x(display, gc, 
+			get_text_width_x(priv->xdisp, gc, 
 			x_axis->major_tic_labels[x_axis->num_actual_major_tics-1]);
 		if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
+			printf("here_5\n");
 			plot_area_right_edge = width - right_side_x_tic_label_width;
 		}
 		priv->plot.plot_area.left_edge = plot_area_left_edge;
@@ -1614,11 +1825,14 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		return FALSE;
 	}
 	if(priv->plot.plot_area.LR_margin_mode != MARGIN_AUTO) {
+		printf("here_2\n");
 		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
+			printf("here_6\n");
 			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
 			plot_area_right_edge = width - priv->plot.plot_area.rmargin * width;
 		}
 		else { // pixels
+			printf("here_7\n");
 			plot_area_left_edge = priv->plot.plot_area.lmargin;
 			plot_area_right_edge = width - priv->plot.plot_area.rmargin;
 		}
@@ -1628,7 +1842,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		y_tic_labels_left_edge = y_tic_labels_right_edge - max_y_label_width;
 		y_label_right_edge = y_tic_labels_left_edge - MED_GAP;
 		y_label_left_edge = y_label_right_edge - 
-			get_text_height_x(display, gc, y_axis->axis_label);
+			get_text_height_x(priv->xdisp, gc, y_axis->axis_label);
 	}
 
 	double plot_area_top_edge;
@@ -1647,14 +1861,14 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		x_tic_labels_bottom_edge = height - MED_GAP;
 	}
 
-  double x_tic_labels_height = get_text_height_x(display, gc, x_axis->major_tic_labels[0]);
+  double x_tic_labels_height = get_text_height_x(priv->xdisp, gc, x_axis->major_tic_labels[0]);
   double x_tic_labels_top_edge = x_tic_labels_bottom_edge - x_tic_labels_height;
   double plot_area_bottom_edge = x_tic_labels_top_edge - MED_GAP;
 	priv->plot.plot_area.bottom_edge = plot_area_bottom_edge;
   double plot_area_height = plot_area_bottom_edge - plot_area_top_edge;
   double plot_area_width = plot_area_right_edge - plot_area_left_edge;
   double y_label_middle_y = plot_area_top_edge + plot_area_height/2;
-  double y_label_bottom_edge = y_label_middle_y + 0.5*get_text_width_x(display, gc, y_axis->axis_label);
+  double y_label_bottom_edge = y_label_middle_y + 0.5*get_text_width_x(priv->xdisp, gc, y_axis->axis_label);
   double x_label_middle_x = plot_area_left_edge + plot_area_width/2;
 
 	// these params can be used to transform from data coordinates to pixel coords
@@ -1670,23 +1884,26 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	priv->y_b = y_b;	
 	
 	// fill the plot area (we'll stroke the border later)
-	XSetForeground(display, gc, rgb_color_to_uint(&(pa->bg_color)) );
-	XFillRectangle(display, d, gc, 
+	XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(pa->bg_color)) );
+	XFillRectangle(priv->xdisp, d, gc, 
 		plot_area_left_edge, 
 		plot_area_top_edge,
 		(plot_area_right_edge-plot_area_left_edge),
 		(plot_area_bottom_edge-plot_area_top_edge)
 	);
 
+	printf("left_edge: %g\n", plot_area_left_edge);
+	printf("right_edge: %g\n", plot_area_right_edge);
+
 	// draw the y tic labels
-	XSetForeground(display, gc, BLACK);
+	XSetForeground(priv->xdisp, gc, BLACK);
 	///cairo_set_font_size(cr, y_axis->tic_label_font_size);
 	if(y_axis->do_manual_tics) {
 		for(i=0; i<y_axis->num_actual_major_tics; i++) {
 			double val = y_axis->major_tic_values[i];
 			if(val <= y_axis->max_val && val >= y_axis->min_val) {
 				draw_horiz_text_at_point_x(
-					display, d, gc, 
+					priv->xdisp, d, gc, 
 					y_axis->major_tic_labels[i], 
 					y_tic_labels_right_edge, 
 					y_m * y_axis->major_tic_values[i] + y_b, 
@@ -1698,7 +1915,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	else {
 		for(i=0; i<y_axis->num_actual_major_tics; i++) {
 			draw_horiz_text_at_point_x(
-				display, d, gc, 
+				priv->xdisp, d, gc, 
 				y_axis->major_tic_labels[i], 
 				y_tic_labels_right_edge, 
 				y_m * y_axis->major_tic_values[i] + y_b, 
@@ -1711,7 +1928,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	if(y_axis->do_show_major_gridlines && y_axis->major_gridline_type != LINETYPE_NONE) {
 		if(y_axis->major_gridline_type == LINETYPE_SOLID) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineSolid, // lineStyle
 				CapRound,  //cap_style
@@ -1720,7 +1937,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}	
 		else if(y_axis->major_gridline_type == LINETYPE_DASHED) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineOnOffDash, // lineStyle
 				CapRound,  //cap_style
@@ -1729,40 +1946,40 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}	
 		else if(y_axis->major_gridline_type == LINETYPE_DOTTED) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineOnOffDash, // lineStyle
 				CapRound,  //cap_style
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, rgb_color_to_uint(&(y_axis->major_gridline_color)) );
+		XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(y_axis->major_gridline_color)) );
 		if(y_axis->do_manual_tics) {
 			for(i=0; i<y_axis->num_actual_major_tics; i++) {
 				double val = y_axis->major_tic_values[i];
 				if(val <= y_axis->max_val && val >= y_axis->min_val) {
 					double y = y_m * y_axis->major_tic_values[i] + y_b;
-					XDrawLine(display, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
+					XDrawLine(priv->xdisp, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
 				}
 			}
 		}	
 		else {
 			for(i=0; i<y_axis->num_actual_major_tics; i++) {
 				double y = y_m * y_axis->major_tic_values[i] + y_b;
-				XDrawLine(display, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
+				XDrawLine(priv->xdisp, d, gc, plot_area_left_edge, y , plot_area_right_edge, y);
 			}
 		}
 	}
 
 	// draw the x tic labels
-	XSetForeground(display, gc, BLACK);
+	XSetForeground(priv->xdisp, gc, BLACK);
 	///cairo_set_font_size(cr, x_axis->tic_label_font_size);
 	if(x_axis->do_manual_tics) {
 		for(i=0; i<x_axis->num_actual_major_tics; i++) {
 			double val = x_axis->major_tic_values[i];
 			if(val <= x_axis->max_val && val >= x_axis->min_val) {
 				draw_horiz_text_at_point_x(
-					display, d, gc, 
+					priv->xdisp, d, gc, 
 					x_axis->major_tic_labels[i], 
 					x_m * val + x_b, 
 					x_tic_labels_top_edge, 
@@ -1774,7 +1991,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	else {
 		for(i=0; i<x_axis->num_actual_major_tics; i++) {
 			draw_horiz_text_at_point_x(
-				display, d, gc, 
+				priv->xdisp, d, gc, 
 				x_axis->major_tic_labels[i], 
 				x_m * x_axis->major_tic_values[i] + x_b, 
 				x_tic_labels_top_edge, 
@@ -1787,7 +2004,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	if(x_axis->do_show_major_gridlines && x_axis->major_gridline_type != LINETYPE_NONE) {
 		if(x_axis->major_gridline_type == LINETYPE_SOLID) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineSolid, // lineStyle
 				CapRound,  //cap_style
@@ -1796,7 +2013,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}	
 		else if(x_axis->major_gridline_type == LINETYPE_DASHED) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineOnOffDash, // lineStyle
 				CapRound,  //cap_style
@@ -1805,27 +2022,27 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		}	
 		else if(x_axis->major_gridline_type == LINETYPE_DOTTED) {
 			XSetLineAttributes(
-				display, gc, 
+				priv->xdisp, gc, 
 				y_axis->major_gridline_width,  // lineWidth
 				LineOnOffDash, // lineStyle
 				CapRound,  //cap_style
 				JoinMiter  // jointStyle
 			);
 		}	
-		XSetForeground(display, gc, rgb_color_to_uint(&(x_axis->major_gridline_color)) );
+		XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(x_axis->major_gridline_color)) );
 		if(x_axis->do_manual_tics) {
 			for(i=0; i<x_axis->num_actual_major_tics; i++) {
 				double val = x_axis->major_tic_values[i];
 				if(val <= x_axis->max_val && val >= x_axis->min_val) {
 					double x = x_m * val + x_b;		
-					XDrawLine(display, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
+					XDrawLine(priv->xdisp, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
 				}
 			}
 		}
 		else {
 			for(i=0; i<x_axis->num_actual_major_tics; i++) {
 				double x = x_m * x_axis->major_tic_values[i] + x_b;		
-				XDrawLine(display, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
+				XDrawLine(priv->xdisp, d, gc, x, plot_area_top_edge, x, plot_area_bottom_edge);
 			}
 		}
 	}
@@ -1845,10 +2062,10 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 #endif
 	
 	// draw the x-axis label if desired
-	XSetForeground(display, gc, BLACK);
+	XSetForeground(priv->xdisp, gc, BLACK);
 	if(x_axis->do_show_axis_label) {
 		draw_horiz_text_at_point_x(
-			display, d, gc, 
+			priv->xdisp, d, gc, 
 			x_axis->axis_label, 
 			x_label_middle_x, 
 			x_label_top_edge, 
@@ -1859,9 +2076,9 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	/*********** draw the plot area border ******************/
 	if(pa->do_show_bounding_box) {
 		//cairo_set_source_rgb (cr, pa->border_color.red, pa->border_color.green, pa->border_color.blue);
-		XSetForeground(display, gc, BLACK);
+		XSetForeground(priv->xdisp, gc, BLACK);
 		XSetLineAttributes(
-			display, gc, 
+			priv->xdisp, gc, 
 			y_axis->major_gridline_width,  // lineWidth
 			LineSolid, // lineStyle
 			CapRound,  //cap_style
@@ -1869,7 +2086,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		);
 
 		XDrawRectangle(
-			display, d, gc, 
+			priv->xdisp, d, gc, 
 			plot_area_left_edge - pa->bounding_box_width, 
 			plot_area_top_edge - pa->bounding_box_width,
 			plot_area_right_edge - plot_area_left_edge + 2*pa->bounding_box_width,
@@ -1886,7 +2103,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	clip_rect.width = (plot_area_right_edge-plot_area_left_edge);
 	clip_rect.height = (plot_area_bottom_edge-plot_area_top_edge);
 	XSetClipRectangles(
-		display, gc, 
+		priv->xdisp, gc, 
 		0, 0,          // clip origin (x,y) 
 		&clip_rect, 1, // clipping rectangle
 		Unsorted       // ordering
@@ -1901,16 +2118,16 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		if(t->line_type == LINETYPE_NONE) {
 			continue;
 		}
-		XSetForeground(display, gc, rgb_color_to_uint(&(t->line_color)) );
+		XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(t->line_color)) );
 
 		if(t->line_type == LINETYPE_SOLID) {
-			XSetLineAttributes(display, gc, t->line_width, LineSolid,CapRound,JoinMiter);
+			XSetLineAttributes(priv->xdisp, gc, t->line_width, LineSolid,CapRound,JoinMiter);
 		}	
 		else if(t->line_type == LINETYPE_DASHED) {
-			XSetLineAttributes(display, gc, t->line_width, LineOnOffDash, CapRound, JoinMiter);
+			XSetLineAttributes(priv->xdisp, gc, t->line_width, LineOnOffDash, CapRound, JoinMiter);
 		}	
 		else if(t->line_type == LINETYPE_DOTTED) {
-			XSetLineAttributes(display, gc, t->line_width, LineDoubleDash, CapRound, JoinMiter);
+			XSetLineAttributes(priv->xdisp, gc, t->line_width, LineDoubleDash, CapRound, JoinMiter);
 		}	
 		if(t->length <= 0) continue;
 		int dd = t->decimate_divisor;
@@ -1933,9 +2150,9 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				else {
 					if(x_px != last_x_px) {
 						/* first draw vertical line spanning min to max for previous x-pixel */
-						XDrawLine(display, d, gc, last_x_px, min_y, last_x_px, max_y);
+						XDrawLine(priv->xdisp, d, gc, last_x_px, min_y, last_x_px, max_y);
 						/* then draw a line connecting last point to this point */
-						XDrawLine(display, d, gc, last_x_px, last_y_px, x_px, y_px);
+						XDrawLine(priv->xdisp, d, gc, last_x_px, last_y_px, x_px, y_px);
 						min_y = max_y = y_px;
 					}
 					else {
@@ -1980,12 +2197,12 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 					line_start_y = y_px;
 				}
 				else if(!this_is_out && last_was_out) {
-					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					XDrawLine(priv->xdisp, d, gc, line_start_x, line_start_y, x_px, y_px);
 					line_start_x = x_px;
 					line_start_y = y_px;
 				}
 				else if(this_is_out && !last_was_out) {
-					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					XDrawLine(priv->xdisp, d, gc, line_start_x, line_start_y, x_px, y_px);
 					line_start_x = x_px;
 					line_start_y = y_px;
 				}
@@ -1994,7 +2211,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 					line_start_y = y_px;
 				}
 				else {
-					XDrawLine(display, d, gc, line_start_x, line_start_y, x_px, y_px);
+					XDrawLine(priv->xdisp, d, gc, line_start_x, line_start_y, x_px, y_px);
 					line_start_x = x_px;
 					line_start_y = y_px;
 				}
@@ -2005,7 +2222,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	}
 
 	// unset the clip region
-	XSetClipMask(display, gc, None);
+	XSetClipMask(priv->xdisp, gc, None);
 
 	// now draw the trace markers (if requested)
 	for(i = 0; i < p->num_traces; i++) {
@@ -2013,7 +2230,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 		if(t->marker_type == MARKER_NONE) {
 			continue;
 		}
-		XSetForeground(display, gc, rgb_color_to_uint(&(t->marker_color)) );
+		XSetForeground(priv->xdisp, gc, rgb_color_to_uint(&(t->marker_color)) );
 		if(t->length <= 0) continue;
 		int dd = t->decimate_divisor;
 		for(j = 0; j < t->length; j += dd) {
@@ -2033,7 +2250,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 				continue;
 			}
 			draw_marker_x (
-				display, d, gc,
+				priv->xdisp, d, gc,
 				t->marker_type, 
 				t->marker_size, 
 				x_m * t->x_data[n] + x_b, 
@@ -2635,20 +2852,27 @@ static gboolean jbplot_configure (GtkWidget *plot, GdkEventConfigure *event) {
 	if(priv->xdisp == NULL) {
 		priv->xdisp = gdk_x11_drawable_get_xdisplay(plot->window);
 		priv->xwin =gdk_x11_drawable_get_xid(plot->window);
+
+		// just allocate a big, fixed-size pixmap for the legend
+		priv->legend_pixmap = XCreatePixmap(
+			priv->xdisp, priv->xwin, 
+			2000, 2000, 
+			XDefaultDepth(priv->xdisp, DefaultScreen(priv->xdisp))
+		);
 	}
 
 	// load font and font information use for text metrics
 
-	// free the current pixmap, and allocate a new one of the new size
-	if(priv->xpixmap) {
-		XFreePixmap(priv->xdisp, priv->xpixmap);
+	// free the current plot pixmap, and allocate a new one of the new size
+	if(priv->plot_pixmap) {
+		XFreePixmap(priv->xdisp, priv->plot_pixmap);
 	}
 	Pixmap pm = XCreatePixmap(
 		priv->xdisp, priv->xwin, 
 		width, height, 
 		XDefaultDepth(priv->xdisp, DefaultScreen(priv->xdisp))
 	);
-	priv->xpixmap = pm;
+	priv->plot_pixmap = pm;
 #endif
 
 
@@ -2700,9 +2924,9 @@ static gboolean jbplot_expose (GtkWidget *plot, GdkEventExpose *event) {
 	int x,y;
 	unsigned int w, h;
 	unsigned int bord_w, depth;
-	XGetGeometry(priv->xdisp, priv->xpixmap, &root_win, &x, &y, &w, &h, &bord_w, &depth);
-	draw_plot_x(plot, priv->xdisp, priv->xpixmap, w, h);
-	XCopyArea(priv->xdisp, priv->xpixmap, priv->xwin, gc, 0, 0, w, h, 0, 0);
+	XGetGeometry(priv->xdisp, priv->plot_pixmap, &root_win, &x, &y, &w, &h, &bord_w, &depth);
+	draw_plot_x(plot, priv->plot_pixmap, w, h);
+	XCopyArea(priv->xdisp, priv->plot_pixmap, priv->xwin, gc, 0, 0, w, h, 0, 0);
 
 	/********************** draw the cursor (if needed) *************************/
 	if(p->cursor.type != CURSOR_NONE) {
