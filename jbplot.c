@@ -15,7 +15,7 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
-#define DRAW_WITH_XLIB 1
+#define DRAW_WITH_XLIB 0
 
 #if DRAW_WITH_XLIB
 	#include <X11/Xlib.h>
@@ -202,14 +202,16 @@ typedef struct plot_t {
 
 
 /* private (static) plotting utility functions */
+#if DRAW_WITH_XLIB
 static int get_text_dims_x(Display *display, GC gc, char *text, int *width_out, int *height_out);
 static double get_text_height_x(Display *display, GC gc, char *text);
 static double get_text_width_x(Display *display, GC gc, char *text);
+static double get_widest_label_width_x(axis_t *a, Display *display, GC gc);
+#endif
 static double get_text_height(cairo_t *cr, char *text, double font_size);
 static double get_text_width(cairo_t *cr, char *text, double font_size);
 static int set_major_tic_values(axis_t *a, double min, double max);
 static int set_major_tic_labels(axis_t *a);
-static double get_widest_label_width_x(axis_t *a, Display *display, GC gc);
 static double get_widest_label_width(axis_t *a, cairo_t *cr);
 static void get_double_parts(double f, double *mantissa, int *exponent);
 static double round_to_nearest(double num, double nearest);
@@ -1042,6 +1044,7 @@ static int draw_vert_text_at_point(GtkWidget *plot, void *cr, char *text, double
 	return 0;
 }
 
+#if DRAW_WITH_XLIB
 static int draw_horiz_text_at_point_x(Display *display, Drawable d, GC gc, char *text, double x, double y, anchor_t anchor) {
 	double x_left, y_bottom;
 	double w, h;
@@ -1100,7 +1103,7 @@ static int draw_horiz_text_at_point_x(Display *display, Drawable d, GC gc, char 
 	XDrawString(display, d, gc, x_left, y_bottom, text, strlen(text));
 	return 0;
 }
-
+#endif
 
 static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, anchor_t anchor) {
 	double x_left, y_bottom;
@@ -1159,6 +1162,7 @@ static int draw_horiz_text_at_point(void *cr, char *text, double x, double y, an
 	return 0;
 }
 
+#if DRAW_WITH_XLIB
 void draw_marker_x(Display *display, Drawable d, GC gc, int type, double size, double x, double y) {
 	if(type == MARKER_POINT) {
 		XDrawPoint(display, d, gc, x, y);
@@ -1171,6 +1175,7 @@ void draw_marker_x(Display *display, Drawable d, GC gc, int type, double size, d
 	}
 	return;
 }
+#endif
 
 
 void draw_marker(cairo_t *cr, int type, double size) {
@@ -1423,6 +1428,7 @@ static int draw_legend(jbplot *plot) {
 	return 0;
 }
 
+#if DRAW_WITH_XLIB
 // ------ start X11 draw
 static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, double width, double height) {
 	int i, j;
@@ -2039,6 +2045,7 @@ static gboolean draw_plot_x(GtkWidget *plot, Display *display, Drawable d, doubl
 	return FALSE;
 }
 //---------- End X11 draw
+#endif
 
 static gboolean draw_plot(GtkWidget *plot, cairo_t *cr, double width, double height) {
 	int i, j;
@@ -3379,6 +3386,7 @@ static int set_major_tic_labels(axis_t *a) {
 	return err;
 }
 
+#if DRAW_WITH_XLIB
 static int get_text_dims_x(Display *display, GC gc, char *text, int *width_out, int *height_out) {
 
 	int direction;
@@ -3395,7 +3403,9 @@ static int get_text_dims_x(Display *display, GC gc, char *text, int *width_out, 
 	*width_out = overall.width;
 	return 0;
 }
-	
+#endif
+
+#if DRAW_WITH_XLIB
 static double get_text_height_x(Display *display, GC gc, char *text) {
 
 	int direction;
@@ -3410,7 +3420,9 @@ static double get_text_height_x(Display *display, GC gc, char *text) {
 
 	return (overall.ascent + overall.descent);
 }
+#endif
 	
+#if DRAW_WITH_XLIB
 static double get_text_width_x(Display *display, GC gc, char *text) {
 
 	int direction;
@@ -3425,6 +3437,7 @@ static double get_text_width_x(Display *display, GC gc, char *text) {
 
 	return (overall.width);
 }
+#endif
 	
 
 static double get_text_height(cairo_t *cr, char *text, double font_size) {
@@ -3446,6 +3459,7 @@ static double get_text_width(cairo_t *cr, char *text, double font_size) {
 }
 	
 
+#if DRAW_WITH_XLIB
 static double get_widest_label_width_x(axis_t *a, Display *display, GC gc) {
 	double max = 0.0;
 	double w;
@@ -3458,7 +3472,7 @@ static double get_widest_label_width_x(axis_t *a, Display *display, GC gc) {
 	}
 	return max;
 }
-
+#endif
 
 static double get_widest_label_width(axis_t *a, cairo_t *cr) {
   double max = 0.0;
