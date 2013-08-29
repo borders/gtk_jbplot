@@ -15,7 +15,7 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
-#define DRAW_WITH_XLIB 1
+#define DRAW_WITH_XLIB 0
 
 #if DRAW_WITH_XLIB
 	#include <X11/Xlib.h>
@@ -1786,7 +1786,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double he
 	}
 
 	if(priv->plot.plot_area.LR_margin_mode == MARGIN_AUTO || priv->get_ideal_lr) {
-		printf("here_1\n");
 		y_label_left_edge = MED_GAP;
 		y_label_right_edge = y_label_left_edge + 
 			get_text_height_x(priv->xdisp, gc, y_axis->axis_label);
@@ -1801,11 +1800,9 @@ static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double he
 		plot_area_left_edge = y_tic_labels_right_edge + MED_GAP;
 
 		if(l->position == LEGEND_POS_RIGHT) {
-			printf("here_3\n");
 			plot_area_right_edge = legend_left_edge - 10;
 		}
 		else {
-			printf("here_4\n");
 			plot_area_right_edge = width - 0.06 * width;
 		}
 
@@ -1813,7 +1810,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double he
 			get_text_width_x(priv->xdisp, gc, 
 			x_axis->major_tic_labels[x_axis->num_actual_major_tics-1]);
 		if(0.5*right_side_x_tic_label_width > (width - plot_area_right_edge)) {
-			printf("here_5\n");
 			plot_area_right_edge = width - right_side_x_tic_label_width;
 		}
 		priv->plot.plot_area.left_edge = plot_area_left_edge;
@@ -1825,14 +1821,11 @@ static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double he
 		return FALSE;
 	}
 	if(priv->plot.plot_area.LR_margin_mode != MARGIN_AUTO) {
-		printf("here_2\n");
 		if(priv->plot.plot_area.LR_margin_mode == MARGIN_PERCENT) {
-			printf("here_6\n");
 			plot_area_left_edge = priv->plot.plot_area.lmargin * width;
 			plot_area_right_edge = width - priv->plot.plot_area.rmargin * width;
 		}
 		else { // pixels
-			printf("here_7\n");
 			plot_area_left_edge = priv->plot.plot_area.lmargin;
 			plot_area_right_edge = width - priv->plot.plot_area.rmargin;
 		}
@@ -1891,9 +1884,6 @@ static gboolean draw_plot_x(GtkWidget *plot, Drawable d, double width, double he
 		(plot_area_right_edge-plot_area_left_edge),
 		(plot_area_bottom_edge-plot_area_top_edge)
 	);
-
-	printf("left_edge: %g\n", plot_area_left_edge);
-	printf("right_edge: %g\n", plot_area_right_edge);
 
 	// draw the y tic labels
 	XSetForeground(priv->xdisp, gc, BLACK);
