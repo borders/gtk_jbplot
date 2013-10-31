@@ -15,7 +15,7 @@
 #include <string.h>
 #include <cairo/cairo-svg.h>
 
-#define DRAW_WITH_XLIB 0
+#define DRAW_WITH_XLIB 1
 
 #if DRAW_WITH_XLIB
 	#include <X11/Xlib.h>
